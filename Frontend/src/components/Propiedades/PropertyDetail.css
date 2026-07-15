@@ -1,0 +1,171 @@
+.property-detail { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+/* Header */
+.detail-header {
+  display: flex; align-items: center; gap: 10px; padding: 16px 28px;
+  border-bottom: 1px solid var(--line-2); background: var(--surface); flex-shrink: 0;
+}
+.detail-back { flex-shrink: 0; }
+.detail-crumb-sep { color: var(--ink-3); font-size: 13px; flex-shrink: 0; }
+.detail-header h1 { font-size: 16px; font-weight: 800; letter-spacing: -.3px; margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* Hint bar */
+.detail-hint-bar {
+  display: flex; align-items: center; gap: 6px; padding: 8px 28px;
+  background: var(--mint-50); color: var(--green-700); font-size: 11.5px; font-weight: 600;
+  border-bottom: 1px solid var(--line-2); flex-shrink: 0;
+}
+
+/* Page tabs (Detalles / Fotos) */
+.detail-tabs { display: flex; gap: 4px; padding: 0 28px; background: var(--surface); border-bottom: 1px solid var(--line-2); flex-shrink: 0; }
+.detail-tab {
+  display: flex; align-items: center; gap: 6px; padding: 12px 4px; margin-right: 20px;
+  font-size: 13px; font-weight: 700; color: var(--ink-3); border-bottom: 2px solid transparent; transition: .12s;
+}
+.detail-tab:hover { color: var(--ink); }
+.detail-tab.active { color: var(--green-700); border-bottom-color: var(--green-700); }
+.detail-tab-count {
+  background: var(--surface-2); color: var(--ink-3); font-size: 10.5px; font-weight: 800;
+  padding: 1px 7px; border-radius: 999px;
+}
+.detail-tab.active .detail-tab-count { background: var(--mint-100); color: var(--green-700); }
+
+/* Layout */
+.detail-layout { flex: 1; overflow-y: auto; display: flex; gap: 24px; padding: 22px 28px 40px; align-items: flex-start; }
+.detail-main { flex: 1; min-width: 0; max-width: 760px; }
+.detail-aside { width: 260px; flex-shrink: 0; position: sticky; top: 0; }
+
+/* Cards — every block in Detalles is its own visually distinct panel */
+.detail-section {
+  margin-bottom: 18px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; box-shadow: var(--shadow-sm); padding: 18px 20px;
+}
+.detail-section h3 { font-size: 13px; font-weight: 800; color: var(--ink); letter-spacing: -.1px; margin: 0 0 14px; }
+.detail-section .editable-field-display,
+.detail-section textarea.editable-field-input { font-size: 13.5px; line-height: 1.6; color: var(--ink-2); display: block; }
+.detail-section > .editable-field-display,
+.detail-section > .editable-field-wrap > .editable-field-display { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; }
+.detail-section > .editable-field-wrap { background: transparent; }
+.detail-section > .editable-field-wrap > .editable-field-display { width: 100%; }
+.detail-section + .detail-section { margin-top: 0; }
+.detail-section-sub { font-size: 11.5px; font-weight: 600; color: var(--ink-3); margin: -8px 0 14px; }
+
+/* Summary card (Dirección / referencia / ubicación table) */
+.detail-summary-table { display: flex; flex-direction: column; }
+.detail-summary-row {
+  display: grid; grid-template-columns: 180px 1fr; gap: 16px; padding: 10px 0;
+  border-bottom: 1px solid var(--line-2); align-items: baseline;
+}
+.detail-summary-row:last-child { border-bottom: none; }
+.detail-summary-row .prop-info-label { font-size: 11px; }
+
+/* Grouped subsections (e.g. "Información general") */
+.detail-subgroup { margin-bottom: 16px; }
+.detail-subgroup:last-child { margin-bottom: 0; }
+.detail-subgroup h4 { font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .3px; margin: 0 0 8px; }
+.detail-subgroup .prop-info-grid { margin-bottom: 0; }
+
+/* Operation tabs (Venta / Alquiler / Alquiler temporario) */
+.op-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.op-tab {
+  font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 8px;
+  color: var(--ink-2); background: var(--surface-2); border: 1px solid transparent; transition: .12s;
+}
+.op-tab:hover { color: var(--ink); }
+.op-tab.active { background: var(--green-800); color: #fff; }
+.op-tab.disabled { color: var(--ink-3); }
+.op-tab-badge { display: inline-flex; align-items: center; gap: 5px; }
+.op-tab-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .5; }
+.op-tab.active .op-tab-dot { background: var(--mint-400); opacity: 1; }
+.op-disabled-note { font-size: 13px; color: var(--ink-3); font-style: italic; padding: 4px 0; }
+
+/* Tag chips (servicios / ambientes / adicionales) */
+.detail-chip-group { margin-bottom: 16px; }
+.detail-chip-group:last-child { margin-bottom: 0; }
+.detail-chip-group h4 { font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .3px; margin: 0 0 8px; }
+.detail-tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.detail-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--surface-2);
+  border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 10px 6px 8px;
+}
+.detail-tag svg { color: var(--green-600); flex-shrink: 0; }
+.detail-empty-note { font-size: 13px; color: var(--ink-3); font-style: italic; }
+
+/* Atributos personalizados table */
+.detail-attrs-table { border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; }
+.detail-attrs-row { display: grid; grid-template-columns: 1fr 1fr; }
+.detail-attrs-row:not(:last-child) { border-bottom: 1px solid var(--line-2); }
+.detail-attrs-row span { padding: 9px 14px; font-size: 13px; color: var(--ink-2); }
+.detail-attrs-row span:first-child { font-weight: 700; color: var(--ink); border-right: 1px solid var(--line-2); }
+.detail-attrs-head { background: var(--surface-2); }
+.detail-attrs-head span { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--ink-3); }
+
+/* Status bar (full-width colored strip under the summary card) */
+.detail-status-bar {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 800;
+  letter-spacing: .2px; margin-top: 14px;
+}
+.detail-status-bar.badge-disponible { background: var(--status-disponible-color); color: #fff; }
+.detail-status-bar.badge-reservada { background: var(--status-reservada-color); color: #fff; }
+.detail-status-bar.badge-vendida { background: var(--status-vendida-color); color: #fff; }
+.detail-status-bar.badge-en_tasacion { background: var(--status-en_tasacion-color); color: #fff; }
+.detail-status-bar.badge-no_disponible { background: var(--status-no_disponible-color); color: #fff; }
+
+/* Aside */
+.detail-aside-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.detail-aside-cover { width: 100%; padding-top: 62%; position: relative; background: var(--line-2); overflow: hidden; border-radius: 16px 16px 0 0; }
+.detail-aside-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.detail-aside-cover.empty { display: flex; align-items: center; justify-content: center; color: var(--ink-3); }
+.detail-aside-cover.empty::before { content: none; }
+.detail-aside-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.detail-aside-label { font-size: 10.5px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .3px; }
+.detail-aside-price { font-size: 19px; font-weight: 800; color: var(--green-700); letter-spacing: -.3px; }
+.detail-aside-facts { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line-2); }
+.detail-aside-fact { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.detail-aside-fact svg { color: var(--ink-3); flex-shrink: 0; }
+
+/* Status picker */
+.status-picker { position: relative; align-self: flex-start; }
+.status-picker-trigger { border: none; gap: 6px; }
+.status-picker-trigger:disabled { opacity: .7; cursor: wait; }
+.status-picker-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; min-width: 170px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: var(--shadow-card); padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  animation: pop .12s;
+}
+.status-picker-item {
+  display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 8px;
+  font-size: 12.5px; font-weight: 700; color: var(--ink-2); text-align: left; transition: background .1s;
+}
+.status-picker-item:hover { background: var(--surface-2); }
+.status-picker-item.active { color: var(--ink); }
+.status-picker-item .status-picker-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.status-picker-item svg:last-child { margin-left: auto; flex-shrink: 0; }
+.status-picker-item.badge-disponible { color: var(--status-disponible-color); }
+.status-picker-item.badge-reservada { color: var(--status-reservada-color); }
+.status-picker-item.badge-vendida { color: var(--status-vendida-color); }
+.status-picker-item.badge-en_tasacion { color: var(--status-en_tasacion-color); }
+.status-picker-item.badge-no_disponible { color: var(--status-no_disponible-color); }
+
+@media (max-width: 900px) {
+  .detail-layout { flex-direction: column-reverse; }
+  .detail-aside { width: 100%; position: static; }
+}
+
+@media (max-width: 640px) {
+  .detail-header { padding: 12px 16px; flex-wrap: wrap; }
+  .detail-back { order: 1; }
+  .detail-crumb-sep { display: none; }
+  .detail-header h1 { order: 3; flex-basis: 100%; white-space: normal; }
+  .detail-header-actions { order: 2; margin-left: auto; }
+  .detail-hint-bar { padding: 8px 16px; }
+  .detail-tabs { padding: 0 16px; }
+  .detail-layout { padding: 16px 16px 30px; gap: 16px; }
+}

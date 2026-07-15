@@ -1,0 +1,27 @@
+/* File record status colors */
+.badge-pendiente, .st-chip.on.pendiente { color: var(--status-reservada-color); background: var(--status-reservada-bg); }
+.badge-en_revision, .st-chip.on.en_revision { color: #2563eb; background: #eff6ff; }
+.badge-lista, .st-chip.on.lista { color: var(--status-disponible-color); background: var(--status-disponible-bg); }
+
+/* Cards */
+.file-card-body { padding: 14px 16px 16px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.file-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.file-card-counts { display: flex; gap: 14px; margin-top: auto; padding-top: 6px; }
+.file-card-counts span { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-2); font-weight: 600; }
+
+/* File type sections in detail modal */
+.file-type-section { margin-bottom: 18px; padding-top: 14px; border-top: 1px solid var(--line-2); }
+.file-type-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.file-type-head > span:first-child { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--ink); }
+.file-type-count { background: var(--mint-100); color: var(--green-700); font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; margin-left: 4px; }
+.file-type-empty { font-size: 12.5px; color: var(--ink-3); font-style: italic; }
+.file-type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.file-item { position: relative; border-radius: 10px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); aspect-ratio: 1; }
+.file-item img { width: 100%; height: 100%; object-fit: cover; }
+.file-item-generic { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px; color: var(--ink-2); text-align: center; }
+.file-item-generic span { font-size: 10px; font-weight: 600; word-break: break-all; line-height: 1.3; }
+.file-item-delete {
+  position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; background: rgba(10,28,20,.55); color: #fff;
+}
+.file-item-delete:hover { background: #d8504a; }

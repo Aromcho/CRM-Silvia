@@ -1,0 +1,23 @@
+.reportes { padding: 40px 32px; max-width: 900px; }
+
+.reportes-header { margin-bottom: 32px; }
+.reportes-header h1 { font-size: 22px; font-weight: 800; letter-spacing: -.4px; margin: 0 0 6px; }
+.reportes-header p { font-size: 13px; color: var(--ink-2); margin: 0; }
+
+.in-progress-banner {
+  background: linear-gradient(135deg, var(--mint-50) 0%, #eff6ff 100%);
+  border: 1.5px dashed var(--mint-200);
+  border-radius: 18px; padding: 48px 40px; text-align: center;
+}
+.ip-icon { width: 56px; height: 56px; border-radius: 16px; background: var(--mint-100); color: var(--green-700); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.ip-title { font-size: 20px; font-weight: 800; color: var(--ink); margin: 0 0 8px; }
+.ip-sub { font-size: 14px; color: var(--ink-2); margin: 0 0 24px; max-width: 420px; margin-left: auto; margin-right: auto; line-height: 1.5; }
+.ip-chips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.ip-chip { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+
+.preview-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 32px; }
+.preview-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; text-align: center; }
+.preview-stat-num { font-size: 24px; font-weight: 800; color: var(--green-700); }
+.preview-stat-label { font-size: 11.5px; color: var(--ink-3); font-weight: 600; margin-top: 2px; }
+
+@media (max-width: 640px) { .reportes { padding: 24px 16px; } .in-progress-banner { padding: 32px 20px; } }

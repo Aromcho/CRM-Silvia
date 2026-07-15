@@ -1,0 +1,138 @@
+:root {
+  /* Brand greens — mismo palette que la Agenda */
+  --green-900: #0d5237; --green-800: #11603f; --green-700: #15784f; --green-600: #1a8a5f;
+  --green-500: #1f9d6c; --mint-400: #4fb78a; --mint-200: #bfe6d4; --mint-100: #e7f4ee; --mint-50: #f1f8f4;
+  /* Ink */
+  --ink: #16241d; --ink-2: #5a6b62; --ink-3: #8a978f;
+  /* Surfaces */
+  --line: #e6ece8; --line-2: #eef2f0; --surface: #ffffff; --surface-2: #f8faf9;
+  /* Sidebar */
+  --sidebar-bg: #0f1f18; --sidebar-w: 220px;
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(16,40,30,.06);
+  --shadow: 0 6px 22px rgba(16,40,30,.10);
+  --shadow-card: 0 10px 34px rgba(10,35,26,.12);
+  --shadow-lg: 0 24px 70px rgba(8,30,22,.30);
+  /* Status colors */
+  --status-disponible-color: #15784f; --status-disponible-bg: #e7f4ee;
+  --status-reservada-color: #b8791b;  --status-reservada-bg: #fef3e2;
+  --status-vendida-color: #d8504a;    --status-vendida-bg: #fce9e8;
+  --status-en_tasacion-color: #7257c9; --status-en_tasacion-bg: #f0ecfd;
+  --status-no_disponible-color: #8a978f; --status-no_disponible-bg: #eef2f0;
+  /* Lead status */
+  --lead-nuevo-color: #2563eb; --lead-nuevo-bg: #eff6ff;
+  --lead-en_progreso-color: #b8791b; --lead-en_progreso-bg: #fef3e2;
+  --lead-contactado-color: #15784f; --lead-contactado-bg: #e7f4ee;
+  --lead-reservado-color: #7257c9; --lead-reservado-bg: #f0ecfd;
+  --lead-cerrado-color: #0e8a8a; --lead-cerrado-bg: #e6f7f7;
+  --lead-descartado-color: #8a978f; --lead-descartado-bg: #eef2f0;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, select, textarea { font-family: inherit; }
+::selection { background: var(--mint-200); }
+#root, #__next { height: 100%; }
+
+/* Scrollbar */
+* { scrollbar-width: thin; scrollbar-color: var(--mint-200) transparent; }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background-color: var(--mint-200); border-radius: 999px; }
+*::-webkit-scrollbar-thumb:hover { background-color: var(--mint-400); }
+
+/* Animations */
+@keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98) } to { opacity: 1; transform: none } }
+@keyframes drift { from { transform: scale(1.04) translate(0,0) } to { transform: scale(1.09) translate(-1%,1%) } }
+@keyframes drift-acceso { from { transform: scale(1.06) } to { transform: scale(1.12) translate(-1.4%,1.2%) } }
+@keyframes slide-in { from { opacity: 0; transform: translateX(-8px) } to { opacity: 1; transform: none } }
+@keyframes avatar-pop { 0% { opacity:0;transform:scale(.6) } 60% { opacity:1;transform:scale(1.08) } 100% { opacity:1;transform:scale(1) } }
+
+/* Shared atoms */
+.avatar { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; color: #fff; font-weight: 700; letter-spacing: .2px; flex-shrink: 0; box-shadow: 0 0 0 2px #fff; }
+.avatar-photo { object-fit: cover; background: var(--line-2); }
+.avatar-pop { animation: avatar-pop .35s cubic-bezier(.22,1.4,.36,1); }
+.status-badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; letter-spacing: .1px; white-space: nowrap; }
+.status-badge.lg { font-size: 12px; padding: 5px 12px; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13px; padding: 9px 15px; border-radius: 10px; transition: .12s; cursor: pointer; }
+.btn.sm { padding: 6px 11px; font-size: 12px; }
+.btn.xs { padding: 4px 9px; font-size: 11px; border-radius: 7px; }
+.btn.primary { background: var(--green-700); color: #fff; }
+.btn.primary:hover { background: var(--green-800); }
+.btn.ghost { background: #fff; border: 1px solid var(--line); color: var(--ink); }
+.btn.ghost:hover { border-color: var(--green-500); color: var(--green-700); }
+.btn.danger { background: #d8504a; color: #fff; }
+.btn.danger:hover { background: #c0392f; }
+
+/* Form fields */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.field input, .field select, .field textarea {
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 13px;
+  font-size: 13.5px; font-weight: 500; font-family: inherit;
+  color: var(--ink); background: var(--mint-50); outline: none; transition: .14s;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--green-500); background: #fff; box-shadow: 0 0 0 3px var(--mint-100);
+}
+.field input::placeholder, .field textarea::placeholder { color: var(--ink-3); }
+
+/* Search */
+.search { display: flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; min-width: 200px; }
+.search input { border: none; background: transparent; outline: none; font-size: 13px; color: var(--ink); width: 100%; }
+.search input::placeholder { color: var(--ink-3); }
+.search svg { color: var(--ink-3); flex-shrink: 0; }
+.search-clear { color: var(--ink-3); display: flex; align-items: center; }
+.search-clear:hover { color: var(--ink); }
+
+/* Editable field (click-to-edit) */
+.editable-field-wrap { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; }
+.editable-field-display { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border-radius: 6px; padding: 2px 6px; margin: -2px -6px; transition: .12s; }
+.editable-field-display:hover { background: var(--mint-100); }
+.editable-field-display.empty { color: var(--ink-3); font-style: italic; }
+.editable-field-icon { opacity: 0; color: var(--ink-3); transition: opacity .12s; flex-shrink: 0; }
+.editable-field-display:hover .editable-field-icon { opacity: 1; }
+.editable-field-wrap.editing { position: relative; }
+.editable-field-input {
+  border: 1px solid var(--green-500); border-radius: 8px; padding: 6px 9px;
+  font-size: inherit; font-weight: inherit; font-family: inherit; color: var(--ink);
+  background: #fff; outline: none; box-shadow: 0 0 0 3px var(--mint-100); width: 100%;
+}
+.editable-field-hint { font-size: 10.5px; font-weight: 600; color: var(--ink-3); animation: fade .15s; }
+.editable-field-saving { display: inline-flex; align-items: center; }
+.editable-field-spinner {
+  width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--mint-200);
+  border-top-color: var(--green-600); animation: spin .6s linear infinite;
+}
+.editable-field-saved {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700;
+  color: var(--green-700); animation: fade-out-saved 1.4s ease forwards;
+}
+.editable-field-error { font-size: 10.5px; font-weight: 600; color: #d8504a; animation: fade .15s; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fade-out-saved { 0% { opacity: 0; transform: translateY(-2px); } 15% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Property / Lead status badge colors */
+.badge-disponible { color: var(--status-disponible-color); background: var(--status-disponible-bg); }
+.badge-reservada { color: var(--status-reservada-color); background: var(--status-reservada-bg); }
+.badge-vendida { color: var(--status-vendida-color); background: var(--status-vendida-bg); }
+.badge-en_tasacion { color: var(--status-en_tasacion-color); background: var(--status-en_tasacion-bg); }
+.badge-no_disponible { color: var(--status-no_disponible-color); background: var(--status-no_disponible-bg); }
+.badge-nuevo { color: var(--lead-nuevo-color); background: var(--lead-nuevo-bg); }
+.badge-en_progreso { color: var(--lead-en_progreso-color); background: var(--lead-en_progreso-bg); }
+.badge-contactado { color: var(--lead-contactado-color); background: var(--lead-contactado-bg); }
+.badge-reservado { color: var(--lead-reservado-color); background: var(--lead-reservado-bg); }
+.badge-cerrado { color: var(--lead-cerrado-color); background: var(--lead-cerrado-bg); }
+.badge-descartado { color: var(--lead-descartado-color); background: var(--lead-descartado-bg); }

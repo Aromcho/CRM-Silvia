@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+Frontend/.next/
+
+# Property/file images and uploads (served from disk, not meant for git)
+Backend/uploads/
+
+# Env files (contienen credenciales reales: TOKKO_TOKEN, SMTP_PASS, etc.)
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+*.log

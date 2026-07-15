@@ -1,0 +1,143 @@
+/* Tab bar */
+.rental-tabbar {
+  display: flex; gap: 6px; flex-wrap: wrap; padding: 14px 28px 0;
+  background: var(--surface); border-bottom: 1px solid var(--line-2); flex-shrink: 0;
+}
+.rental-tab {
+  padding: 9px 16px; border: none; background: transparent; cursor: pointer;
+  font-size: 12.5px; font-weight: 700; color: var(--ink-3);
+  border-bottom: 2.5px solid transparent; margin-bottom: -1px; transition: .12s;
+}
+.rental-tab:hover { color: var(--ink); }
+.rental-tab.active { color: var(--green-700); border-bottom-color: var(--green-500); }
+
+.rental-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+
+@media (max-width: 640px) {
+  .rental-tabbar { padding: 12px 16px 0; }
+}
+
+/* Seasonal rate cards */
+.season-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.season-card { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; }
+.season-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.season-card-title { font-size: 12px; font-weight: 800; color: var(--ink); }
+.season-card-currency { font-size: 10px; font-weight: 700; color: var(--ink-3); background: var(--surface); border-radius: 6px; padding: 2px 6px; }
+.season-card-stats { display: flex; flex-direction: column; gap: 8px; }
+.season-card-stats.single { gap: 0; }
+.season-stat { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.season-stat-label { font-size: 11px; color: var(--ink-3); font-weight: 600; }
+.season-stat-value { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+
+/* Ficha de propiedades (fact cards) */
+.ficha-locality-group { margin-bottom: 24px; }
+.ficha-locality-title { font-size: 13px; font-weight: 800; color: var(--green-700); text-transform: uppercase; letter-spacing: .4px; margin: 0 0 12px; }
+.ficha-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.fact-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px;
+  cursor: pointer; transition: box-shadow .15s, transform .15s;
+}
+.fact-card:hover { box-shadow: var(--shadow-card); transform: translateY(-2px); }
+.fact-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.fact-card-title { font-size: 13.5px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+.fact-card-capacity { font-size: 11px; font-weight: 700; color: var(--green-700); background: var(--mint-100); border-radius: 999px; padding: 2px 9px; white-space: nowrap; flex-shrink: 0; }
+.fact-card-address { font-size: 12px; color: var(--ink-3); font-weight: 500; display: flex; align-items: center; gap: 4px; margin-bottom: 10px; }
+.fact-card-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.fact-card-stats span { font-size: 11.5px; color: var(--ink-2); font-weight: 600; }
+.fact-card-amenities { display: flex; gap: 6px; flex-wrap: wrap; }
+.fact-amenity { font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+.fact-amenity.yes { background: var(--status-disponible-bg); color: var(--status-disponible-color); }
+.fact-amenity.no { background: var(--surface-2); color: var(--ink-3); }
+
+.rental-toggles { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* Calendar */
+.rental-calendar { max-width: 320px; margin-bottom: 16px; }
+.rental-calendar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.rental-calendar-head span { font-size: 12.5px; font-weight: 700; color: var(--ink); text-transform: capitalize; }
+.rental-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.rental-calendar-weekday { text-align: center; font-size: 10px; font-weight: 700; color: var(--ink-3); padding-bottom: 4px; }
+.rental-calendar-cell {
+  aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; border-radius: 6px; color: var(--ink-2);
+}
+.rental-calendar-cell.free { background: var(--mint-100); color: var(--green-700); }
+.rental-calendar-cell.clickable { cursor: pointer; }
+.rental-calendar-cell.clickable:hover { outline: 2px solid var(--green-500); outline-offset: -2px; }
+.rental-calendar-cell.selected { background: var(--green-500); color: #fff; }
+.rental-calendar-cell.booked { background: var(--status-vendida-bg); color: var(--status-vendida-color); }
+.rental-calendar-cell.empty { visibility: hidden; }
+.rental-calendar-legend { display: flex; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
+.rental-calendar-legend span { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--ink-2); font-weight: 600; }
+.rental-calendar-legend .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.rental-calendar-legend .dot.free { background: var(--green-500); opacity: .35; }
+.rental-calendar-legend .dot.selected { background: var(--green-500); }
+.rental-calendar-legend .dot.booked { background: var(--status-vendida-color); }
+
+/* Reserva: calendario y formulario lado a lado */
+.rental-avail-grid { display: grid; grid-template-columns: minmax(260px, 320px) 1fr; gap: 24px; align-items: start; margin-bottom: 20px; }
+.rental-avail-calendar { position: sticky; top: 0; }
+@media (max-width: 760px) {
+  .rental-avail-grid { grid-template-columns: 1fr; }
+  .rental-avail-calendar { position: static; }
+}
+
+/* Wider modal with two-column layout */
+.prop-modal.rental-modal { max-width: 1040px; }
+.rental-modal-body { padding: 0; }
+.rental-modal-grid { display: grid; grid-template-columns: 300px 1fr; gap: 0; align-items: start; }
+
+.rental-modal-side {
+  padding: 20px 20px 24px; border-right: 1px solid var(--line-2);
+  display: flex; flex-direction: column; gap: 16px;
+}
+.rental-hero-wrap { display: flex; flex-direction: column; gap: 8px; }
+.rental-hero-img { width: 100%; aspect-ratio: 4/3; border-radius: 12px; overflow: hidden; background: var(--line-2); }
+.rental-hero-img img { width: 100%; height: 100%; object-fit: cover; }
+.rental-hero-thumbs { display: flex; gap: 6px; overflow-x: auto; }
+.rental-thumb { width: 48px; height: 40px; object-fit: cover; border-radius: 7px; cursor: pointer; flex-shrink: 0; opacity: .55; transition: .12s; border: 2px solid transparent; }
+.rental-thumb:hover { opacity: .85; }
+.rental-thumb.active { opacity: 1; border-color: var(--green-500); }
+
+.rental-facts { display: flex; flex-direction: column; gap: 10px; }
+.rental-fact { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; }
+.rental-fact-label { color: var(--ink-3); font-weight: 600; flex-shrink: 0; }
+.rental-fact-value { color: var(--ink); font-weight: 700; text-align: right; }
+.rental-fact-select {
+  border: 1px solid var(--line); border-radius: 7px; padding: 3px 6px; font-size: 12px; font-weight: 700;
+  color: var(--ink); background: var(--surface); outline: none; cursor: pointer;
+}
+
+.rental-modal-main { padding: 20px 24px 24px; min-width: 0; }
+
+.rental-ops-bar {
+  display: flex; gap: 24px; flex-wrap: wrap; background: var(--surface-2); border-radius: 12px;
+  padding: 12px 16px; margin-bottom: 16px;
+}
+.rental-ops-item { display: flex; flex-direction: column; gap: 3px; }
+.rental-ops-label { font-size: 10.5px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .3px; }
+
+.modal-tabbar { display: flex; gap: 4px; border-bottom: 1px solid var(--line-2); margin-bottom: 16px; }
+.modal-tab {
+  padding: 8px 4px; margin-right: 18px; border: none; background: transparent; cursor: pointer;
+  font-size: 12.5px; font-weight: 700; color: var(--ink-3);
+  border-bottom: 2.5px solid transparent; margin-bottom: -1px; transition: .12s;
+}
+.modal-tab:hover { color: var(--ink); }
+.modal-tab.active { color: var(--green-700); border-bottom-color: var(--green-500); }
+
+@media (max-width: 760px) {
+  .rental-modal-grid { grid-template-columns: 1fr; }
+  .rental-modal-side { border-right: none; border-bottom: 1px solid var(--line-2); }
+}
+
+/* Bookings */
+.booking-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.booking-item {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--surface-2); border-radius: 10px; padding: 9px 12px; font-size: 12.5px; color: var(--ink-2); font-weight: 600;
+}
+.booking-item .btn { margin-left: auto; }
+.booking-form { display: flex; flex-direction: column; gap: 10px; background: var(--surface-2); border-radius: 12px; padding: 16px; }
+.booking-form-title { font-size: 12.5px; font-weight: 800; color: var(--ink); }
+.booking-form-hint { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--green-700); background: var(--mint-100); border-radius: 8px; padding: 7px 10px; }

@@ -1,0 +1,14 @@
+.prop-page { height: 100vh; overflow: hidden; background: var(--surface-2); }
+
+.prop-page-status {
+  height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; text-align: center; padding: 20px; background: #0f1f18;
+}
+.prop-page-brand {
+  font-size: 26px; font-weight: 800; letter-spacing: -.5px; color: #4fb78a;
+  font-family: 'Plus Jakarta Sans', sans-serif; margin-bottom: 6px;
+}
+.prop-page-status-text { color: #7fa695; font-size: 13px; font-weight: 600; }
+.prop-page-status h2 { color: #fff; font-size: 18px; margin: 4px 0 0; }
+.prop-page-status p { color: #7fa695; font-size: 13px; margin: 0 0 6px; max-width: 360px; }
+.prop-page-status .btn { margin-top: 4px; }
