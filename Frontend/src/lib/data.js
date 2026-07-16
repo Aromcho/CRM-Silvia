@@ -25,7 +25,7 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 
 
 export function photoSrc(photo) {
   if (!photo) return null;
-  if (photo.local_image) return `${API_BASE}${photo.local_image}`;
+  if (photo.local_image) return photo.local_image.startsWith('http') ? photo.local_image : `${API_BASE}${photo.local_image}`;
   if (photo.image_url) return photo.image_url;
   if (photo.image) return photo.image;
   return null;

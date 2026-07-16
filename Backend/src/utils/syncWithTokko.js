@@ -36,7 +36,8 @@ function safeFilename(str) {
 }
 
 function localUrl(propertyId, filename) {
-  return `/uploads/properties/${propertyId}/${filename}`;
+  const base = (process.env.BACKEND_PUBLIC_URL || '').replace(/\/$/, '');
+  return `${base}/uploads/properties/${propertyId}/${filename}`;
 }
 
 async function processPhotos(photos, propertyId) {

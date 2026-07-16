@@ -36,7 +36,8 @@ export async function addPhotos(req, res, next) {
 
     const startOrder = property.photos.length;
     const entries = (req.files || []).map((file, i) => {
-      const url = `/uploads/properties/${property.id}/${file.filename}`;
+      const base = (process.env.BACKEND_PUBLIC_URL || '').replace(/\/$/, '');
+      const url = `${base}/uploads/properties/${property.id}/${file.filename}`;
       return {
         description: '', is_blueprint: false, is_front_cover: false,
         order: startOrder + i,
