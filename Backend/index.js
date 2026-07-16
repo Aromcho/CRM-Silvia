@@ -5,11 +5,9 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import cron from 'node-cron';
 import connectDB from './src/utils/db.js';
 import router from './src/routes/index.router.js';
 import errorHandler from './src/middlewares/errorHandler.mid.js';
-import { syncWithTokko } from './src/utils/syncWithTokko.js';
 
 dotenv.config();
 
@@ -46,12 +44,6 @@ app.use(errorHandler);
 async function start() {
   await connectDB();
   app.listen(PORT, () => console.log(`CRM Backend corriendo en puerto ${PORT}`));
-
-  // Sync Tokko every 6 hours
-  cron.schedule('0 */6 * * *', () => {
-    console.log('Sincronización programada con Tokko...');
-    syncWithTokko().catch(console.error);
-  });
 }
 
 start().catch((err) => {
