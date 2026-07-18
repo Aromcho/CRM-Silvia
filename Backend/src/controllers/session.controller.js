@@ -63,7 +63,8 @@ export async function register(req, res, next) {
 
     const hashed = await createHash(password);
     const user = await User.create({ email, password: hashed, name, role, phoneNumber });
-    return res.status(201).json(tokenPayload(user));
+    const { password: _pw, ...safeUser } = user.toObject();
+    return res.status(201).json(safeUser);
   } catch (error) {
     return next(error);
   }

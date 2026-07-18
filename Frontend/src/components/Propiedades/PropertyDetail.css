@@ -1,4 +1,4 @@
-.property-detail { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.property-detail { display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
 
 /* Header */
 .detail-header {
@@ -17,6 +17,9 @@
   border-bottom: 1px solid var(--line-2); flex-shrink: 0;
 }
 
+/* Pinned Dirección + aside — always visible above the tabs, regardless of active tab */
+.detail-pinned { padding: 20px 28px 0; background: var(--surface); flex-shrink: 0; }
+
 /* Page tabs (Detalles / Fotos) */
 .detail-tabs { display: flex; gap: 4px; padding: 0 28px; background: var(--surface); border-bottom: 1px solid var(--line-2); flex-shrink: 0; }
 .detail-tab {
@@ -32,9 +35,13 @@
 .detail-tab.active .detail-tab-count { background: var(--mint-100); color: var(--green-700); }
 
 /* Layout */
-.detail-layout { flex: 1; overflow-y: auto; display: flex; gap: 24px; padding: 22px 28px 40px; align-items: flex-start; }
-.detail-main { flex: 1; min-width: 0; max-width: 760px; }
-.detail-aside { width: 260px; flex-shrink: 0; position: sticky; top: 0; }
+.detail-layout { flex: 1; display: flex; gap: 24px; padding: 22px 28px 40px; align-items: flex-start; }
+.detail-main { flex: 1; min-width: 0; width: 100%; }
+
+/* Dirección section split into two columns: summary table + status/cover aside */
+.detail-section-split { display: flex; gap: 20px; align-items: flex-start; }
+.detail-section-main { flex: 1; min-width: 0; }
+.detail-section-aside { width: 240px; flex-shrink: 0; }
 
 /* Cards — every block in Detalles is its own visually distinct panel */
 .detail-section {
@@ -124,39 +131,61 @@
 .detail-aside-cover.empty { display: flex; align-items: center; justify-content: center; color: var(--ink-3); }
 .detail-aside-cover.empty::before { content: none; }
 .detail-aside-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.detail-aside-label { font-size: 10.5px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .3px; }
 .detail-aside-price { font-size: 19px; font-weight: 800; color: var(--green-700); letter-spacing: -.3px; }
 .detail-aside-facts { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line-2); }
 .detail-aside-fact { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
 .detail-aside-fact svg { color: var(--ink-3); flex-shrink: 0; }
 
-/* Status picker */
-.status-picker { position: relative; align-self: flex-start; }
-.status-picker-trigger { border: none; gap: 6px; }
-.status-picker-trigger:disabled { opacity: .7; cursor: wait; }
-.status-picker-menu {
-  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; min-width: 170px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-  box-shadow: var(--shadow-card); padding: 6px; display: flex; flex-direction: column; gap: 2px;
-  animation: pop .12s;
+/* Difusión (MercadoLibre / ZonaProp manual tracker) */
+.difusion-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.difusion-card {
+  border: 1px solid var(--line); border-radius: 14px; padding: 16px;
+  border-top: 3px solid var(--difusion-accent, var(--green-600));
 }
-.status-picker-item {
-  display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 8px;
-  font-size: 12.5px; font-weight: 700; color: var(--ink-2); text-align: left; transition: background .1s;
+.difusion-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.difusion-card-title { font-size: 14px; font-weight: 800; color: var(--ink); }
+
+.difusion-toggle {
+  position: relative; width: 40px; height: 22px; border-radius: 999px; flex-shrink: 0;
+  background: var(--line-2); border: 1px solid var(--line); transition: background .15s, border-color .15s;
 }
-.status-picker-item:hover { background: var(--surface-2); }
-.status-picker-item.active { color: var(--ink); }
-.status-picker-item .status-picker-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-.status-picker-item svg:last-child { margin-left: auto; flex-shrink: 0; }
-.status-picker-item.badge-disponible { color: var(--status-disponible-color); }
-.status-picker-item.badge-reservada { color: var(--status-reservada-color); }
-.status-picker-item.badge-vendida { color: var(--status-vendida-color); }
-.status-picker-item.badge-en_tasacion { color: var(--status-en_tasacion-color); }
-.status-picker-item.badge-no_disponible { color: var(--status-no_disponible-color); }
+.difusion-toggle:disabled { opacity: .6; cursor: wait; }
+.difusion-toggle-knob {
+  position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(16, 40, 30, .25); transition: transform .15s;
+}
+.difusion-toggle.on { background: var(--green-600); border-color: var(--green-600); }
+.difusion-toggle.on .difusion-toggle-knob { transform: translateX(18px); }
+
+.difusion-card-status { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--ink-3); margin-bottom: 14px; }
+.difusion-card-status.on { color: var(--status-disponible-color); }
+.difusion-status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+.difusion-card-field label { display: block; font-size: 10.5px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px; }
+.difusion-url-row { display: flex; align-items: center; gap: 6px; }
+.difusion-url-input {
+  flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+  font-size: 12.5px; font-family: inherit; color: var(--ink); background: var(--surface-2); outline: none;
+}
+.difusion-url-input:focus { border-color: var(--green-500); background: var(--surface); }
+.difusion-card-updated { font-size: 11px; color: var(--ink-3); margin-top: 10px; }
+
+/* Copyable fact (ID) — looks like the others but is a button with copy affordance */
+button.detail-aside-fact-copy {
+  width: 100%; background: var(--surface-2); border: 1px solid transparent; border-radius: 8px;
+  padding: 6px 8px; margin: -6px -8px; font: inherit; text-align: left; cursor: pointer; transition: .12s;
+}
+button.detail-aside-fact-copy span { flex: 1; }
+button.detail-aside-fact-copy .detail-aside-fact-copy-icon { color: var(--ink-3); opacity: .55; transition: opacity .12s; }
+button.detail-aside-fact-copy:hover { background: var(--mint-100); border-color: var(--mint-200); color: var(--green-800); }
+button.detail-aside-fact-copy:hover svg { color: var(--green-700); }
+button.detail-aside-fact-copy:hover .detail-aside-fact-copy-icon { opacity: 1; }
+button.detail-aside-fact-copy.copied { background: var(--status-disponible-bg); color: var(--status-disponible-color); }
+button.detail-aside-fact-copy.copied svg { color: var(--status-disponible-color); }
 
 @media (max-width: 900px) {
-  .detail-layout { flex-direction: column-reverse; }
-  .detail-aside { width: 100%; position: static; }
+  .detail-section-split { flex-direction: column-reverse; }
+  .detail-section-aside { width: 100%; }
 }
 
 @media (max-width: 640px) {

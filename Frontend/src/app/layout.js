@@ -3,6 +3,7 @@ import './globals.css';
 export const metadata = {
   title: 'CRM Inmobiliaria',
   description: 'CRM para gestión de propiedades, leads y equipo.',
+  icons: { icon: '/logo.webp', shortcut: '/logo.webp', apple: '/logo.webp' },
 };
 
 export default function RootLayout({ children }) {

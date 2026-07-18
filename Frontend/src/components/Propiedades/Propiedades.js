@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import Icons from '../Icons/Icons';
-import { getProperties, getPropertyById, updatePropertyStatus } from '@/services/api';
+import { getProperties, getPropertyById, updatePropertyStatus, createProperty } from '@/services/api';
 import './Propiedades.css';
 
 const e = React.createElement;
@@ -20,6 +20,8 @@ const STATUSES = [
 
 const OPERATION_TYPES = ['Todas', 'Venta', 'Alquiler'];
 const PROPERTY_TYPES = ['Todos', 'Casa', 'Departamento', 'PH', 'Terreno', 'Local', 'Oficina'];
+const CREATE_OPERATION_TYPES = ['Venta', 'Alquiler'];
+const CREATE_PROPERTY_TYPES = ['Casa', 'Departamento', 'PH', 'Terreno', 'Local', 'Oficina'];
 const STATUS_LABELS = { disponible: 'Disponible', reservada: 'Reservada', vendida: 'Vendida', en_tasacion: 'En tasación', no_disponible: 'No disponible' };
 
 function formatPrice(ops) {
@@ -155,6 +157,101 @@ function PropModal({ property, onClose, session }) {
   );
 }
 
+function NewPropertyModal({ onClose, onCreated }) {
+  const [form, setForm] = useState({
+    address: '', publication_title: '', type_name: '', operation_type: '',
+    currency: 'USD', price: '', location_name: '', room_amount: '', bathroom_amount: '', total_surface: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const set = (key) => (ev) => setForm((f) => ({ ...f, [key]: ev.target.value }));
+
+  async function handleSubmit(ev) {
+    ev.preventDefault();
+    if (!form.address.trim()) { setError('La dirección es obligatoria.'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const created = await createProperty(form);
+      onCreated(created);
+    } catch (err) {
+      setError(err.message || 'No se pudo crear la propiedad.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return e('div', { className: 'prop-modal-overlay', onClick: onClose },
+    e('form', { className: 'prop-modal', onClick: (ev) => ev.stopPropagation(), onSubmit: handleSubmit },
+      e('div', { className: 'prop-modal-head' },
+        e('h2', null, 'Agregar propiedad'),
+        e('button', { type: 'button', className: 'btn ghost sm', onClick: onClose }, e(Icons.Close, { width: 14, height: 14 })),
+      ),
+      e('div', { className: 'prop-modal-body' },
+        e('p', { className: 'new-prop-hint' }, 'Cargá lo básico ahora — el resto de los datos (fotos, superficies, descripción, etc.) se completan después desde la ficha completa.'),
+
+        e('div', { className: 'new-prop-grid' },
+          e('div', { className: 'field', style: { gridColumn: '1 / -1' } },
+            e('label', null, 'Dirección *'),
+            e('input', { type: 'text', value: form.address, onChange: set('address'), placeholder: 'Calle y número', autoFocus: true }),
+          ),
+          e('div', { className: 'field', style: { gridColumn: '1 / -1' } },
+            e('label', null, 'Título de publicación'),
+            e('input', { type: 'text', value: form.publication_title, onChange: set('publication_title'), placeholder: 'Opcional' }),
+          ),
+          e('div', { className: 'field' },
+            e('label', null, 'Tipo'),
+            e('select', { value: form.type_name, onChange: set('type_name') },
+              e('option', { value: '' }, 'Sin especificar'),
+              CREATE_PROPERTY_TYPES.map((t) => e('option', { key: t, value: t }, t)),
+            ),
+          ),
+          e('div', { className: 'field' },
+            e('label', null, 'Barrio / zona'),
+            e('input', { type: 'text', value: form.location_name, onChange: set('location_name') }),
+          ),
+          e('div', { className: 'field' },
+            e('label', null, 'Operación'),
+            e('select', { value: form.operation_type, onChange: set('operation_type') },
+              e('option', { value: '' }, 'Sin especificar'),
+              CREATE_OPERATION_TYPES.map((t) => e('option', { key: t, value: t }, t)),
+            ),
+          ),
+          e('div', { className: 'field' },
+            e('label', null, 'Precio'),
+            e('div', { style: { display: 'flex', gap: 6 } },
+              e('select', { value: form.currency, onChange: set('currency'), style: { width: 80 } },
+                e('option', { value: 'USD' }, 'USD'), e('option', { value: 'ARS' }, 'ARS'),
+              ),
+              e('input', { type: 'number', value: form.price, onChange: set('price'), placeholder: '0' }),
+            ),
+          ),
+          e('div', { className: 'field' },
+            e('label', null, 'Habitaciones'),
+            e('input', { type: 'number', value: form.room_amount, onChange: set('room_amount') }),
+          ),
+          e('div', { className: 'field' },
+            e('label', null, 'Baños'),
+            e('input', { type: 'number', value: form.bathroom_amount, onChange: set('bathroom_amount') }),
+          ),
+          e('div', { className: 'field' },
+            e('label', null, 'Superficie total (m²)'),
+            e('input', { type: 'text', value: form.total_surface, onChange: set('total_surface') }),
+          ),
+        ),
+
+        error && e('p', { className: 'error-msg' }, error),
+
+        e('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 } },
+          e('button', { type: 'button', className: 'btn ghost sm', onClick: onClose }, 'Cancelar'),
+          e('button', { type: 'submit', className: 'btn primary sm', disabled: saving }, saving ? 'Creando…' : 'Crear propiedad'),
+        ),
+      ),
+    ),
+  );
+}
+
 const LIMIT = 20;
 
 export default function Propiedades({ session }) {
@@ -167,6 +264,7 @@ export default function Propiedades({ session }) {
   const [opFilter, setOpFilter] = useState('Todas');
   const [typeFilter, setTypeFilter] = useState('Todos');
   const [selected, setSelected] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
   const searchRef = useRef(null);
 
   const fetchProperties = useCallback(async (off = 0) => {
@@ -204,6 +302,12 @@ export default function Propiedades({ session }) {
     }
   }
 
+  function handleCreated(property) {
+    setShowCreate(false);
+    fetchProperties(0);
+    if (property?.id && typeof window !== 'undefined') window.open(`/propiedades/${property.id}`, '_blank', 'noopener');
+  }
+
   const pages = Math.ceil(total / LIMIT);
   const currentPage = Math.floor(offset / LIMIT) + 1;
 
@@ -229,6 +333,7 @@ export default function Propiedades({ session }) {
           search ? e('button', { className: 'search-clear', onClick: () => setSearch('') }, e(Icons.Close, { width: 13, height: 13 })) : null,
         ),
         e('button', { className: 'btn primary sm', onClick: () => fetchProperties(0) }, e(Icons.Search, { width: 13, height: 13 }), 'Buscar'),
+        e('button', { className: 'btn primary sm', onClick: () => setShowCreate(true) }, e(Icons.Plus, { width: 13, height: 13 }), 'Agregar propiedad'),
       ),
     ),
 
@@ -276,5 +381,6 @@ export default function Propiedades({ session }) {
 
     // Modal
     selected && e(PropModal, { property: selected, onClose: () => setSelected(null), session }),
+    showCreate && e(NewPropertyModal, { onClose: () => setShowCreate(false), onCreated: handleCreated }),
   );
 }

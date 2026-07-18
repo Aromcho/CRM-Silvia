@@ -117,7 +117,7 @@ export async function getProperties(req, res, next) {
     const result = await PropertyManager.paginate({
       filter,
       opts: { sort: sortObj, limit: parseInt(limit, 10), offset: parseInt(offset, 10) },
-      projection: 'id address suite_amount bathroom_amount operations location photos status type roofed_surface surface total_surface parking_lot_amount is_starred_on_web reference_code created_at guests_amount temporaryRental',
+      projection: 'id address suite_amount room_amount bathroom_amount operations location photos status type roofed_surface surface total_surface parking_lot_amount is_starred_on_web reference_code created_at guests_amount temporaryRental',
       lean: true,
     });
 
@@ -132,6 +132,41 @@ export async function getPropertyById(req, res, next) {
     const property = await Property.findOne({ id: parseInt(req.params.id, 10) }).lean();
     if (!property) return res.status(404).json({ message: 'Propiedad no encontrada' });
     res.json(property);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function createProperty(req, res, next) {
+  try {
+    const { address, publication_title, type_name, operation_type, currency, price, location_name, room_amount, bathroom_amount, total_surface } = req.body;
+    if (!address) return res.status(400).json({ message: 'La dirección es obligatoria' });
+
+    const property = await Property.create({
+      id: Date.now(),
+      is_manual: true,
+      status: 'disponible',
+      address,
+      publication_title: publication_title || '',
+      type: type_name ? { name: type_name } : undefined,
+      location: location_name ? { name: location_name } : undefined,
+      operations: operation_type ? [{ operation_type, prices: price ? [{ currency: currency || 'USD', price: Number(price) }] : [] }] : [],
+      room_amount: room_amount ? Number(room_amount) : undefined,
+      bathroom_amount: bathroom_amount ? Number(bathroom_amount) : undefined,
+      total_surface: total_surface || undefined,
+      lastEditedBy: req.user.id,
+      lastEditedAt: new Date(),
+    });
+
+    await Activity.create({
+      type: 'property_created',
+      description: `${req.user.name} agregó manualmente la propiedad "${property.publication_title || property.address}"`,
+      userId: req.user.id, userName: req.user.name, userEmail: req.user.email,
+      entityId: String(property.id), entityType: 'property',
+      meta: { propertyId: property.id },
+    });
+
+    res.status(201).json(property);
   } catch (error) {
     next(error);
   }
@@ -184,6 +219,38 @@ export async function updatePropertyStatus(req, res, next) {
       userId: req.user.id, userName: req.user.name, userEmail: req.user.email,
       entityId: String(property.id), entityType: 'property',
       meta: { propertyId: property.id, newStatus: status },
+    });
+
+    res.json(property);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updatePropertyDifusion(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { platform, published, url } = req.body;
+    if (!['mercadolibre', 'zonaprop'].includes(platform)) return res.status(400).json({ message: 'Plataforma inválida' });
+
+    const update = {
+      [`difusion.${platform}.published`]: !!published,
+      [`difusion.${platform}.url`]: url || '',
+      [`difusion.${platform}.updated_at`]: new Date(),
+      lastEditedBy: req.user.id,
+      lastEditedAt: new Date(),
+    };
+
+    const property = await Property.findOneAndUpdate({ id: parseInt(id, 10) }, { $set: update }, { new: true });
+    if (!property) return res.status(404).json({ message: 'Propiedad no encontrada' });
+
+    const platformLabel = platform === 'mercadolibre' ? 'MercadoLibre' : 'ZonaProp';
+    await Activity.create({
+      type: 'property_updated',
+      description: `${req.user.name} actualizó la difusión en ${platformLabel} de "${property.publication_title || property.address}"`,
+      userId: req.user.id, userName: req.user.name, userEmail: req.user.email,
+      entityId: String(property.id), entityType: 'property',
+      meta: { propertyId: property.id, platform, published: !!published },
     });
 
     res.json(property);

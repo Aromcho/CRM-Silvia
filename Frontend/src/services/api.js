@@ -35,8 +35,10 @@ export const logout = () => request('/sessions/logout', { method: 'DELETE' });
 // Properties
 export const getProperties = (params) => request(`/properties?${new URLSearchParams(params).toString()}`);
 export const getPropertyById = (id) => request(`/properties/${id}`);
+export const createProperty = (data) => request('/properties', { method: 'POST', body: JSON.stringify(data) });
 export const updateProperty = (id, data) => request(`/properties/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const updatePropertyStatus = (id, status) => request(`/properties/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+export const updatePropertyDifusion = (id, data) => request(`/properties/${id}/difusion`, { method: 'PATCH', body: JSON.stringify(data) });
 export const getPropertyStats = () => request('/properties/stats');
 export const triggerSync = () => request('/properties/sync', { method: 'POST' });
 export const importRentals = () => request('/properties/import-rentals', { method: 'POST' });
@@ -78,5 +80,6 @@ export const deleteFile = (id, fileId) => request(`/files/${id}/files/${fileId}`
 export const getUsers = () => request('/users');
 export const updateUser = (id, data) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const registerUser = (data) => request('/sessions/register', { method: 'POST', body: JSON.stringify(data) });
+export const changeUserPassword = (id, password) => request(`/users/${id}/password`, { method: 'PUT', body: JSON.stringify({ password }) });
 
 export { API_BASE };

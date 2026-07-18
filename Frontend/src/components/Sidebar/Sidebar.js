@@ -11,9 +11,11 @@ const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: Icons.Activity, section: 'principal' },
   { key: 'propiedades', label: 'Propiedades', icon: Icons.Building, section: 'principal' },
   { key: 'alquileres', label: 'Alquileres temporarios', icon: Icons.Calendar, section: 'principal' },
-  { key: 'leads', label: 'Leads', icon: Icons.Mail, section: 'principal' },
+  { key: 'leads', label: 'Consultas', icon: Icons.Mail, section: 'principal' },
   { key: 'archivos', label: 'Archivos', icon: Icons.Folder, section: 'principal' },
+  { key: 'mostrador', label: 'Mostrador', icon: Icons.Printer, section: 'principal' },
   { key: 'reportes', label: 'Reportes', icon: Icons.BarChart, section: 'principal' },
+  { key: 'usuarios', label: 'Usuarios', icon: Icons.Users, section: 'principal', superAdminOnly: true },
 ];
 
 const AVATAR_PALETTE = ['#15784f', '#2563eb', '#b8791b', '#7257c9', '#0e8a8a', '#d8504a'];
@@ -73,7 +75,7 @@ export default function Sidebar({ tab, setTab, session, onLogout }) {
     // Nav
     e('nav', { className: 'sidebar-nav' },
       e('div', { className: 'nav-section-label' }, 'Principal'),
-      NAV_ITEMS.map((item) =>
+      NAV_ITEMS.filter((item) => !item.superAdminOnly || session?.role === 'SUPERADMIN').map((item) =>
         e('button', {
           key: item.key,
           className: `nav-item${tab === item.key ? ' active' : ''}`,

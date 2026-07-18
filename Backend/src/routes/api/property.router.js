@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  getProperties, getPropertyById, updateProperty, updatePropertyStatus,
+  getProperties, getPropertyById, createProperty, updateProperty, updatePropertyStatus, updatePropertyDifusion,
   triggerSync, getPropertyStats, getPropertyLocations, importRentals,
 } from '../../controllers/property.controller.js';
 import { uploadPhotos, addPhotos, deletePhoto, reorderPhotos } from '../../controllers/propertyPhoto.controller.js';
@@ -13,8 +13,10 @@ router.get('/', isAuth, getProperties);
 router.get('/stats', isAuth, getPropertyStats);
 router.get('/locations', isAuth, getPropertyLocations);
 router.get('/:id', isAuth, getPropertyById);
+router.post('/', isAuth, createProperty);
 router.put('/:id', isAuth, updateProperty);
 router.patch('/:id/status', isAuth, updatePropertyStatus);
+router.patch('/:id/difusion', isAuth, updatePropertyDifusion);
 router.post('/:id/photos', isAuth, uploadPhotos.array('photos', 30), addPhotos);
 router.patch('/:id/photos/reorder', isAuth, reorderPhotos);
 router.delete('/:id/photos/:photoId', isAuth, deletePhoto);

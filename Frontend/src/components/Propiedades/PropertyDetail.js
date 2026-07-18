@@ -3,25 +3,23 @@ import React from 'react';
 import Icons from '../Icons/Icons';
 import EditableField from '../UI/EditableField';
 import PhotoManager from './PhotoManager';
-import { updateProperty, updatePropertyStatus } from '@/services/api';
+import { updateProperty, updatePropertyDifusion } from '@/services/api';
 import { photoSrc, formatPrice, STATUS_LABELS } from '@/lib/data';
 import './Propiedades.css';
 import './PropertyDetail.css';
 
 const e = React.createElement;
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect } = React;
 
 const PAGE_TABS = [
   { key: 'detalles', label: 'Detalles' },
   { key: 'fotos', label: 'Fotos' },
+  { key: 'difusion', label: 'Difusión' },
 ];
 
-const STATUSES = [
-  { key: 'disponible', label: 'Disponible' },
-  { key: 'reservada', label: 'Reservada' },
-  { key: 'vendida', label: 'Vendida' },
-  { key: 'en_tasacion', label: 'En tasación' },
-  { key: 'no_disponible', label: 'No disponible' },
+const DIFUSION_PLATFORMS = [
+  { key: 'mercadolibre', label: 'MercadoLibre', accent: '#ffe600' },
+  { key: 'zonaprop', label: 'ZonaProp', accent: '#00b4f0' },
 ];
 
 function Row({ label, children }) {
@@ -116,56 +114,84 @@ function AttributesTable({ attrs }) {
   );
 }
 
-function StatusPicker({ status, saving, onChange }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(ev) {
-      if (rootRef.current && !rootRef.current.contains(ev.target)) setOpen(false);
-    }
-    function onKey(ev) {
-      if (ev.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('mousedown', onDocClick);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDocClick);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+function CopyableFact({ icon, value, label }) {
+  const [copied, setCopied] = useState(false);
 
-  return e('div', { className: 'status-picker', ref: rootRef },
-    e('button', {
-      type: 'button',
-      className: `status-badge lg badge-${status} status-picker-trigger`,
-      onClick: () => setOpen((o) => !o),
-      disabled: saving,
-    },
-      saving ? 'Guardando…' : (STATUS_LABELS[status] || status),
-      e(Icons.ChevronDown, { width: 12, height: 12 }),
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(String(value));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  return e('button', {
+    type: 'button',
+    className: `detail-aside-fact detail-aside-fact-copy${copied ? ' copied' : ''}`,
+    onClick: handleCopy,
+    title: 'Copiar ID',
+  },
+    e(copied ? Icons.Check : icon, { width: 13, height: 13 }),
+    e('span', null, copied ? 'Copiado' : label),
+    !copied && e(Icons.Copy, { width: 12, height: 12, className: 'detail-aside-fact-copy-icon' }),
+  );
+}
+
+function DifusionPlatform({ platform, label, accent, data, onUpdate }) {
+  const [url, setUrl] = useState(data?.url || '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setUrl(data?.url || ''); }, [data?.url]);
+
+  async function toggle() {
+    setSaving(true);
+    try { await onUpdate(platform, { published: !data?.published, url }); }
+    finally { setSaving(false); }
+  }
+
+  async function saveUrl() {
+    if (url === (data?.url || '')) return;
+    setSaving(true);
+    try { await onUpdate(platform, { published: !!data?.published, url }); }
+    finally { setSaving(false); }
+  }
+
+  const published = !!data?.published;
+
+  return e('div', { className: 'difusion-card', style: { '--difusion-accent': accent } },
+    e('div', { className: 'difusion-card-head' },
+      e('div', { className: 'difusion-card-title' }, label),
+      e('button', {
+        type: 'button', className: `difusion-toggle${published ? ' on' : ''}`,
+        onClick: toggle, disabled: saving, title: published ? 'Marcar como no publicada' : 'Marcar como publicada',
+      }, e('span', { className: 'difusion-toggle-knob' })),
     ),
-    open && e('div', { className: 'status-picker-menu' },
-      STATUSES.map((s) =>
-        e('button', {
-          key: s.key,
-          type: 'button',
-          className: `status-picker-item badge-${s.key}${s.key === status ? ' active' : ''}`,
-          onClick: () => { onChange(s.key); setOpen(false); },
-        },
-          e('span', { className: 'status-picker-dot' }),
-          s.label,
-          s.key === status && e(Icons.Check, { width: 12, height: 12 }),
-        )
+    e('div', { className: `difusion-card-status${published ? ' on' : ''}` },
+      e('span', { className: 'difusion-status-dot' }),
+      published ? 'Publicada' : 'No publicada',
+    ),
+    e('div', { className: 'difusion-card-field' },
+      e('label', null, 'Link del aviso'),
+      e('div', { className: 'difusion-url-row' },
+        e('input', {
+          type: 'text', className: 'difusion-url-input', value: url, placeholder: 'https://…',
+          onChange: (ev) => setUrl(ev.target.value), onBlur: saveUrl,
+          onKeyDown: (ev) => { if (ev.key === 'Enter') ev.target.blur(); },
+        }),
+        url && e('a', { href: url, target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost xs', title: 'Abrir aviso' },
+          e(Icons.ExternalLink, { width: 12, height: 12 })),
       ),
     ),
+    data?.updated_at && e('div', { className: 'difusion-card-updated' },
+      `Actualizado ${new Date(data.updated_at).toLocaleDateString('es-AR')}`),
   );
 }
 
 export default function PropertyDetail({ property: initialProperty, onBack, onClose, canClose }) {
   const [property, setProperty] = useState(initialProperty);
-  const [statusSaving, setStatusSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('detalles');
 
   useEffect(() => { setProperty(initialProperty); }, [initialProperty]);
@@ -181,17 +207,10 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
     return updated;
   }
 
-  async function handleStatusChange(newStatus) {
-    if (newStatus === property.status) return;
-    setStatusSaving(true);
-    try {
-      const updated = await updatePropertyStatus(property.id, newStatus);
-      setProperty((p) => ({ ...p, status: updated?.status || newStatus }));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setStatusSaving(false);
-    }
+  async function saveDifusion(platform, data) {
+    const updated = await updatePropertyDifusion(property.id, { platform, ...data });
+    setProperty(updated);
+    return updated;
   }
 
   const photos = property.photos || [];
@@ -213,25 +232,26 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
       ),
     ),
 
-    e('div', { className: 'detail-hint-bar' },
-      e(Icons.Edit, { width: 12, height: 12 }),
-      'Hacé click en cualquier dato para editarlo. Los cambios se guardan solos.',
-    ),
+    e('div', { className: 'detail-pinned' },
+      e('div', { className: 'detail-section detail-section-split' },
+        e('aside', { className: 'detail-section-aside' },
+          e('div', { className: 'detail-aside-card' },
+            cover
+              ? e('div', { className: 'detail-aside-cover' }, e('img', { src: cover, alt: 'Portada' }))
+              : e('div', { className: 'detail-aside-cover empty' }, e(Icons.Building, { width: 28, height: 28 })),
+            e('div', { className: 'detail-aside-body' },
+              priceLabel && e('div', { className: 'detail-aside-price' }, priceLabel),
 
-    e('div', { className: 'detail-tabs' },
-      PAGE_TABS.map((t) => e('button', {
-        key: t.key, type: 'button',
-        className: `detail-tab${activeTab === t.key ? ' active' : ''}`,
-        onClick: () => setActiveTab(t.key),
-      }, t.label, t.key === 'fotos' && photos.length > 0 && e('span', { className: 'detail-tab-count' }, photos.length))),
-    ),
-
-    e('div', { className: 'detail-layout' },
-      activeTab === 'fotos'
-        ? e('div', { className: 'detail-main' }, e(PhotoManager, { property, onPropertyChange: setProperty }))
-        : e('div', { className: 'detail-main' },
-
-        e('div', { className: 'detail-section' },
+              e('div', { className: 'detail-aside-facts' },
+                e(CopyableFact, { icon: Icons.Hash, value: property.id, label: `ID ${property.id}` }),
+                property.reference_code && e('div', { className: 'detail-aside-fact' }, e(Icons.Tag, { width: 13, height: 13 }), property.reference_code),
+                property.location?.name && e('div', { className: 'detail-aside-fact' }, e(Icons.MapPin, { width: 13, height: 13 }), property.location.name),
+                photos.length > 0 && e('div', { className: 'detail-aside-fact' }, e(Icons.Image, { width: 13, height: 13 }), `${photos.length} foto${photos.length === 1 ? '' : 's'}`),
+              ),
+            ),
+          ),
+        ),
+        e('div', { className: 'detail-section-main' },
           e('h3', null, 'Dirección'),
           e('div', { className: 'detail-summary-table' },
             e('div', { className: 'detail-summary-row' },
@@ -257,6 +277,39 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
           ),
           e('div', { className: `detail-status-bar badge-${property.status}` }, STATUS_LABELS[property.status] || property.status),
         ),
+      ),
+    ),
+
+    e('div', { className: 'detail-tabs' },
+      PAGE_TABS.map((t) => e('button', {
+        key: t.key, type: 'button',
+        className: `detail-tab${activeTab === t.key ? ' active' : ''}`,
+        onClick: () => setActiveTab(t.key),
+      }, t.label, t.key === 'fotos' && photos.length > 0 && e('span', { className: 'detail-tab-count' }, photos.length))),
+    ),
+
+    e('div', { className: 'detail-hint-bar' },
+      e(Icons.Edit, { width: 12, height: 12 }),
+      'Hacé click en cualquier dato para editarlo. Los cambios se guardan solos.',
+    ),
+
+    e('div', { className: 'detail-layout' },
+      activeTab === 'fotos'
+        ? e('div', { className: 'detail-main' }, e(PhotoManager, { property, onPropertyChange: setProperty }))
+        : activeTab === 'difusion'
+        ? e('div', { className: 'detail-main' },
+            e('div', { className: 'detail-section' },
+              e('h3', null, 'Difusión en portales'),
+              e('p', { className: 'detail-section-sub' }, 'Marcá manualmente si la propiedad está publicada en cada portal y guardá el link del aviso.'),
+              e('div', { className: 'difusion-grid' },
+                DIFUSION_PLATFORMS.map((p) => e(DifusionPlatform, {
+                  key: p.key, platform: p.key, label: p.label, accent: p.accent,
+                  data: property.difusion?.[p.key], onUpdate: saveDifusion,
+                })),
+              ),
+            ),
+          )
+        : e('div', { className: 'detail-main' },
 
         e('div', { className: 'detail-section' },
           e('h3', null, 'Tasación'),
@@ -362,26 +415,6 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
           e('div', { className: 'detail-subgroup' },
             e('h4', null, 'Notas del equipo'),
             e(EditableField, { value: property.notes, onSave: (v) => saveField('notes', v), multiline: true, placeholder: 'Sin notas — click para agregar' }),
-          ),
-        ),
-      ),
-
-      e('aside', { className: 'detail-aside' },
-        e('div', { className: 'detail-aside-card' },
-          cover
-            ? e('div', { className: 'detail-aside-cover' }, e('img', { src: cover, alt: 'Portada' }))
-            : e('div', { className: 'detail-aside-cover empty' }, e(Icons.Building, { width: 28, height: 28 })),
-          e('div', { className: 'detail-aside-body' },
-            e('div', { className: 'detail-aside-label' }, 'Estado'),
-            e(StatusPicker, { status: property.status, saving: statusSaving, onChange: handleStatusChange }),
-
-            priceLabel && e('div', { className: 'detail-aside-price' }, priceLabel),
-
-            e('div', { className: 'detail-aside-facts' },
-              property.reference_code && e('div', { className: 'detail-aside-fact' }, e(Icons.Tag, { width: 13, height: 13 }), property.reference_code),
-              property.location?.name && e('div', { className: 'detail-aside-fact' }, e(Icons.MapPin, { width: 13, height: 13 }), property.location.name),
-              photos.length > 0 && e('div', { className: 'detail-aside-fact' }, e(Icons.Image, { width: 13, height: 13 }), `${photos.length} foto${photos.length === 1 ? '' : 's'}`),
-            ),
           ),
         ),
       ),

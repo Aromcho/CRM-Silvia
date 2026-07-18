@@ -240,10 +240,23 @@ const propertySchema = new Schema({
   web_price: Boolean,
   zonification: String,
   // CRM-specific fields
+  is_manual: { type: Boolean, default: false },
   notes: String,
   lastEditedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   lastEditedAt: Date,
   temporaryRental: temporaryRentalSchema,
+  difusion: {
+    mercadolibre: {
+      published: { type: Boolean, default: false },
+      url: { type: String, default: '' },
+      updated_at: Date,
+    },
+    zonaprop: {
+      published: { type: Boolean, default: false },
+      url: { type: String, default: '' },
+      updated_at: Date,
+    },
+  },
 }, { timestamps: true });
 
 propertySchema.plugin(mongoosePaginate);

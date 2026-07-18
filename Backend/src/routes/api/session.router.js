@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { login, logout, online, register } from '../../controllers/session.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
-import isAdmin from '../../middlewares/isAdmin.mid.js';
+import isSuperAdmin from '../../middlewares/isSuperAdmin.mid.js';
 
 const router = Router();
 
 router.post('/login', login);
 router.get('/online', online);
 router.delete('/logout', logout);
-router.post('/register', isAuth, isAdmin, register);
+router.post('/register', isAuth, isSuperAdmin, register);
 
 export default router;
