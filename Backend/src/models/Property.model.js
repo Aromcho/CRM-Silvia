@@ -247,9 +247,20 @@ const propertySchema = new Schema({
   temporaryRental: temporaryRentalSchema,
   difusion: {
     mercadolibre: {
+      // Agregado calculado a partir de `listings` (hay hasta 2: venta y alquiler pueden convivir en la misma propiedad)
       published: { type: Boolean, default: false },
       url: { type: String, default: '' },
       updated_at: Date,
+      last_error: String,
+      listings: [{
+        operation_type: { type: String, index: true }, // 'venta' | 'alquiler'
+        item_id: String,
+        category_id: String,
+        url: String,
+        status: { type: String, enum: ['active', 'paused', 'closed'], default: 'active' },
+        last_error: String,
+        updated_at: Date,
+      }],
     },
     zonaprop: {
       published: { type: Boolean, default: false },

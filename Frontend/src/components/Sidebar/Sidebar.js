@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import Icons from '../Icons/Icons';
-import { logout, triggerSync, importRentals } from '@/services/api';
+import { logout, triggerSync, importRentals, syncAllMercadoLibre } from '@/services/api';
 import './Sidebar.css';
 
 const e = React.createElement;
@@ -32,6 +32,7 @@ function initials(name) {
 export default function Sidebar({ tab, setTab, session, onLogout }) {
   const [syncing, setSyncing] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [syncingMl, setSyncingMl] = useState(false);
 
   async function handleLogout() {
     await logout();
@@ -42,6 +43,19 @@ export default function Sidebar({ tab, setTab, session, onLogout }) {
     setSyncing(true);
     await triggerSync().catch(console.error);
     setTimeout(() => setSyncing(false), 3000);
+  }
+
+  async function handleSyncMercadoLibre() {
+    if (!confirm('Esto va a publicar/actualizar TODAS las propiedades disponibles en MercadoLibre. ¿Continuar?')) return;
+    setSyncingMl(true);
+    try {
+      await syncAllMercadoLibre();
+      alert('Sync con MercadoLibre iniciado. Corre en segundo plano — revisá el feed de actividad para ver el resumen cuando termine.');
+    } catch (err) {
+      alert(err.message || 'No se pudo iniciar el sync con MercadoLibre.');
+    } finally {
+      setTimeout(() => setSyncingMl(false), 3000);
+    }
   }
 
   async function handleImportRentals() {
@@ -98,6 +112,11 @@ export default function Sidebar({ tab, setTab, session, onLogout }) {
         e('button', { className: `sidebar-sync-btn${importing ? ' syncing' : ''}`, onClick: handleImportRentals, disabled: importing },
           e(Icons.FileText, { width: 14, height: 14 }),
           importing ? 'Importando…' : 'Importar alquileres (Excel)',
+        ),
+      ['ADMIN', 'SUPERADMIN'].includes(session?.role) &&
+        e('button', { className: `sidebar-sync-btn${syncingMl ? ' syncing' : ''}`, onClick: handleSyncMercadoLibre, disabled: syncingMl },
+          e(Icons.RefreshCw, { width: 14, height: 14 }),
+          syncingMl ? 'Sincronizando…' : 'Sincronizar MercadoLibre',
         ),
       e('div', { className: 'sidebar-user' },
         e('span', { className: 'avatar avatar-pop', style: { width: 30, height: 30, background: userColor, fontSize: 11 } }, userInitials),

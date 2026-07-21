@@ -3,7 +3,7 @@ import React from 'react';
 import Icons from '../Icons/Icons';
 import EditableField from '../UI/EditableField';
 import PhotoManager from './PhotoManager';
-import { updateProperty, updatePropertyDifusion } from '@/services/api';
+import { updateProperty, updatePropertyDifusion, syncPropertyMercadoLibre } from '@/services/api';
 import { photoSrc, formatPrice, STATUS_LABELS } from '@/lib/data';
 import './Propiedades.css';
 import './PropertyDetail.css';
@@ -18,9 +18,11 @@ const PAGE_TABS = [
 ];
 
 const DIFUSION_PLATFORMS = [
-  { key: 'mercadolibre', label: 'MercadoLibre', accent: '#ffe600' },
   { key: 'zonaprop', label: 'ZonaProp', accent: '#00b4f0' },
 ];
+
+const ML_STATUS_LABELS = { active: 'Activo', paused: 'Pausado', closed: 'Cerrado' };
+const ML_OPERATION_LABELS = { venta: 'Venta', alquiler: 'Alquiler' };
 
 function Row({ label, children }) {
   return e('div', { className: 'prop-info-item' },
@@ -190,6 +192,49 @@ function DifusionPlatform({ platform, label, accent, data, onUpdate }) {
   );
 }
 
+function MercadoLibreCard({ property, onSynced }) {
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState('');
+  const data = property.difusion?.mercadolibre;
+  const listings = data?.listings || [];
+
+  async function handleSync() {
+    setSyncing(true);
+    setError('');
+    try {
+      const result = await syncPropertyMercadoLibre(property.id);
+      onSynced(result.listings || []);
+    } catch (err) {
+      setError(err.message || 'No se pudo sincronizar con MercadoLibre.');
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  return e('div', { className: 'difusion-card', style: { '--difusion-accent': '#ffe600' } },
+    e('div', { className: 'difusion-card-head' },
+      e('div', { className: 'difusion-card-title' }, 'MercadoLibre'),
+      e('button', {
+        type: 'button', className: 'btn ghost xs', onClick: handleSync, disabled: syncing,
+      }, e(Icons.RefreshCw, { width: 12, height: 12 }), syncing ? 'Sincronizando…' : 'Sincronizar ahora'),
+    ),
+    listings.length === 0
+      ? e('div', { className: 'difusion-card-status' }, e('span', { className: 'difusion-status-dot' }), 'Todavía no se publicó')
+      : listings.map((l) => e('div', { key: l.operation_type, className: 'ml-listing-row' },
+          e('div', { className: `difusion-card-status${l.status === 'active' ? ' on' : ''}` },
+            e('span', { className: 'difusion-status-dot' }),
+            `${ML_OPERATION_LABELS[l.operation_type] || l.operation_type}: ${ML_STATUS_LABELS[l.status] || l.status}`,
+          ),
+          l.url && e('a', { href: l.url, target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost xs' },
+            e(Icons.ExternalLink, { width: 12, height: 12 }), 'Ver aviso'),
+          l.last_error && e('div', { className: 'ml-listing-error' }, l.last_error),
+          l.updated_at && e('div', { className: 'difusion-card-updated' },
+            `Actualizado ${new Date(l.updated_at).toLocaleDateString('es-AR')}`),
+        )),
+    error && e('div', { className: 'ml-listing-error' }, error),
+  );
+}
+
 export default function PropertyDetail({ property: initialProperty, onBack, onClose, canClose }) {
   const [property, setProperty] = useState(initialProperty);
   const [activeTab, setActiveTab] = useState('detalles');
@@ -211,6 +256,16 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
     const updated = await updatePropertyDifusion(property.id, { platform, ...data });
     setProperty(updated);
     return updated;
+  }
+
+  function onMercadoLibreSynced(listings) {
+    setProperty((prev) => ({
+      ...prev,
+      difusion: {
+        ...prev.difusion,
+        mercadolibre: { ...prev.difusion?.mercadolibre, listings },
+      },
+    }));
   }
 
   const photos = property.photos || [];
@@ -302,6 +357,7 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
               e('h3', null, 'Difusión en portales'),
               e('p', { className: 'detail-section-sub' }, 'Marcá manualmente si la propiedad está publicada en cada portal y guardá el link del aviso.'),
               e('div', { className: 'difusion-grid' },
+                e(MercadoLibreCard, { key: 'mercadolibre', property, onSynced: onMercadoLibreSynced }),
                 DIFUSION_PLATFORMS.map((p) => e(DifusionPlatform, {
                   key: p.key, platform: p.key, label: p.label, accent: p.accent,
                   data: property.difusion?.[p.key], onUpdate: saveDifusion,

@@ -46,9 +46,31 @@
 
 ## Pendiente / en curso
 
-- [ ] Integración MercadoLibre (stub en `mercadolibre.controller.js`, sin implementar)
+- [ ] **Integración MercadoLibre (en curso, 2026-07-21)**
+  - [x] Scaffolding de backend: `MlToken.model.js` (token OAuth único), `mercadolibre.service.js` (OAuth2 con refresh automático — el refresh_token de ML rota en cada uso y hay que persistir el nuevo — + mapeo dinámico de propiedad→categoría/atributos, sin IDs hardcodeados porque developers.mercadolibre.com.ar bloquea el fetch automatizado con 403)
+  - [x] Controller + rutas: `GET oauth/connect`, `GET oauth/callback`, `POST sync/:propertyId`, `GET status`, `POST webhook/lead`
+  - [x] `Property.model.js`: `difusion.mercadolibre` ahora tiene `listings: [{ operation_type, item_id, category_id, url, status, last_error, updated_at }]` (array, no un solo item — ver gap de multi-operación resuelto abajo) + agregado del estado (`published`/`url`/`updated_at`/`last_error`)
+  - [x] App creada en el panel de ML ("CRM-silvia"): permisos Usuarios/Publicación y sincronización/Comunicaciones pre-post venta/Métricas del negocio en Lectura y escritura; unidades de negocio Mercado Libre + VIS; sin PKCE (client confidencial, no hace falta); topics de notificación: solo **VIS Leads** (todos los subtipos); Redirect URI y callback de notificaciones apuntando a `https://apicrm.silviafernandezpropiedades.com.ar/api/mercadolibre/...`
+  - [x] Client ID obtenido (`8601406870499556`) y Client Secret conseguido por el usuario
+  - [ ] **Bloqueante actual**: el redirect_uri registrado en ML es fijo a producción, así que la autorización OAuth tiene que completarse corriendo el backend en el VPS, no en local — el usuario está desplegando el código a producción para continuar ahí (variables `ML_CLIENT_ID`/`ML_CLIENT_SECRET` van en el `.env` de producción, el `.env` local no sirve para este paso)
+  - [ ] Una vez conectado: probar el sync de UNA sola propiedad (botón "Sincronizar ahora" en la tab Difusión) antes de correr el sync masivo sobre las 210 restantes
+  - **Gaps detectados el 2026-07-21, todos resueltos en el código (pendiente probar contra la API real):**
+    - [x] Sync en lote: `syncAllProperties()` en `mercadolibre.service.js` + `POST /api/mercadolibre/sync-all` — recorre todas las propiedades secuencial con 1.2s de pausa entre cada una (evita 429 de rate limit) y corta si el token dejó de andar. Botón "Sincronizar MercadoLibre" agregado al Sidebar (ADMIN/SUPERADMIN)
+    - [x] Multi-operación: se chequeó contra la base real — **30 de 210 propiedades tienen Venta y Alquiler a la vez**, no era un caso raro. `difusion.mercadolibre.listings` ahora es un array; `syncProperty()` publica/actualiza un item de ML por cada operación vigente (venta y/o alquiler) y pausa la que ya no aplica
+    - [x] `reservada` ahora también pausa los listings activos (antes solo `vendida`/`no_disponible`)
+    - [x] Cierre de listings si `deleted_at` está seteado — cubierto por `syncProperty()`/`sync-all`. Ojo: hoy nada en el CRM setea `deleted_at` (no existe endpoint de borrado de propiedad), así que es preventivo hasta que exista esa función
+    - [x] Límite de fotos: **no** se hardcodeó un número — `getCategoryMaxPictures()` consulta `GET /categories/{id}` y usa el campo real `settings.max_pictures_per_item` de la categoría de cada propiedad (confirmado que ese campo existe vía WebSearch, ya que developers.mercadolibre.com.ar bloquea el fetch directo). Fallback a 10 solo si por algún motivo no viniera ese campo
+    - [x] UI en frontend: card de MercadoLibre en la tab Difusión de `PropertyDetail.js` (reemplazó el toggle manual solo para ML — ZonaProp sigue con el toggle manual) — muestra estado por operación (Activo/Pausado/Cerrado), link al aviso, error si lo hay, y botón "Sincronizar ahora" (`syncPropertyMercadoLibre` en `api.js`)
+    - [x] Alerta de token caído: si falla el refresh, `getValidAccessToken()` crea una `Activity` tipo `ml_token_error` (agregado al enum de `Activity.model.js`) avisando que hay que reconectar la cuenta
+  - **Métricas de Inmuebles (investigado 2026-07-21, vía WebSearch — no confirmado contra doc oficial por el bloqueo 403):** endpoints reales de ML para la vertical VIS:
+    - `GET /items/visits?ids=$ITEM_ID&date_from=&date_to=` — visitas de una publicación en un rango de fechas
+    - `GET /items/$ITEM_ID/contacts/questions?date_from=&date_to=` — total de preguntas/contactos de una publicación
+    - `GET /users/$USER_ID/contacts/phone_views?date_from=&date_to=` — veces que se vio el teléfono, a nivel cuenta
+    - `GET /vis/leads/$LEAD_ID` → `{ id, item_id, created_at, contact_type, external_id, status, buyer_id, name, email, phone }` (contact_type: whatsapp/question/call/schedule/quotation; name/email/phone solo si el lead es de acceso público)
+    - `GET /vis/users/$USER_ID/leads/buyers?contact_types=whatsapp` — listado de leads filtrado por tipo
+  - Plan para la sección Métricas de Reportes: cron (`node-cron`, ya está en el stack) que una vez por día pegue a estos endpoints por cada propiedad publicada y guarde un snapshot en una colección nueva (serie temporal), porque la API de ML da el estado actual/rango pedido pero no un histórico acumulado propio. El dashboard consume esa serie: visitas por propiedad en el tiempo, ranking top propiedades por visitas, leads por `contact_type`, funnel visitas→contactos→leads.
 - [ ] Integración ZonaProp (stub en `zonaprop.controller.js`, sin implementar)
-- [ ] Reportes: gráficos y métricas reales (hoy es placeholder)
+- [ ] Reportes: gráficos y métricas reales (hoy es placeholder) — ver plan de Métricas de Inmuebles arriba, depende de la integración ML
 - [ ] Revisar si conviene permitir click-to-select de rango en el calendario de disponibilidad (hoy es solo visual + formulario aparte)
 - [ ] **Gestor de usuarios (solo visible para el superusuario "dueño", 2026-07-15)**: nueva sección en el sidebar (nav item) para administrar usuarios del CRM (crear, roles, desactivar). Ojo: la visibilidad no es por rol SUPERADMIN en general — tiene que aparecer únicamente en la cuenta específica del dueño, aunque haya otros SUPERADMIN. Falta decidir el mecanismo de gating (flag `isOwner` en `User.model.js` vs. hardcodear el email/id) antes de implementar.
 
@@ -86,4 +108,4 @@ cd Backend && npm install && npm run dev   # puerto 7003 (multer agregado como d
 cd Frontend && npm run dev                 # puerto 7004
 ```
 
-**Última actualización:** 2026-07-18
+**Última actualización:** 2026-07-21
