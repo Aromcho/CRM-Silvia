@@ -1,0 +1,28 @@
+.ml-stats-head { display: flex; justify-content: flex-end; margin-bottom: 14px; }
+.ml-stats-days { display: flex; gap: 4px; background: var(--surface-2); border-radius: 8px; padding: 3px; }
+.ml-stats-day-btn {
+  border: none; background: transparent; padding: 5px 10px; border-radius: 6px; font-size: 12px;
+  font-weight: 600; color: var(--ink-3); cursor: pointer; font-family: inherit;
+}
+.ml-stats-day-btn.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+
+.ml-stats-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.ml-stat-tile {
+  text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  background: var(--surface); cursor: pointer; transition: border-color .15s, box-shadow .15s;
+  font-family: inherit;
+}
+.ml-stat-tile:hover { border-color: var(--green-500); }
+.ml-stat-tile.active { border-color: var(--green-600); box-shadow: 0 0 0 1px var(--green-600) inset; }
+.ml-stat-label { font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px; }
+.ml-stat-value { font-size: 22px; font-weight: 800; color: var(--ink); }
+
+.ml-stats-chart-card { border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+.ml-stats-chart-card h4 { margin: 0 0 12px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+
+.ml-stats-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  padding: 40px 20px; color: var(--ink-3); text-align: center;
+}
+.ml-stats-empty p { margin: 0; font-size: 13px; color: var(--ink-2); }
+.ml-stats-empty-sub { font-size: 12px !important; color: var(--ink-3) !important; }

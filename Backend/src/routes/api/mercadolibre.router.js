@@ -6,6 +6,10 @@ import {
   handleMercadoLibreLead,
   connectMercadoLibre,
   oauthCallback,
+  getListingTypes,
+  upgradeListingType,
+  getPropertyMetrics,
+  collectMercadoLibreMetrics,
 } from '../../controllers/mercadolibre.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
 
@@ -16,6 +20,10 @@ router.get('/oauth/callback', oauthCallback); // público: ML redirige acá sin 
 router.post('/sync/:propertyId', isAuth, syncToMercadoLibre);
 router.post('/sync-all', isAuth, syncAllMercadoLibre);
 router.get('/status', isAuth, getMercadoLibreStatus);
+router.get('/listing-types', isAuth, getListingTypes);
+router.patch('/listing-type/:propertyId', isAuth, upgradeListingType);
+router.get('/metrics/property/:propertyId', isAuth, getPropertyMetrics);
+router.post('/metrics/collect', isAuth, collectMercadoLibreMetrics);
 router.post('/webhook/lead', handleMercadoLibreLead); // público
 
 export default router;

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import connectDB from './src/utils/db.js';
 import router from './src/routes/index.router.js';
 import errorHandler from './src/middlewares/errorHandler.mid.js';
+import { startMercadoLibreMetricsCron } from './src/cron/mercadolibreMetrics.cron.js';
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ app.use(errorHandler);
 
 async function start() {
   await connectDB();
+  startMercadoLibreMetricsCron();
   app.listen(PORT, () => console.log(`CRM Backend corriendo en puerto ${PORT}`));
 }
 

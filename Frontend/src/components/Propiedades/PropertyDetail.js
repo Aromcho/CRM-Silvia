@@ -3,7 +3,11 @@ import React from 'react';
 import Icons from '../Icons/Icons';
 import EditableField from '../UI/EditableField';
 import PhotoManager from './PhotoManager';
-import { updateProperty, updatePropertyDifusion, syncPropertyMercadoLibre } from '@/services/api';
+import MlStats from './MlStats';
+import {
+  updateProperty, updatePropertyDifusion, syncPropertyMercadoLibre,
+  getMercadoLibreListingTypes, upgradeMercadoLibreListingType,
+} from '@/services/api';
 import { photoSrc, formatPrice, STATUS_LABELS } from '@/lib/data';
 import './Propiedades.css';
 import './PropertyDetail.css';
@@ -15,6 +19,7 @@ const PAGE_TABS = [
   { key: 'detalles', label: 'Detalles' },
   { key: 'fotos', label: 'Fotos' },
   { key: 'difusion', label: 'Difusión' },
+  { key: 'estadisticas', label: 'Estadísticas' },
 ];
 
 const DIFUSION_PLATFORMS = [
@@ -192,11 +197,86 @@ function DifusionPlatform({ platform, label, accent, data, onUpdate }) {
   );
 }
 
+let mlListingTypesCache = null;
+
+function qualityTone(pct) {
+  if (pct == null) return 'unknown';
+  if (pct >= 80) return 'good';
+  if (pct >= 50) return 'warn';
+  return 'bad';
+}
+
+function MlListingRow({ listing: l, listingTypes, onUpgrade }) {
+  const [showRecs, setShowRecs] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
+  const tone = qualityTone(l.health_percentage);
+  const actions = l.health_actions || [];
+
+  async function handleTierChange(ev) {
+    const nextTier = ev.target.value;
+    if (!nextTier || nextTier === l.listing_type_id) return;
+    const nextLabel = listingTypes.find((t) => t.id === nextTier)?.name || nextTier;
+    if (!confirm(`Cambiar a "${nextLabel}" puede tener un costo adicional en MercadoLibre. ¿Confirmás?`)) return;
+    setUpgrading(true);
+    try {
+      await onUpgrade(l.operation_type, nextTier);
+    } finally {
+      setUpgrading(false);
+    }
+  }
+
+  return e('div', { className: 'ml-listing-row' },
+    e('div', { className: 'ml-listing-row-head' },
+      e('div', { className: `difusion-card-status${l.status === 'active' ? ' on' : ''}` },
+        e('span', { className: 'difusion-status-dot' }),
+        `${ML_OPERATION_LABELS[l.operation_type] || l.operation_type}: ${ML_STATUS_LABELS[l.status] || l.status}`,
+      ),
+      l.url && e('a', { href: l.url, target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost xs' },
+        e(Icons.ExternalLink, { width: 12, height: 12 }), 'Ver aviso'),
+    ),
+
+    l.item_id && listingTypes.length > 0 && e('div', { className: 'ml-tier-row' },
+      e(Icons.Star, { width: 13, height: 13 }),
+      e('select', {
+        className: 'ml-tier-select', value: l.listing_type_id || '', disabled: upgrading, onChange: handleTierChange,
+      }, listingTypes.map((t) => e('option', { key: t.id, value: t.id }, t.name))),
+    ),
+
+    l.health_percentage != null && e('div', { className: 'ml-quality' },
+      e('div', { className: 'ml-quality-head' },
+        e('span', null, 'Calidad de la publicación'),
+        e('span', { className: `ml-quality-pct tone-${tone}` }, `${l.health_percentage}%`),
+      ),
+      e('div', { className: 'ml-quality-bar' },
+        e('div', { className: `ml-quality-fill tone-${tone}`, style: { width: `${l.health_percentage}%` } }),
+      ),
+      actions.length > 0 && e('button', {
+        type: 'button', className: 'btn ghost xs ml-recs-toggle', onClick: () => setShowRecs((v) => !v),
+      }, e(Icons.AlertTriangle, { width: 12, height: 12 }), `${showRecs ? 'Ocultar' : 'Ver'} recomendaciones (${actions.length})`),
+      showRecs && e('ul', { className: 'ml-recs-list' },
+        actions.map((a, i) => e('li', { key: i }, a)),
+      ),
+    ),
+
+    l.last_error && e('div', { className: 'ml-listing-error' }, l.last_error),
+    l.updated_at && e('div', { className: 'difusion-card-updated' },
+      `Actualizado ${new Date(l.updated_at).toLocaleDateString('es-AR')}`),
+  );
+}
+
 function MercadoLibreCard({ property, onSynced }) {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
+  const [listingTypes, setListingTypes] = useState(mlListingTypesCache || []);
   const data = property.difusion?.mercadolibre;
   const listings = data?.listings || [];
+
+  useEffect(() => {
+    if (mlListingTypesCache) return;
+    getMercadoLibreListingTypes()
+      .then((types) => { mlListingTypesCache = types || []; setListingTypes(mlListingTypesCache); })
+      .catch(() => {});
+  }, []);
 
   async function handleSync() {
     setSyncing(true);
@@ -211,6 +291,15 @@ function MercadoLibreCard({ property, onSynced }) {
     }
   }
 
+  async function handleUpgrade(operationType, listingTypeId) {
+    try {
+      const result = await upgradeMercadoLibreListingType(property.id, { operation_type: operationType, listing_type_id: listingTypeId });
+      onSynced(result.listings || []);
+    } catch (err) {
+      setError(err.message || 'No se pudo cambiar el nivel de publicación.');
+    }
+  }
+
   return e('div', { className: 'difusion-card', style: { '--difusion-accent': '#ffe600' } },
     e('div', { className: 'difusion-card-head' },
       e('div', { className: 'difusion-card-title' }, 'MercadoLibre'),
@@ -220,17 +309,7 @@ function MercadoLibreCard({ property, onSynced }) {
     ),
     listings.length === 0
       ? e('div', { className: 'difusion-card-status' }, e('span', { className: 'difusion-status-dot' }), 'Todavía no se publicó')
-      : listings.map((l) => e('div', { key: l.operation_type, className: 'ml-listing-row' },
-          e('div', { className: `difusion-card-status${l.status === 'active' ? ' on' : ''}` },
-            e('span', { className: 'difusion-status-dot' }),
-            `${ML_OPERATION_LABELS[l.operation_type] || l.operation_type}: ${ML_STATUS_LABELS[l.status] || l.status}`,
-          ),
-          l.url && e('a', { href: l.url, target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost xs' },
-            e(Icons.ExternalLink, { width: 12, height: 12 }), 'Ver aviso'),
-          l.last_error && e('div', { className: 'ml-listing-error' }, l.last_error),
-          l.updated_at && e('div', { className: 'difusion-card-updated' },
-            `Actualizado ${new Date(l.updated_at).toLocaleDateString('es-AR')}`),
-        )),
+      : listings.map((l) => e(MlListingRow, { key: l.operation_type, listing: l, listingTypes, onUpgrade: handleUpgrade })),
     error && e('div', { className: 'ml-listing-error' }, error),
   );
 }
@@ -363,6 +442,14 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
                   data: property.difusion?.[p.key], onUpdate: saveDifusion,
                 })),
               ),
+            ),
+          )
+        : activeTab === 'estadisticas'
+        ? e('div', { className: 'detail-main' },
+            e('div', { className: 'detail-section' },
+              e('h3', null, 'Estadísticas de MercadoLibre'),
+              e('p', { className: 'detail-section-sub' }, 'Visitas, contactos e interesados que generó esta propiedad en MercadoLibre.'),
+              e(MlStats, { property }),
             ),
           )
         : e('div', { className: 'detail-main' },

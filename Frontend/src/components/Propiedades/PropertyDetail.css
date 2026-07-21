@@ -172,10 +172,41 @@
 
 .ml-listing-row { padding: 10px 0; border-top: 1px solid var(--line); }
 .ml-listing-row:first-of-type { border-top: none; padding-top: 0; }
+.ml-listing-row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.ml-listing-row .difusion-card-status { margin-bottom: 0; }
 .ml-listing-error {
   font-size: 11.5px; color: var(--status-vendida-color, #c0392b); margin-top: 6px;
   background: rgba(192, 57, 43, .08); border-radius: 6px; padding: 6px 8px; word-break: break-word;
 }
+
+.ml-tier-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--ink-3); }
+.ml-tier-select {
+  flex: 1; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font-size: 12px;
+  font-family: inherit; color: var(--ink); background: var(--surface-2); outline: none; cursor: pointer;
+}
+.ml-tier-select:focus { border-color: var(--green-500); background: var(--surface); }
+.ml-tier-select:disabled { opacity: .6; cursor: wait; }
+
+.ml-quality { margin-bottom: 8px; }
+.ml-quality-head { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: var(--ink-3); margin-bottom: 5px; }
+.ml-quality-pct.tone-good { color: var(--status-disponible-color, #1a8f5e); }
+.ml-quality-pct.tone-warn { color: #b8791b; }
+.ml-quality-pct.tone-bad { color: var(--status-vendida-color, #c0392b); }
+.ml-quality-pct.tone-unknown { color: var(--ink-3); }
+
+.ml-quality-bar { height: 6px; border-radius: 999px; background: var(--line-2); overflow: hidden; }
+.ml-quality-fill { height: 100%; border-radius: 999px; transition: width .2s; }
+.ml-quality-fill.tone-good { background: var(--status-disponible-color, #1a8f5e); }
+.ml-quality-fill.tone-warn { background: #b8791b; }
+.ml-quality-fill.tone-bad { background: var(--status-vendida-color, #c0392b); }
+.ml-quality-fill.tone-unknown { background: var(--ink-3); }
+
+.ml-recs-toggle { margin-top: 8px; }
+.ml-recs-list {
+  margin: 8px 0 0; padding-left: 18px; font-size: 12px; color: var(--ink-3); display: flex;
+  flex-direction: column; gap: 4px;
+}
+.ml-recs-list li { line-height: 1.4; }
 
 /* Copyable fact (ID) — looks like the others but is a button with copy affordance */
 button.detail-aside-fact-copy {

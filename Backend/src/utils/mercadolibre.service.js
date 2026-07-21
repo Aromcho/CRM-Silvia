@@ -91,7 +91,7 @@ export async function getValidAccessToken() {
   }
 }
 
-async function mlRequest(method, path, opts = {}) {
+export async function mlRequest(method, path, opts = {}) {
   const access_token = await getValidAccessToken();
   return axios({
     method,
@@ -105,6 +105,13 @@ export async function fetchNotificationResource(resource) {
   const access_token = await getValidAccessToken();
   const { data } = await axios.get(`${ML_API}${resource}`, { headers: { Authorization: `Bearer ${access_token}` } });
   return data;
+}
+
+// El detalle de un lead tipo "question" no trae el texto de la pregunta — hay que consultarlo aparte
+// contra la API de preguntas usando el external_id del lead como question_id (confirmado en la doc de Leads).
+export async function getQuestionText(questionId) {
+  const { data } = await mlRequest('get', `/questions/${questionId}?api_version=4`);
+  return data.text || '';
 }
 
 // --- Descubrimiento dinámico de categoría/atributos ---
@@ -151,6 +158,20 @@ export async function resolveCategoryId(property) {
   const direct = typeName && categories.find((c) => c.name.toLowerCase().includes(typeName));
   if (direct) return direct.id;
   throw new Error(`No se pudo mapear el tipo de propiedad "${property.type?.name}" a una categoría de MercadoLibre`);
+}
+
+let listingTypesCache = null;
+let listingTypesCachedAt = 0;
+
+// Niveles de destaque disponibles (Plata/Oro/Oro Premium para inmuebles y vehículos) — se piden
+// dinámicamente en vez de hardcodear nombres, porque varían por sitio/categoría.
+export async function getListingTypes() {
+  const now = Date.now();
+  if (listingTypesCache && now - listingTypesCachedAt < CATEGORY_TREE_TTL) return listingTypesCache;
+  const { data } = await mlRequest('get', `/sites/${SITE_ID}/listing_types`);
+  listingTypesCache = data;
+  listingTypesCachedAt = now;
+  return data;
 }
 
 const attributesCache = new Map();
@@ -245,6 +266,13 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
   if (findAttr(attributes, 'COVERED_AREA') && property.roofed_surface) {
     attrPayload.push({ id: 'COVERED_AREA', value_name: `${parseFloat(property.roofed_surface)} m²` });
   }
+  // Obligatorio en Inmuebles según la doc de ML (confirmado vía WebSearch): expensas mensuales
+  if (findAttr(attributes, 'MAINTENANCE_FEE') && property.expenses) {
+    attrPayload.push({ id: 'MAINTENANCE_FEE', value_name: String(property.expenses) });
+  }
+  // TODO: IS_SUITABLE_FOR_PETS también es obligatorio para Inmuebles y no hay campo equivalente
+  // en Property.model.js (temporaryRental.mascotas es de otro circuito). Si el POST/validate lo pide,
+  // hay que agregar el campo al modelo o decidir un valor por defecto (no asumirlo a ciegas).
 
   const base = (process.env.BACKEND_PUBLIC_URL || '').replace(/\/$/, '');
   const pictures = (property.photos || [])
@@ -258,12 +286,13 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
     category_id: categoryId,
     price: price.price,
     currency_id: price.currency === 'USD' ? 'USD' : 'ARS',
-    // TODO: confirmar buying_mode/listing_type_id contra la respuesta real de ML para la categoría Inmuebles
-    // (varía según el modelo de clasificados vigente para la cuenta). Si el POST /items falla, el
-    // mensaje de error de ML indica exactamente qué campo/valor corregir.
-    buying_mode: 'classified',
+    buying_mode: 'classified', // confirmado por doc de ML para clasificados (inmuebles/vehículos)
+    // TODO: "silver" es un ejemplo encontrado por WebSearch, no confirmado específicamente para
+    // Inmuebles Argentina. /items/validate (usado en publishListing) va a decir si hay que cambiarlo.
+    listing_type_id: 'silver',
     condition: 'not_specified',
     available_quantity: 1,
+    official_store_id: null, // obligatorio en null si la cuenta no es Tienda Oficial (confirmado por doc)
     pictures,
     attributes: attrPayload,
     location:
@@ -281,6 +310,9 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
 
 async function publishListing(propertyDoc, operationType, operation) {
   const item = await mapPropertyToMlItem(propertyDoc, operationType, operation);
+  // Chequea el payload completo contra ML sin crear el aviso real — evita publicar (y potencialmente
+  // pagar) un item mal armado mientras todavía estamos afinando el mapeo de atributos/categoría.
+  await mlRequest('post', '/items/validate', { data: item });
   const { data } = await mlRequest('post', '/items', { data: item });
   const description = stripHtml(propertyDoc.description || propertyDoc.rich_description);
   if (description) {
@@ -290,7 +322,14 @@ async function publishListing(propertyDoc, operationType, operation) {
       console.error('No se pudo setear la descripción en ML', descErr.response?.data || descErr.message);
     }
   }
-  return { operation_type: operationType, item_id: data.id, category_id: item.category_id, url: data.permalink, status: 'active' };
+  return {
+    operation_type: operationType,
+    item_id: data.id,
+    category_id: item.category_id,
+    url: data.permalink,
+    status: 'active',
+    listing_type_id: item.listing_type_id,
+  };
 }
 
 async function updateListingPrice(itemId, operation) {
@@ -302,6 +341,55 @@ async function updateListingPrice(itemId, operation) {
 
 async function setListingStatus(itemId, status) {
   await mlRequest('put', `/items/${itemId}`, { data: { status } });
+}
+
+// Sube/baja el nivel de destaque de un aviso ya publicado (Plata/Oro/Oro Premium). Tiene costo real
+// en ML (consume cupo o tiene cargo adicional), por eso es una acción explícita del usuario, no automática.
+export async function upgradeListingType(propertyId, operationType, listingTypeId) {
+  const property = await Property.findOne({ id: propertyId }).lean();
+  const listing = property?.difusion?.mercadolibre?.listings?.find((l) => l.operation_type === operationType);
+  if (!listing?.item_id) throw new Error('Esa operación todavía no tiene un aviso publicado en MercadoLibre');
+  await mlRequest('put', `/items/${listing.item_id}`, { data: { listing_type_id: listingTypeId } });
+  await Property.updateOne(
+    { id: propertyId, 'difusion.mercadolibre.listings.operation_type': operationType },
+    {
+      $set: {
+        'difusion.mercadolibre.listings.$.listing_type_id': listingTypeId,
+        'difusion.mercadolibre.listings.$.updated_at': new Date(),
+      },
+    }
+  );
+  const updated = await Property.findOne({ id: propertyId }, { difusion: 1 }).lean();
+  return updated.difusion?.mercadolibre?.listings || [];
+}
+
+// Etiquetas legibles para los goals confirmados en la doc real de "Calidad de las Publicaciones - Inmuebles"
+const HEALTH_GOAL_LABELS = {
+  picture: (goal) => `Agregar más fotos${goal.data?.min ? ` (mínimo ${goal.data.min})` : ''}`,
+  technical_specification: () => 'Completar los atributos técnicos de la publicación',
+  video: () => 'Agregar un video o tour virtual (campo video_id)',
+  upgrade_listing: () => 'Mejorar el nivel de destaque de la publicación',
+  publish: () => 'Publicar el aviso',
+};
+
+// GET /items/{id}/health → { item_id, health (0-1), level, goals: [{id, name, apply, progress, progress_max, data?}] }
+// Confirmado 2026-07-21 contra la doc real "Calidad de las Publicaciones - Inmuebles" que pegó el usuario.
+export async function refreshListingHealth(itemId) {
+  let data;
+  try {
+    ({ data } = await mlRequest('get', `/items/${itemId}/health`));
+  } catch (err) {
+    // Pasa si el item es de un desarrollo (domain_id con "DEVELOPMENT") o no está activo/tiene penalización:
+    // no es un error real del sync, simplemente no aplica calidad a este item.
+    if (/health is not supported/i.test(err.response?.data?.message || '')) {
+      return { health_percentage: null, health_actions: [], health_checked_at: new Date() };
+    }
+    throw new Error(`No se pudo obtener la calidad de la publicación: ${extractMlError(err)}`);
+  }
+  const health_percentage = data.health == null ? null : Math.round(data.health * 100);
+  const pendingGoals = (data.goals || []).filter((g) => g.apply && g.progress < g.progress_max);
+  const health_actions = pendingGoals.map((g) => (HEALTH_GOAL_LABELS[g.id]?.(g)) || g.name || g.id);
+  return { health_percentage, health_actions, health_checked_at: new Date() };
 }
 
 async function saveListingsState(propertyId, listings) {
@@ -383,6 +471,17 @@ export async function syncProperty(propertyDoc) {
         listing.last_error = extractMlError(err);
       }
       listing.updated_at = new Date();
+    }
+  }
+
+  // Calidad/recomendaciones: solo para listings activos, y sin frenar el sync si falla (no es crítico)
+  for (const [, listing] of listingsByType) {
+    if (listing.item_id && listing.status === 'active') {
+      try {
+        Object.assign(listing, await refreshListingHealth(listing.item_id));
+      } catch (err) {
+        console.error(`No se pudo actualizar la calidad del item ${listing.item_id}`, err.message);
+      }
     }
   }
 

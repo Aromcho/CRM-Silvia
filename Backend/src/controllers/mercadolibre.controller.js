@@ -3,6 +3,7 @@ import Property from '../models/Property.model.js';
 import Lead from '../models/Lead.model.js';
 import Activity from '../models/Activity.model.js';
 import * as ml from '../utils/mercadolibre.service.js';
+import { collectDailyMetrics, getPropertyMetricsSeries } from '../utils/mercadolibreMetrics.service.js';
 
 // Estado OAuth en memoria (backend corre en una sola instancia): protege el callback de CSRF
 const oauthStates = new Map();
@@ -66,6 +67,37 @@ export async function syncAllMercadoLibre(req, res) {
   }
 }
 
+export async function getListingTypes(req, res) {
+  try {
+    const types = await ml.getListingTypes();
+    res.json(types);
+  } catch (err) {
+    res.status(502).json({ message: 'Error obteniendo tipos de publicación de MercadoLibre', detail: err.message });
+  }
+}
+
+export async function upgradeListingType(req, res) {
+  const { propertyId } = req.params;
+  const { operation_type, listing_type_id } = req.body || {};
+  if (!operation_type || !listing_type_id) {
+    return res.status(400).json({ message: 'Faltan operation_type y/o listing_type_id' });
+  }
+  try {
+    const listings = await ml.upgradeListingType(parseInt(propertyId, 10), operation_type, listing_type_id);
+    await Activity.create({
+      type: 'ml_sync',
+      description: `Propiedad ${propertyId}: cambio de nivel de publicación (${operation_type} → ${listing_type_id})`,
+      userId: req.user?.id,
+      userName: req.user?.name,
+      entityId: propertyId,
+      entityType: 'property',
+    });
+    res.json({ ok: true, listings });
+  } catch (err) {
+    res.status(502).json({ message: 'Error actualizando el nivel de publicación en MercadoLibre', detail: err.message });
+  }
+}
+
 export async function getMercadoLibreStatus(req, res) {
   try {
     const [connected, published, pending, withError] = await Promise.all([
@@ -80,18 +112,53 @@ export async function getMercadoLibreStatus(req, res) {
   }
 }
 
+export async function getPropertyMetrics(req, res) {
+  const { propertyId } = req.params;
+  const days = Math.min(parseInt(req.query.days, 10) || 30, 150); // 150 días: máximo de rango que soporta la API de ML
+  try {
+    const result = await getPropertyMetricsSeries(parseInt(propertyId, 10), days);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: 'Error obteniendo métricas de la propiedad', detail: err.message });
+  }
+}
+
+export async function collectMercadoLibreMetrics(req, res) {
+  res.json({ started: true });
+  try {
+    const summary = await collectDailyMetrics();
+    await Activity.create({
+      type: 'ml_sync_completed',
+      description: `Recolección de métricas de MercadoLibre: ${summary.saved}/${summary.itemsProcessed} publicaciones (${summary.date})`,
+      userId: req.user?.id,
+      userName: req.user?.name,
+      meta: summary,
+    });
+  } catch (err) {
+    console.error('Error recolectando métricas de MercadoLibre', err.message);
+  }
+}
+
 export async function handleMercadoLibreLead(req, res) {
   // ML exige una respuesta rápida (< 500ms): confirmamos la recepción y procesamos después
   res.sendStatus(200);
   const { resource } = req.body || {};
   if (!resource) return;
   try {
+    // GET /vis/leads/$LEAD_ID → { id, item_id, created_at, contact_type, external_id, status, buyer_id, name, email, phone }
+    // (confirmado 2026-07-21 contra la doc real de Leads que pegó el usuario)
     const data = await ml.fetchNotificationResource(resource);
-    // TODO: confirmar la forma exacta del payload de leads de Inmuebles contra la respuesta real de ML
-    const name = data.name || data.contact?.name || 'Contacto MercadoLibre';
-    const email = data.email || data.contact?.email || '';
-    const phone = data.phone || data.contact?.phone || '';
-    const itemId = data.item_id || data.resource_id;
+    const name = data.name || 'Contacto MercadoLibre';
+    const email = data.email || '';
+    const phone = data.phone || '';
+    const itemId = data.item_id;
+
+    let message = '';
+    if (data.contact_type === 'question' && data.external_id) {
+      // El detalle del lead no trae el texto de la pregunta — hay que pedirlo aparte a la API de preguntas
+      try { message = await ml.getQuestionText(data.external_id); }
+      catch (err) { console.error('No se pudo obtener el texto de la pregunta de ML', err.message); }
+    }
 
     let propertyId;
     let propertyTitle = '';
@@ -110,7 +177,7 @@ export async function handleMercadoLibreLead(req, res) {
       propertyId,
       propertyTitle,
       source: 'mercadolibre',
-      message: data.message || '',
+      message,
     });
 
     await Activity.create({
