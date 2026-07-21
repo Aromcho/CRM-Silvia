@@ -10,6 +10,8 @@ import {
   upgradeListingType,
   getPropertyMetrics,
   collectMercadoLibreMetrics,
+  discoverExistingListings,
+  confirmLinkListing,
 } from '../../controllers/mercadolibre.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
 
@@ -24,6 +26,8 @@ router.get('/listing-types', isAuth, getListingTypes);
 router.patch('/listing-type/:propertyId', isAuth, upgradeListingType);
 router.get('/metrics/property/:propertyId', isAuth, getPropertyMetrics);
 router.post('/metrics/collect', isAuth, collectMercadoLibreMetrics);
+router.get('/discover-existing', isAuth, discoverExistingListings);
+router.post('/link-existing', isAuth, confirmLinkListing);
 router.post('/webhook/lead', handleMercadoLibreLead); // público
 
 export default router;

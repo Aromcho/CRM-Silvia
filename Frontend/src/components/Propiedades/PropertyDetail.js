@@ -8,7 +8,7 @@ import {
   updateProperty, updatePropertyDifusion, syncPropertyMercadoLibre,
   getMercadoLibreListingTypes, upgradeMercadoLibreListingType,
 } from '@/services/api';
-import { photoSrc, formatPrice, STATUS_LABELS } from '@/lib/data';
+import { photoSrc, formatPrice, STATUS_LABELS, propertyWebUrl } from '@/lib/data';
 import './Propiedades.css';
 import './PropertyDetail.css';
 
@@ -358,8 +358,8 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
       e('div', { className: 'detail-crumb-sep' }, '/'),
       e('h1', null, property.publication_title || property.address || 'Propiedad'),
       e('div', { className: 'detail-header-actions' },
-        property.public_url && e('a', {
-          href: property.public_url, target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost sm',
+        e('a', {
+          href: propertyWebUrl(property), target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost sm',
         }, e(Icons.ExternalLink, { width: 13, height: 13 }), 'Ver en la web'),
         canClose && e('button', { className: 'btn ghost sm', onClick: onClose, title: 'Cerrar pestaña' },
           e(Icons.Close, { width: 14, height: 14 }), 'Cerrar'),

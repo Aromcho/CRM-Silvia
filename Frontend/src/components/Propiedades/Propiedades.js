@@ -2,6 +2,7 @@
 import React from 'react';
 import Icons from '../Icons/Icons';
 import { getProperties, getPropertyById, updatePropertyStatus, createProperty } from '@/services/api';
+import { propertyWebUrl } from '@/lib/data';
 import './Propiedades.css';
 
 const e = React.createElement;
@@ -146,8 +147,8 @@ function PropModal({ property, onClose, session }) {
         ),
 
         e('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8 } },
-          property.public_url && e('a', {
-            href: property.public_url, target: '_blank', rel: 'noopener noreferrer',
+          e('a', {
+            href: propertyWebUrl(property), target: '_blank', rel: 'noopener noreferrer',
             className: 'btn ghost sm',
           }, e(Icons.ExternalLink, { width: 13, height: 13 }), 'Ver en web'),
           e('button', { className: 'btn primary sm', onClick: onClose }, 'Cerrar'),

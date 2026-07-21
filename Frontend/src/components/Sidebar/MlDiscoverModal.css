@@ -1,0 +1,35 @@
+.ml-discover-overlay {
+  position: fixed; inset: 0; background: rgba(10,28,20,.5); z-index: 300;
+  display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px);
+}
+.ml-discover-modal {
+  background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-lg);
+  width: min(880px, 100%); max-height: 86vh; display: flex; flex-direction: column; overflow: hidden;
+}
+.ml-discover-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 0; }
+.ml-discover-head h2 { margin: 0; font-size: 16px; }
+.ml-discover-sub { padding: 8px 22px 16px; margin: 0; font-size: 12.5px; color: var(--ink-3); border-bottom: 1px solid var(--line); }
+
+.ml-discover-loading, .ml-discover-empty { padding: 30px 22px; text-align: center; color: var(--ink-3); font-size: 13px; }
+.ml-discover-error { padding: 16px 22px; color: var(--status-vendida-color); font-size: 13px; }
+
+.ml-discover-body { padding: 14px 22px; overflow-y: auto; }
+
+.ml-discover-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ml-discover-table th { text-align: left; padding: 8px 10px; color: var(--ink-3); font-weight: 700; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--line); }
+.ml-discover-table td { padding: 9px 10px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+.ml-discover-table tr.is-linked { opacity: .55; }
+.ml-discover-table a { color: var(--green-700); text-decoration: none; }
+.ml-discover-table a:hover { text-decoration: underline; }
+
+.ml-discover-badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+.ml-discover-badge.good { background: var(--status-disponible-bg); color: var(--status-disponible-color); }
+.ml-discover-badge.warn { background: var(--status-reservada-bg); color: var(--status-reservada-color); }
+
+.ml-discover-unmatched { margin-top: 16px; }
+.ml-discover-unmatched ul { margin: 10px 0 0; padding-left: 18px; font-size: 12px; }
+.ml-discover-unmatched a { color: var(--ink-2); }
+
+.ml-discover-result { margin-top: 14px; font-size: 12.5px; font-weight: 600; }
+
+.ml-discover-footer { padding: 14px 22px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; }

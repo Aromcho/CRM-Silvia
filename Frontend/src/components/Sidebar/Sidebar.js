@@ -2,6 +2,7 @@
 import React from 'react';
 import Icons from '../Icons/Icons';
 import { logout, triggerSync, importRentals, syncAllMercadoLibre } from '@/services/api';
+import MlDiscoverModal from './MlDiscoverModal';
 import './Sidebar.css';
 
 const e = React.createElement;
@@ -33,6 +34,7 @@ export default function Sidebar({ tab, setTab, session, onLogout }) {
   const [syncing, setSyncing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [syncingMl, setSyncingMl] = useState(false);
+  const [showDiscoverModal, setShowDiscoverModal] = useState(false);
 
   async function handleLogout() {
     await logout();
@@ -118,6 +120,12 @@ export default function Sidebar({ tab, setTab, session, onLogout }) {
           e(Icons.RefreshCw, { width: 14, height: 14 }),
           syncingMl ? 'Sincronizando…' : 'Sincronizar MercadoLibre',
         ),
+      ['ADMIN', 'SUPERADMIN'].includes(session?.role) &&
+        e('button', { className: 'sidebar-sync-btn', onClick: () => setShowDiscoverModal(true) },
+          e(Icons.Star, { width: 14, height: 14 }),
+          'Vincular publicaciones existentes',
+        ),
+      showDiscoverModal && e(MlDiscoverModal, { onClose: () => setShowDiscoverModal(false) }),
       e('div', { className: 'sidebar-user' },
         e('span', { className: 'avatar avatar-pop', style: { width: 30, height: 30, background: userColor, fontSize: 11 } }, userInitials),
         e('div', { className: 'sidebar-user-info' },

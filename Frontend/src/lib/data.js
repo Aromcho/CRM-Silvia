@@ -22,6 +22,13 @@ export const OPERATION_TYPE_LABELS = {
 };
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:7003';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.silviafernandezpropiedades.com.ar';
+
+// property.public_url viene de Tokko y apunta a su acortador propio (ficha.info), no al sitio real —
+// la URL pública correcta la arma la propia web (web-silvia-next: /propiedad/[id] usa el id de Tokko).
+export function propertyWebUrl(property) {
+  return `${SITE_URL}/propiedad/${property.id}`;
+}
 
 export function photoSrc(photo) {
   if (!photo) return null;

@@ -139,6 +139,34 @@ export async function collectMercadoLibreMetrics(req, res) {
   }
 }
 
+export async function discoverExistingListings(req, res) {
+  try {
+    const result = await ml.matchDiscoveredItems();
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({ message: 'Error descubriendo publicaciones existentes en MercadoLibre', detail: err.message });
+  }
+}
+
+export async function confirmLinkListing(req, res) {
+  const { propertyId, itemId, operationValue } = req.body || {};
+  if (!propertyId || !itemId) return res.status(400).json({ message: 'Faltan propertyId y/o itemId' });
+  try {
+    await ml.linkExistingListing(parseInt(propertyId, 10), itemId, operationValue);
+    await Activity.create({
+      type: 'ml_sync',
+      description: `Vinculada publicación existente de MercadoLibre (${itemId}) a la propiedad ${propertyId}`,
+      userId: req.user?.id,
+      userName: req.user?.name,
+      entityId: String(propertyId),
+      entityType: 'property',
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(502).json({ message: 'Error vinculando la publicación existente', detail: err.message });
+  }
+}
+
 export async function handleMercadoLibreLead(req, res) {
   // ML exige una respuesta rápida (< 500ms): confirmamos la recepción y procesamos después
   res.sendStatus(200);

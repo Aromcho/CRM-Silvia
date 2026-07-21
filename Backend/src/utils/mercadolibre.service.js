@@ -511,3 +511,153 @@ export async function syncAllProperties({ delayMs = 1200 } = {}) {
   }
   return results;
 }
+
+// --- Descubrir publicaciones ya existentes (ej. las que subió Tokko directamente) y vincularlas ---
+// sin crear nada nuevo en ML, para no terminar con avisos duplicados de la misma propiedad.
+
+function chunkArray(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+function normalizeText(str) {
+  return String(str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+async function fetchMlUserId() {
+  const token = await MlToken.findOne({}).lean();
+  if (!token?.ml_user_id) throw new Error('MercadoLibre no está conectado');
+  return token.ml_user_id;
+}
+
+// Trae TODOS los items (cualquier categoría) que ya tiene publicados la cuenta conectada, con
+// los datos mínimos para poder matchearlos contra las propiedades del CRM.
+export async function discoverMlItems() {
+  const userId = await fetchMlUserId();
+  const itemIds = [];
+  let offset = 0;
+  const limit = 50;
+  for (;;) {
+    const { data } = await mlRequest('get', `/users/${userId}/items/search?limit=${limit}&offset=${offset}`);
+    itemIds.push(...(data.results || []));
+    offset += limit;
+    if (!data.paging || offset >= data.paging.total) break;
+  }
+
+  const items = [];
+  for (const group of chunkArray(itemIds, 20)) {
+    const { data } = await mlRequest(
+      'get',
+      `/items?ids=${group.join(',')}&attributes=id,title,permalink,seller_custom_field,category_id,status,attributes`
+    );
+    for (const entry of data) {
+      const body = entry.body || entry;
+      const opAttr = (body.attributes || []).find((a) => a.id === 'OPERATION');
+      items.push({
+        item_id: body.id,
+        title: body.title,
+        permalink: body.permalink,
+        seller_custom_field: body.seller_custom_field || null,
+        category_id: body.category_id,
+        status: body.status,
+        operation_value: opAttr?.value_name || null,
+      });
+    }
+  }
+  return items;
+}
+
+// Matchea cada item de ML contra una propiedad del CRM. Prioridad: seller_custom_field (si Tokko
+// guardó ahí su propio ID/referencia) > coincidencia de título. Todo lo demás queda "sin matchear"
+// para revisión manual — nunca se auto-vincula nada acá, eso lo confirma el usuario aparte.
+export async function matchDiscoveredItems() {
+  const items = await discoverMlItems();
+  const properties = await Property.find(
+    {},
+    { id: 1, reference_code: 1, publication_title: 1, address: 1, 'difusion.mercadolibre': 1 }
+  ).lean();
+
+  const byTokkoId = new Map(properties.map((p) => [String(p.id), p]));
+  const byRefCode = new Map(properties.filter((p) => p.reference_code).map((p) => [normalizeText(p.reference_code), p]));
+
+  const matches = [];
+  const unmatchedMlItems = [];
+  for (const item of items) {
+    let property = null;
+    let matchedBy = null;
+
+    if (item.seller_custom_field) {
+      property = byTokkoId.get(String(item.seller_custom_field)) || byRefCode.get(normalizeText(item.seller_custom_field));
+      if (property) matchedBy = 'seller_custom_field';
+    }
+    if (!property) {
+      const normTitle = normalizeText(item.title);
+      property = properties.find((p) => {
+        const normProp = normalizeText(p.publication_title) || normalizeText(p.address);
+        if (!normProp || !normTitle) return false;
+        const shorter = normProp.length < normTitle.length ? normProp : normTitle;
+        const longer = normProp.length < normTitle.length ? normTitle : normProp;
+        return shorter.length >= 8 && longer.includes(shorter.slice(0, Math.min(shorter.length, 40)));
+      });
+      if (property) matchedBy = 'title';
+    }
+
+    if (property) {
+      const alreadyLinked = (property.difusion?.mercadolibre?.listings || []).some(
+        (l) => l.item_id === String(item.item_id)
+      );
+      matches.push({
+        item_id: item.item_id,
+        title: item.title,
+        permalink: item.permalink,
+        status: item.status,
+        operation_value: item.operation_value,
+        propertyId: property.id,
+        propertyTitle: property.publication_title || property.address,
+        matchedBy,
+        alreadyLinked,
+      });
+    } else {
+      unmatchedMlItems.push(item);
+    }
+  }
+  return { matches, unmatchedMlItems };
+}
+
+// Escribe el vínculo confirmado por el usuario — NO publica ni modifica nada en ML, solo guarda
+// el item_id existente en difusion.mercadolibre.listings para que syncProperty() haga PUT en vez de POST.
+export async function linkExistingListing(propertyId, itemId, operationValue) {
+  const operationType = /alquiler/i.test(operationValue || '') ? 'alquiler' : 'venta';
+  const { data: item } = await mlRequest('get', `/items/${itemId}`);
+  await Property.updateOne(
+    { id: propertyId, 'difusion.mercadolibre.listings.operation_type': { $ne: operationType } },
+    {
+      $push: {
+        'difusion.mercadolibre.listings': {
+          operation_type: operationType,
+          item_id: String(itemId),
+          category_id: item.category_id,
+          url: item.permalink,
+          status: item.status === 'active' ? 'active' : 'paused',
+          listing_type_id: item.listing_type_id,
+          updated_at: new Date(),
+        },
+      },
+    }
+  );
+  await Property.updateOne(
+    { id: propertyId },
+    {
+      $set: {
+        'difusion.mercadolibre.published': true,
+        'difusion.mercadolibre.url': item.permalink,
+        'difusion.mercadolibre.updated_at': new Date(),
+      },
+    }
+  );
+}
