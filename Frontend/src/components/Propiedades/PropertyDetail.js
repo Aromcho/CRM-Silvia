@@ -4,8 +4,9 @@ import Icons from '../Icons/Icons';
 import EditableField from '../UI/EditableField';
 import PhotoManager from './PhotoManager';
 import MlStats from './MlStats';
+import PropertyMap from './PropertyMap';
 import {
-  updateProperty, updatePropertyDifusion, syncPropertyMercadoLibre,
+  updateProperty, updatePropertyStatus, updatePropertyDifusion, syncPropertyMercadoLibre,
   getMercadoLibreListingTypes, upgradeMercadoLibreListingType,
 } from '@/services/api';
 import { photoSrc, formatPrice, STATUS_LABELS, propertyWebUrl } from '@/lib/data';
@@ -13,11 +14,12 @@ import './Propiedades.css';
 import './PropertyDetail.css';
 
 const e = React.createElement;
-const { useState, useEffect } = React;
+const { useState, useEffect, useMemo } = React;
 
 const PAGE_TABS = [
   { key: 'detalles', label: 'Detalles' },
   { key: 'fotos', label: 'Fotos' },
+  { key: 'mapa', label: 'Mapa' },
   { key: 'difusion', label: 'Difusión' },
   { key: 'estadisticas', label: 'Estadísticas' },
 ];
@@ -29,9 +31,9 @@ const DIFUSION_PLATFORMS = [
 const ML_STATUS_LABELS = { active: 'Activo', paused: 'Pausado', closed: 'Cerrado' };
 const ML_OPERATION_LABELS = { venta: 'Venta', alquiler: 'Alquiler' };
 
-function Row({ label, children }) {
+function Row({ label, icon, children }) {
   return e('div', { className: 'prop-info-item' },
-    e('div', { className: 'prop-info-label' }, label),
+    e('div', { className: 'prop-info-label' }, icon && e(icon, { width: 12, height: 12 }), label),
     e('div', { className: 'prop-info-value' }, children),
   );
 }
@@ -55,26 +57,124 @@ function GroupedSection({ title, groups }) {
   );
 }
 
-const TAG_GROUP_LABELS = { 1: 'Servicios', 2: 'Ambientes', 3: 'Adicionales' };
-const TAG_GROUP_ORDER = ['Servicios', 'Ambientes', 'Adicionales', 'Otros'];
+function normalizeTagText(v) {
+  return String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+}
 
-function TagChips({ tags }) {
-  if (!tags || !tags.length) return e('div', { className: 'detail-empty-note' }, 'Sin servicios, ambientes o adicionales sincronizados desde Tokko.');
+const SERVICIOS_OPTIONS = [
+  'Agua Corriente', 'Agua Potable', 'Alumbrado público', 'Biodigestores',
+  'Cable', 'Cloaca', 'Electricidad', 'Energía trifásica',
+  'Garagistas', 'Gas Envasado', 'Gas Natural', 'Instalación eléctrica subterránea',
+  'Internet', 'Losa radiante general', 'Pavimento', 'Pozo negro',
+  'Red de desagües pluviales', 'Teléfono', 'Televisión satelital', 'Wifi',
+];
 
-  const groups = {};
-  tags.forEach((t) => {
-    const label = TAG_GROUP_LABELS[t.type] || 'Otros';
-    (groups[label] = groups[label] || []).push(t);
-  });
+const AMBIENTES_OPTIONS = [
+  'Altillo', 'Balcón', 'Balcón terraza', 'Baño de servicio',
+  'Baulera', 'Biblioteca', 'Cocina', 'Cocina Americana',
+  'Comedor diario', 'Departamento de Invitados', 'Escritorio', 'Galería',
+  'Galpón', 'Jardín', 'Lavadero', 'Living comedor',
+  'Oficina', 'Patio', 'Sala de juegos', 'Sala de reuniones',
+  'Sótano', 'Terraza', 'Toilette', 'Vestidor',
+];
 
-  return TAG_GROUP_ORDER.filter((label) => groups[label]?.length).map((label) =>
-    e('div', { key: label, className: 'detail-chip-group' },
-      e('h4', null, label),
-      e('div', { className: 'detail-tag-list' },
-        groups[label].map((t, i) => e('span', { key: t.id ?? i, className: 'detail-tag' },
-          e(Icons.Check, { width: 11, height: 11 }), t.name)),
-      ),
+const KNOWN_TAG_NAMES = new Set([...SERVICIOS_OPTIONS, ...AMBIENTES_OPTIONS].map(normalizeTagText));
+
+// Checklist editable de "Servicios, ambientes y adicionales". A propósito NO lee/escribe
+// `tags`/`custom_tags` (esos los pisa syncWithTokko.js cada 2 min) — usa `manual_tags`,
+// un campo propio del CRM. La primera vez que se abre (manual_tags todavía no existe) arranca
+// mostrando lo que ya vino sincronizado de Tokko como punto de partida, pero apenas se toca un
+// checkbox pasa a guardarse en `manual_tags` y ese campo queda como única fuente de verdad.
+function ServicesAmenitiesEditor({ property, saveField }) {
+  const [search, setSearch] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [extra, setExtra] = useState('');
+
+  const seeded = useMemo(() => {
+    if (property.manual_tags) return property.manual_tags;
+    return [...(property.tags || []), ...(property.custom_tags || [])].map((t) => t.name).filter(Boolean);
+  }, [property.manual_tags, property.tags, property.custom_tags]);
+
+  const checkedSet = useMemo(() => new Set(seeded.map(normalizeTagText)), [seeded]);
+
+  const adicionalesOptions = useMemo(() => {
+    const fromTokko = [...(property.tags || []), ...(property.custom_tags || [])]
+      .filter((t) => t.name && !KNOWN_TAG_NAMES.has(normalizeTagText(t.name)))
+      .map((t) => t.name);
+    const fromManual = seeded.filter((n) => !KNOWN_TAG_NAMES.has(normalizeTagText(n)));
+    return [...new Set([...fromTokko, ...fromManual])].filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'));
+  }, [property.tags, property.custom_tags, seeded]);
+
+  async function toggle(name) {
+    const key = normalizeTagText(name);
+    const next = checkedSet.has(key) ? seeded.filter((n) => normalizeTagText(n) !== key) : [...seeded, name];
+    setSaving(true);
+    try { await saveField('manual_tags', next); }
+    finally { setSaving(false); }
+  }
+
+  async function addExtra() {
+    const name = extra.trim();
+    if (!name || checkedSet.has(normalizeTagText(name))) { setExtra(''); return; }
+    setExtra('');
+    setSaving(true);
+    try { await saveField('manual_tags', [...seeded, name]); }
+    finally { setSaving(false); }
+  }
+
+  const q = normalizeTagText(search);
+  const groups = [
+    { key: 'Servicios', options: SERVICIOS_OPTIONS },
+    { key: 'Ambientes', options: AMBIENTES_OPTIONS },
+    { key: 'Adicionales', options: adicionalesOptions },
+  ];
+
+  return e('div', { className: 'services-editor' },
+    e('div', { className: 'services-editor-search' },
+      e(Icons.Search, { width: 15, height: 15 }),
+      e('input', {
+        placeholder: 'Buscar servicios, ambientes o adicionales', value: search,
+        onChange: (ev) => setSearch(ev.target.value),
+      }),
     ),
+    groups.map(({ key, options }) => {
+      const filtered = q ? options.filter((o) => normalizeTagText(o).includes(q)) : options;
+      if (q && filtered.length === 0) return null;
+      const showToggle = !q && filtered.length > 8;
+      const expanded = !!q || !!expandedGroups[key] || !showToggle;
+      const visible = expanded ? filtered : filtered.slice(0, 8);
+
+      return e('div', { key, className: 'services-editor-group' },
+        e('h4', null, key),
+        options.length === 0
+          ? e('div', { className: 'detail-empty-note' }, 'Sin adicionales cargados todavía.')
+          : e('div', { className: 'services-editor-grid' },
+              visible.map((name) => e('label', {
+                key: name,
+                className: `services-editor-item${checkedSet.has(normalizeTagText(name)) ? ' checked' : ''}`,
+              },
+                e('input', {
+                  type: 'checkbox', checked: checkedSet.has(normalizeTagText(name)),
+                  disabled: saving, onChange: () => toggle(name),
+                }),
+                e('span', null, name),
+              )),
+            ),
+        key === 'Adicionales' && e('div', { className: 'services-editor-add' },
+          e('input', {
+            placeholder: 'Agregar otro adicional…', value: extra,
+            onChange: (ev) => setExtra(ev.target.value),
+            onKeyDown: (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); addExtra(); } },
+          }),
+          e('button', { type: 'button', className: 'btn ghost xs', onClick: addExtra }, e(Icons.Plus, { width: 12, height: 12 }), 'Agregar'),
+        ),
+        showToggle && e('button', {
+          type: 'button', className: 'services-editor-toggle',
+          onClick: () => setExpandedGroups((c) => ({ ...c, [key]: !expanded })),
+        }, expanded ? 'Ver menos' : 'Ver más'),
+      );
+    }),
   );
 }
 
@@ -317,6 +417,7 @@ function MercadoLibreCard({ property, onSynced }) {
 export default function PropertyDetail({ property: initialProperty, onBack, onClose, canClose }) {
   const [property, setProperty] = useState(initialProperty);
   const [activeTab, setActiveTab] = useState('detalles');
+  const [changingStatus, setChangingStatus] = useState(false);
 
   useEffect(() => { setProperty(initialProperty); }, [initialProperty]);
   useEffect(() => {
@@ -329,6 +430,24 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
     const updated = await updateProperty(property.id, { [path]: value });
     setProperty(updated);
     return updated;
+  }
+
+  async function handleStatusChange(newStatus) {
+    if (newStatus === property.status) return;
+    setChangingStatus(true);
+    try {
+      const updated = await updatePropertyStatus(property.id, newStatus);
+      setProperty(updated);
+    } catch (err) {
+      alert(err.message || 'No se pudo cambiar el estado.');
+    } finally {
+      setChangingStatus(false);
+    }
+  }
+
+  async function saveLocation(lat, lng) {
+    const updated = await updateProperty(property.id, { geo_lat: lat, geo_long: lng });
+    setProperty(updated);
   }
 
   async function saveDifusion(platform, data) {
@@ -389,27 +508,32 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
           e('h3', null, 'Dirección'),
           e('div', { className: 'detail-summary-table' },
             e('div', { className: 'detail-summary-row' },
-              e('div', { className: 'prop-info-label' }, 'Dirección'),
+              e('div', { className: 'prop-info-label' }, e(Icons.MapPin, { width: 12, height: 12 }), 'Dirección'),
               e(EditableField, { value: property.address, onSave: (v) => saveField('address', v) }),
             ),
             e('div', { className: 'detail-summary-row' },
-              e('div', { className: 'prop-info-label' }, 'Referencia | Tipo'),
+              e('div', { className: 'prop-info-label' }, e(Icons.Tag, { width: 12, height: 12 }), 'Referencia | Tipo'),
               e('div', null, `${property.reference_code || '—'} | ${property.type?.name || '—'}`),
             ),
             e('div', { className: 'detail-summary-row' },
-              e('div', { className: 'prop-info-label' }, 'Título de publicación'),
+              e('div', { className: 'prop-info-label' }, e(Icons.Edit, { width: 12, height: 12 }), 'Título de publicación'),
               e(EditableField, { value: property.publication_title, onSave: (v) => saveField('publication_title', v) }),
             ),
             e('div', { className: 'detail-summary-row' },
-              e('div', { className: 'prop-info-label' }, 'Ubicación'),
+              e('div', { className: 'prop-info-label' }, e(Icons.Globe, { width: 12, height: 12 }), 'Ubicación'),
               e(EditableField, { value: property.location?.full_location, onSave: (v) => saveField('location.full_location', v) }),
             ),
             e('div', { className: 'detail-summary-row' },
-              e('div', { className: 'prop-info-label' }, 'Barrio / zona'),
+              e('div', { className: 'prop-info-label' }, e(Icons.MapPin, { width: 12, height: 12 }), 'Barrio / zona'),
               e(EditableField, { value: property.location?.name, onSave: (v) => saveField('location.name', v) }),
             ),
           ),
-          e('div', { className: `detail-status-bar badge-${property.status}` }, STATUS_LABELS[property.status] || property.status),
+          e('select', {
+            className: `detail-status-bar detail-status-select badge-${property.status}`,
+            value: property.status,
+            disabled: changingStatus,
+            onChange: (ev) => handleStatusChange(ev.target.value),
+          }, Object.entries(STATUS_LABELS).map(([key, label]) => e('option', { key, value: key }, label))),
         ),
       ),
     ),
@@ -430,6 +554,13 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
     e('div', { className: 'detail-layout' },
       activeTab === 'fotos'
         ? e('div', { className: 'detail-main' }, e(PhotoManager, { property, onPropertyChange: setProperty }))
+        : activeTab === 'mapa'
+        ? e('div', { className: 'detail-main' },
+            e('div', { className: 'detail-section' },
+              e('h3', null, 'Ubicación en el mapa'),
+              e(PropertyMap, { property, onLocationChange: saveLocation }),
+            ),
+          )
         : activeTab === 'difusion'
         ? e('div', { className: 'detail-main' },
             e('div', { className: 'detail-section' },
@@ -458,8 +589,8 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
           e('h3', null, 'Tasación'),
           e(OperationTabs, { operations: property.operations || [], saveField }),
           e('div', { className: 'prop-info-grid' },
-            e(Row, { label: 'Crédito' }, e(EditableField, { value: property.credit_eligible, onSave: (v) => saveField('credit_eligible', v), placeholder: 'No especificado' })),
-            e(Row, { label: 'Expensas' }, e(EditableField, { type: 'number', value: property.expenses, onSave: (v) => saveField('expenses', v) })),
+            e(Row, { label: 'Crédito', icon: Icons.Check }, e(EditableField, { value: property.credit_eligible, onSave: (v) => saveField('credit_eligible', v), placeholder: 'No especificado' })),
+            e(Row, { label: 'Expensas', icon: Icons.DollarSign }, e(EditableField, { type: 'number', value: property.expenses, onSave: (v) => saveField('expenses', v) })),
           ),
         ),
 
@@ -469,53 +600,53 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
             {
               label: 'Características generales',
               rows: [
-                e(Row, { key: 'amb', label: 'Ambientes' }, e(EditableField, { type: 'number', value: property.suite_amount, onSave: (v) => saveField('suite_amount', v) })),
-                e(Row, { key: 'age', label: 'Antigüedad' }, e(EditableField, { type: 'number', value: property.age, onSave: (v) => saveField('age', v) })),
-                e(Row, { key: 'bath', label: 'Baños' }, e(EditableField, { type: 'number', value: property.bathroom_amount, onSave: (v) => saveField('bathroom_amount', v) })),
-                e(Row, { key: 'cond', label: 'Condición' }, e(EditableField, { value: property.property_condition, onSave: (v) => saveField('property_condition', v) })),
-                e(Row, { key: 'room', label: 'Dormitorios' }, e(EditableField, { type: 'number', value: property.room_amount, onSave: (v) => saveField('room_amount', v) })),
-                e(Row, { key: 'orient', label: 'Orientación' }, e(EditableField, { value: property.orientation, onSave: (v) => saveField('orientation', v) })),
-                e(Row, { key: 'floors', label: 'Plantas' }, e(EditableField, { type: 'number', value: property.floors_amount, onSave: (v) => saveField('floors_amount', v) })),
-                e(Row, { key: 'sit', label: 'Situación' }, e(EditableField, { value: property.situation, onSave: (v) => saveField('situation', v) })),
-                e(Row, { key: 'suites', label: 'Suites' }, e(EditableField, { type: 'number', value: property.total_suites, onSave: (v) => saveField('total_suites', v) })),
-                e(Row, { key: 'suitescl', label: 'Suites con placares' }, e(EditableField, { type: 'number', value: property.suites_with_closets, onSave: (v) => saveField('suites_with_closets', v) })),
-                e(Row, { key: 'toilet', label: 'Toilettes' }, e(EditableField, { type: 'number', value: property.toilet_amount, onSave: (v) => saveField('toilet_amount', v) })),
-                e(Row, { key: 'zon', label: 'Zonificación' }, e(EditableField, { value: property.zonification, onSave: (v) => saveField('zonification', v) })),
+                e(Row, { key: 'amb', label: 'Ambientes', icon: Icons.Layers }, e(EditableField, { type: 'number', value: property.suite_amount, onSave: (v) => saveField('suite_amount', v) })),
+                e(Row, { key: 'age', label: 'Antigüedad', icon: Icons.Calendar }, e(EditableField, { type: 'number', value: property.age, onSave: (v) => saveField('age', v) })),
+                e(Row, { key: 'bath', label: 'Baños', icon: Icons.Bath }, e(EditableField, { type: 'number', value: property.bathroom_amount, onSave: (v) => saveField('bathroom_amount', v) })),
+                e(Row, { key: 'cond', label: 'Condición', icon: Icons.Check }, e(EditableField, { value: property.property_condition, onSave: (v) => saveField('property_condition', v) })),
+                e(Row, { key: 'room', label: 'Dormitorios', icon: Icons.Bed }, e(EditableField, { type: 'number', value: property.room_amount, onSave: (v) => saveField('room_amount', v) })),
+                e(Row, { key: 'orient', label: 'Orientación', icon: Icons.Compass }, e(EditableField, { value: property.orientation, onSave: (v) => saveField('orientation', v) })),
+                e(Row, { key: 'floors', label: 'Plantas', icon: Icons.Home2 }, e(EditableField, { type: 'number', value: property.floors_amount, onSave: (v) => saveField('floors_amount', v) })),
+                e(Row, { key: 'sit', label: 'Situación', icon: Icons.Tag }, e(EditableField, { value: property.situation, onSave: (v) => saveField('situation', v) })),
+                e(Row, { key: 'suites', label: 'Suites', icon: Icons.Bed }, e(EditableField, { type: 'number', value: property.total_suites, onSave: (v) => saveField('total_suites', v) })),
+                e(Row, { key: 'suitescl', label: 'Suites con placares', icon: Icons.Bed }, e(EditableField, { type: 'number', value: property.suites_with_closets, onSave: (v) => saveField('suites_with_closets', v) })),
+                e(Row, { key: 'toilet', label: 'Toilettes', icon: Icons.Bath }, e(EditableField, { type: 'number', value: property.toilet_amount, onSave: (v) => saveField('toilet_amount', v) })),
+                e(Row, { key: 'zon', label: 'Zonificación', icon: Icons.MapPin }, e(EditableField, { value: property.zonification, onSave: (v) => saveField('zonification', v) })),
               ],
             },
             {
               label: 'Cocheras',
               rows: [
-                e(Row, { key: 'park', label: 'Cocheras' }, e(EditableField, { type: 'number', value: property.parking_lot_amount, onSave: (v) => saveField('parking_lot_amount', v) })),
-                e(Row, { key: 'parkc', label: 'Cocheras cubiertas' }, e(EditableField, { type: 'number', value: property.covered_parking_lot, onSave: (v) => saveField('covered_parking_lot', v) })),
-                e(Row, { key: 'parku', label: 'Cocheras descubiertas' }, e(EditableField, { type: 'number', value: property.uncovered_parking_lot, onSave: (v) => saveField('uncovered_parking_lot', v) })),
+                e(Row, { key: 'park', label: 'Cocheras', icon: Icons.Car }, e(EditableField, { type: 'number', value: property.parking_lot_amount, onSave: (v) => saveField('parking_lot_amount', v) })),
+                e(Row, { key: 'parkc', label: 'Cocheras cubiertas', icon: Icons.Car }, e(EditableField, { type: 'number', value: property.covered_parking_lot, onSave: (v) => saveField('covered_parking_lot', v) })),
+                e(Row, { key: 'parku', label: 'Cocheras descubiertas', icon: Icons.Car }, e(EditableField, { type: 'number', value: property.uncovered_parking_lot, onSave: (v) => saveField('uncovered_parking_lot', v) })),
               ],
             },
             {
               label: 'Salas comunes',
               rows: [
-                e(Row, { key: 'common', label: 'Salas comunes' }, e(EditableField, { type: 'number', value: property.common_area, onSave: (v) => saveField('common_area', v) })),
-                e(Row, { key: 'living', label: 'Livings' }, e(EditableField, { type: 'number', value: property.living_amount, onSave: (v) => saveField('living_amount', v) })),
-                e(Row, { key: 'tv', label: 'Salas de TV' }, e(EditableField, { type: 'number', value: property.tv_rooms, onSave: (v) => saveField('tv_rooms', v) })),
-                e(Row, { key: 'dining', label: 'Comedores' }, e(EditableField, { type: 'number', value: property.dining_room, onSave: (v) => saveField('dining_room', v) })),
+                e(Row, { key: 'common', label: 'Salas comunes', icon: Icons.Home2 }, e(EditableField, { type: 'number', value: property.common_area, onSave: (v) => saveField('common_area', v) })),
+                e(Row, { key: 'living', label: 'Livings', icon: Icons.Home2 }, e(EditableField, { type: 'number', value: property.living_amount, onSave: (v) => saveField('living_amount', v) })),
+                e(Row, { key: 'tv', label: 'Salas de TV', icon: Icons.Video }, e(EditableField, { type: 'number', value: property.tv_rooms, onSave: (v) => saveField('tv_rooms', v) })),
+                e(Row, { key: 'dining', label: 'Comedores', icon: Icons.Home2 }, e(EditableField, { type: 'number', value: property.dining_room, onSave: (v) => saveField('dining_room', v) })),
               ],
             },
           ],
         }),
 
         e(Section, { title: 'Superficies y medidas' },
-          e(Row, { label: 'Terreno' }, e(EditableField, { value: property.surface, onSave: (v) => saveField('surface', v) })),
-          e(Row, { label: 'Descubierta' }, e(EditableField, { value: property.unroofed_surface, onSave: (v) => saveField('unroofed_surface', v) })),
-          e(Row, { label: 'Superficie cubierta' }, e(EditableField, { value: property.roofed_surface, onSave: (v) => saveField('roofed_surface', v) })),
-          e(Row, { label: 'Superficie semicubierta' }, e(EditableField, { value: property.semiroofed_surface, onSave: (v) => saveField('semiroofed_surface', v) })),
-          e(Row, { label: 'Total construido' }, e(EditableField, { value: property.total_surface, onSave: (v) => saveField('total_surface', v) })),
-          e(Row, { label: 'Fondo' }, e(EditableField, { value: property.depth_measure, onSave: (v) => saveField('depth_measure', v) })),
-          e(Row, { label: 'Frente' }, e(EditableField, { value: property.front_measure, onSave: (v) => saveField('front_measure', v) })),
+          e(Row, { label: 'Terreno', icon: Icons.Maximize }, e(EditableField, { value: property.surface, onSave: (v) => saveField('surface', v) })),
+          e(Row, { label: 'Descubierta', icon: Icons.Maximize }, e(EditableField, { value: property.unroofed_surface, onSave: (v) => saveField('unroofed_surface', v) })),
+          e(Row, { label: 'Superficie cubierta', icon: Icons.Maximize }, e(EditableField, { value: property.roofed_surface, onSave: (v) => saveField('roofed_surface', v) })),
+          e(Row, { label: 'Superficie semicubierta', icon: Icons.Maximize }, e(EditableField, { value: property.semiroofed_surface, onSave: (v) => saveField('semiroofed_surface', v) })),
+          e(Row, { label: 'Total construido', icon: Icons.Maximize }, e(EditableField, { value: property.total_surface, onSave: (v) => saveField('total_surface', v) })),
+          e(Row, { label: 'Fondo', icon: Icons.Maximize }, e(EditableField, { value: property.depth_measure, onSave: (v) => saveField('depth_measure', v) })),
+          e(Row, { label: 'Frente', icon: Icons.Maximize }, e(EditableField, { value: property.front_measure, onSave: (v) => saveField('front_measure', v) })),
         ),
 
         e('div', { className: 'detail-section' },
           e('h3', null, 'Servicios, ambientes y adicionales'),
-          e(TagChips, { tags: [...(property.tags || []), ...(property.custom_tags || [])] }),
+          e(ServicesAmenitiesEditor, { property, saveField }),
         ),
 
         e('div', { className: 'detail-section' },
@@ -533,18 +664,18 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
           e('div', { className: 'detail-subgroup' },
             e('h4', null, 'Contacto / productor'),
             e('div', { className: 'prop-info-grid' },
-              e(Row, { label: 'Nombre' }, e(EditableField, { value: property.producer?.name, onSave: (v) => saveField('producer.name', v) })),
-              e(Row, { label: 'Teléfono' }, e(EditableField, { value: property.producer?.phone, onSave: (v) => saveField('producer.phone', v) })),
-              e(Row, { label: 'Email' }, e(EditableField, { value: property.producer?.email, onSave: (v) => saveField('producer.email', v) })),
+              e(Row, { label: 'Nombre', icon: Icons.User }, e(EditableField, { value: property.producer?.name, onSave: (v) => saveField('producer.name', v) })),
+              e(Row, { label: 'Teléfono', icon: Icons.Phone }, e(EditableField, { value: property.producer?.phone, onSave: (v) => saveField('producer.phone', v) })),
+              e(Row, { label: 'Email', icon: Icons.Mail }, e(EditableField, { value: property.producer?.email, onSave: (v) => saveField('producer.email', v) })),
             ),
           ),
           e('div', { className: 'detail-subgroup' },
             e('h4', null, 'Datos internos'),
             e('div', { className: 'prop-info-grid' },
-              e(Row, { label: 'Comisión' }, e(EditableField, { value: property.internal_data?.commission, onSave: (v) => saveField('internal_data.commission', v) })),
-              e(Row, { label: 'Comisión productor' }, e(EditableField, { value: property.internal_data?.producer_comision, onSave: (v) => saveField('internal_data.producer_comision', v) })),
-              e(Row, { label: 'Ubicación de llave' }, e(EditableField, { value: property.internal_data?.key_location, onSave: (v) => saveField('internal_data.key_location', v) })),
-              e(Row, { label: 'Estado legal' }, e(EditableField, { value: property.internal_data?.legally_checked_text, onSave: (v) => saveField('internal_data.legally_checked_text', v) })),
+              e(Row, { label: 'Comisión', icon: Icons.DollarSign }, e(EditableField, { value: property.internal_data?.commission, onSave: (v) => saveField('internal_data.commission', v) })),
+              e(Row, { label: 'Comisión productor', icon: Icons.DollarSign }, e(EditableField, { value: property.internal_data?.producer_comision, onSave: (v) => saveField('internal_data.producer_comision', v) })),
+              e(Row, { label: 'Ubicación de llave', icon: Icons.Settings }, e(EditableField, { value: property.internal_data?.key_location, onSave: (v) => saveField('internal_data.key_location', v) })),
+              e(Row, { label: 'Estado legal', icon: Icons.Check }, e(EditableField, { value: property.internal_data?.legally_checked_text, onSave: (v) => saveField('internal_data.legally_checked_text', v) })),
             ),
           ),
           e('div', { className: 'detail-subgroup' },

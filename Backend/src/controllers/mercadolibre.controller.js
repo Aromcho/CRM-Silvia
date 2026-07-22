@@ -4,6 +4,7 @@ import Lead from '../models/Lead.model.js';
 import Activity from '../models/Activity.model.js';
 import * as ml from '../utils/mercadolibre.service.js';
 import { collectDailyMetrics, getPropertyMetricsSeries } from '../utils/mercadolibreMetrics.service.js';
+import { sendLeadEmail } from '../utils/email.util.js';
 
 // Estado OAuth en memoria (backend corre en una sola instancia): protege el callback de CSRF
 const oauthStates = new Map();
@@ -112,6 +113,47 @@ export async function getMercadoLibreStatus(req, res) {
   }
 }
 
+// Card de la sección Difusión: universo "publicable" = disponible/reservada (no en_tasacion/vendida/no_disponible).
+const ML_ELIGIBLE_STATUSES = ['disponible', 'reservada'];
+const ML_HEALTH_ALERT_THRESHOLD = 66; // por debajo de "professional" según los health_levels documentados de ML
+
+export async function getMercadoLibreSummary(req, res) {
+  try {
+    const [connected, propertiesTotal, propertiesPublicadas, tierCounts] = await Promise.all([
+      ml.isConnected(),
+      Property.countDocuments({ status: { $in: ML_ELIGIBLE_STATUSES } }),
+      Property.countDocuments({ status: { $in: ML_ELIGIBLE_STATUSES }, 'difusion.mercadolibre.listings.status': 'active' }),
+      Property.aggregate([
+        { $match: { status: { $in: ML_ELIGIBLE_STATUSES }, 'difusion.mercadolibre.listings.0': { $exists: true } } },
+        { $unwind: '$difusion.mercadolibre.listings' },
+        {
+          $group: {
+            _id: null,
+            simples: { $sum: { $cond: [{ $and: [{ $eq: ['$difusion.mercadolibre.listings.status', 'active'] }, { $eq: ['$difusion.mercadolibre.listings.listing_type_id', 'silver'] }] }, 1, 0] } },
+            premium: { $sum: { $cond: [{ $and: [{ $eq: ['$difusion.mercadolibre.listings.status', 'active'] }, { $in: ['$difusion.mercadolibre.listings.listing_type_id', ['gold', 'gold_premium']] }] }, 1, 0] } },
+            alertas: { $sum: { $cond: [{ $and: [{ $eq: ['$difusion.mercadolibre.listings.status', 'active'] }, { $ne: ['$difusion.mercadolibre.listings.health_percentage', null] }, { $lt: ['$difusion.mercadolibre.listings.health_percentage', ML_HEALTH_ALERT_THRESHOLD] }] }, 1, 0] } },
+            errores: { $sum: { $cond: [{ $and: [{ $ne: ['$difusion.mercadolibre.listings.last_error', null] }, { $ne: ['$difusion.mercadolibre.listings.last_error', ''] }, { $ne: ['$difusion.mercadolibre.listings.status', 'active'] }] }, 1, 0] } },
+          },
+        },
+      ]),
+    ]);
+
+    const counts = tierCounts[0] || { simples: 0, premium: 0, alertas: 0, errores: 0 };
+
+    res.json({
+      connected,
+      publicaciones_simples: counts.simples,
+      publicaciones_premium: counts.premium,
+      alertas_a_revisar: counts.alertas,
+      errores: counts.errores,
+      propiedades_publicadas: propertiesPublicadas,
+      propiedades_sin_publicar: propertiesTotal - propertiesPublicadas,
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error obteniendo resumen de MercadoLibre', detail: err.message });
+  }
+}
+
 export async function getPropertyMetrics(req, res) {
   const { propertyId } = req.params;
   const days = Math.min(parseInt(req.query.days, 10) || 30, 150); // 150 días: máximo de rango que soporta la API de ML
@@ -207,6 +249,8 @@ export async function handleMercadoLibreLead(req, res) {
       source: 'mercadolibre',
       message,
     });
+
+    sendLeadEmail(lead, propertyTitle).catch(console.error);
 
     await Activity.create({
       type: 'lead_created',

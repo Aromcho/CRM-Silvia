@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import Icons from '../Icons/Icons';
+import Avatar from '../UI/Avatar';
 import { getUsers, registerUser, updateUser, changeUserPassword } from '@/services/api';
 import './Users.css';
 
@@ -13,17 +14,6 @@ const ROLE_OPTS = [
   { key: 'SUPERADMIN', label: 'Super Admin' },
 ];
 const ROLE_LABELS = Object.fromEntries(ROLE_OPTS.map((r) => [r.key, r.label]));
-
-const AVATAR_PALETTE = ['#15784f', '#2563eb', '#b8791b', '#7257c9', '#0e8a8a', '#d8504a'];
-function colorOf(str) {
-  let h = 0;
-  for (const c of String(str || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
-}
-function initials(name) {
-  const p = String(name || '').trim().split(/\s+/);
-  return (p[0]?.[0] || '?') + (p[1]?.[0] || '');
-}
 
 function NewUserModal({ onClose, onCreated }) {
   const [form, setForm] = useState({ name: '', email: '', password: '', phoneNumber: '', role: 'USER' });
@@ -224,10 +214,8 @@ export default function Users({ session }) {
           ? e('div', { className: 'user-empty' }, e(Icons.Users, { width: 44, height: 44 }), e('p', null, 'No hay usuarios'))
           : e('div', { className: 'users-list' },
               filtered.map((u) => {
-                const color = colorOf(u.email || u.name);
-                const ini = initials(u.name);
                 return e('div', { key: u._id, className: `user-card${u.active ? '' : ' inactive'}`, onClick: () => setSelected(u) },
-                  e('div', { className: 'user-card-avatar', style: { background: color } }, ini.toUpperCase()),
+                  e(Avatar, { email: u.email, name: u.name, size: 36, className: 'user-card-avatar' }),
                   e('div', { className: 'user-card-info' },
                     e('div', { className: 'user-card-name' }, u.name),
                     e('div', { className: 'user-card-email' }, u.email),

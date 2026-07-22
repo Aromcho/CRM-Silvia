@@ -1,0 +1,30 @@
+.difusion-page { padding: 4px; }
+.difusion-page-head { margin-bottom: 20px; }
+.difusion-page-head h1 { margin: 0 0 4px; font-size: 20px; font-weight: 800; color: var(--ink); }
+.difusion-page-sub { font-size: 13px; color: var(--ink-3); }
+
+.difusion-portals { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; }
+
+.difusion-portal-card {
+  border: 1px solid var(--line); border-radius: 14px; padding: 18px;
+  border-top: 3px solid var(--difusion-accent, var(--green-600));
+  background: var(--surface);
+}
+.difusion-portal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.difusion-portal-name { font-size: 15px; font-weight: 800; color: var(--ink); }
+.difusion-portal-sub { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.difusion-portal-loading { font-size: 13px; color: var(--ink-3); padding: 12px 0; }
+
+.difusion-portal-warning {
+  display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2);
+  background: var(--surface-2); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;
+}
+
+.difusion-stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.difusion-stats-row-secondary { margin-top: 10px; }
+
+.difusion-stat-tile {
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--surface);
+}
+.difusion-stat-label { font-size: 10.5px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px; }
+.difusion-stat-value { font-size: 22px; font-weight: 800; color: var(--ink); }

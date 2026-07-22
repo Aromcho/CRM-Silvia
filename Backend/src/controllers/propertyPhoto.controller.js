@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 import Property from '../models/Property.model.js';
+import { getBackendPublicUrl } from '../utils/publicUrl.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,8 +37,7 @@ export async function addPhotos(req, res, next) {
 
     const startOrder = property.photos.length;
     const entries = (req.files || []).map((file, i) => {
-      const base = (process.env.BACKEND_PUBLIC_URL || '').replace(/\/$/, '');
-      const url = `${base}/uploads/properties/${property.id}/${file.filename}`;
+      const url = `${getBackendPublicUrl()}/uploads/properties/${property.id}/${file.filename}`;
       return {
         description: '', is_blueprint: false, is_front_cover: false,
         order: startOrder + i,

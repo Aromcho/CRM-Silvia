@@ -73,9 +73,12 @@ function PropCard({ property, onClick }) {
   );
 }
 
-function StatusSelect({ value, onChange }) {
-  return e('select', { value, onChange: (ev) => onChange(ev.target.value), className: 'filter-select', style: { fontSize: 13 } },
-    STATUSES.map((s) => e('option', { key: s.key, value: s.key }, s.label)),
+function StatusSelect({ value, onChange, disabled }) {
+  return e('select', {
+    value, disabled, onChange: (ev) => onChange(ev.target.value),
+    className: `filter-select status-badge badge-${value}`, style: { fontSize: 13 },
+  },
+    STATUSES.filter((s) => s.key !== 'all').map((s) => e('option', { key: s.key, value: s.key }, s.label)),
   );
 }
 
@@ -103,7 +106,7 @@ function PropModal({ property, onClose, session }) {
       e('div', { className: 'prop-modal-head' },
         e('h2', null, property.publication_title || property.address || 'Propiedad'),
         e('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
-          e('span', { className: `status-badge badge-${status}` }, STATUS_LABELS[status] || status),
+          e(StatusSelect, { value: status, onChange: handleStatusChange, disabled: saving }),
           e('a', {
             className: 'btn ghost sm', href: `/propiedades/${property.id}`, target: '_blank', rel: 'noopener noreferrer',
             title: 'Abrir la ficha completa en una pestaña nueva',
@@ -314,51 +317,53 @@ export default function Propiedades({ session }) {
 
   return e('div', { className: 'propiedades' },
 
-    // Toolbar
+    // Header (título + búsqueda + filtros, todo en un solo bloque prolijo)
     e('div', { className: 'prop-toolbar' },
-      e('div', { className: 'prop-toolbar-left' },
-        e('h1', null, 'Propiedades'),
-        e('span', { className: 'prop-count-pill' }, `${total} propiedades`),
-      ),
-      e('div', { className: 'prop-toolbar-right' },
-        e('div', { className: 'search' },
-          e(Icons.Search, { width: 15, height: 15 }),
-          e('input', {
-            ref: searchRef,
-            placeholder: 'Buscar por dirección, tipo, ref…',
-            value: search,
-            onChange: (ev) => setSearch(ev.target.value),
-            onKeyDown: handleSearchKeyDown,
-            style: { width: 220 },
-          }),
-          search ? e('button', { className: 'search-clear', onClick: () => setSearch('') }, e(Icons.Close, { width: 13, height: 13 })) : null,
+      e('div', { className: 'prop-toolbar-top' },
+        e('div', { className: 'prop-toolbar-left' },
+          e('h1', null, 'Propiedades'),
+          e('span', { className: 'prop-count-pill' }, `${total} propiedades`),
         ),
-        e('button', { className: 'btn primary sm', onClick: () => fetchProperties(0) }, e(Icons.Search, { width: 13, height: 13 }), 'Buscar'),
-        e('button', { className: 'btn primary sm', onClick: () => setShowCreate(true) }, e(Icons.Plus, { width: 13, height: 13 }), 'Agregar propiedad'),
+        e('div', { className: 'prop-toolbar-right' },
+          e('div', { className: 'search' },
+            e(Icons.Search, { width: 15, height: 15 }),
+            e('input', {
+              ref: searchRef,
+              placeholder: 'Buscar por dirección, tipo, ref…',
+              value: search,
+              onChange: (ev) => setSearch(ev.target.value),
+              onKeyDown: handleSearchKeyDown,
+              style: { width: 220 },
+            }),
+            search ? e('button', { className: 'search-clear', onClick: () => setSearch('') }, e(Icons.Close, { width: 13, height: 13 })) : null,
+          ),
+          e('button', { className: 'btn primary sm', onClick: () => fetchProperties(0) }, e(Icons.Search, { width: 13, height: 13 }), 'Buscar'),
+          e('button', { className: 'btn primary sm', onClick: () => setShowCreate(true) }, e(Icons.Plus, { width: 13, height: 13 }), 'Agregar propiedad'),
+        ),
       ),
-    ),
 
-    // Status chips
-    e('div', { className: 'status-chips' },
-      STATUSES.map((s) =>
-        e('button', {
-          key: s.key,
-          className: `st-chip${statusFilter === s.key ? ` on ${s.key}` : ''}`,
-          onClick: () => setStatusFilter(s.key),
-        },
-          s.dot ? e('span', { className: 'st-chip-dot', style: { background: s.dot } }) : null,
-          s.label,
-        )
-      ),
-    ),
-
-    // Filters
-    e('div', { className: 'filters-bar' },
-      e('select', { className: 'filter-select', value: opFilter, onChange: (ev) => setOpFilter(ev.target.value) },
-        OPERATION_TYPES.map((t) => e('option', { key: t, value: t }, t)),
-      ),
-      e('select', { className: 'filter-select', value: typeFilter, onChange: (ev) => setTypeFilter(ev.target.value) },
-        PROPERTY_TYPES.map((t) => e('option', { key: t, value: t }, t)),
+      e('div', { className: 'prop-toolbar-filters' },
+        e('div', { className: 'status-chips' },
+          STATUSES.map((s) =>
+            e('button', {
+              key: s.key,
+              className: `st-chip${statusFilter === s.key ? ` on ${s.key}` : ''}`,
+              onClick: () => setStatusFilter(s.key),
+            },
+              s.dot ? e('span', { className: 'st-chip-dot', style: { background: s.dot } }) : null,
+              s.label,
+            )
+          ),
+        ),
+        e('div', { className: 'filters-bar' },
+          e(Icons.Filter, { width: 13, height: 13, className: 'filters-bar-icon' }),
+          e('select', { className: 'filter-select', value: opFilter, onChange: (ev) => setOpFilter(ev.target.value) },
+            OPERATION_TYPES.map((t) => e('option', { key: t, value: t }, t)),
+          ),
+          e('select', { className: 'filter-select', value: typeFilter, onChange: (ev) => setTypeFilter(ev.target.value) },
+            PROPERTY_TYPES.map((t) => e('option', { key: t, value: t }, t)),
+          ),
+        ),
       ),
     ),
 

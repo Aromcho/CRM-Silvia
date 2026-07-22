@@ -54,11 +54,15 @@ export const reorderPropertyPhotos = (id, order) => request(`/properties/${id}/p
 export const syncPropertyMercadoLibre = (id) => request(`/mercadolibre/sync/${id}`, { method: 'POST' });
 export const syncAllMercadoLibre = () => request('/mercadolibre/sync-all', { method: 'POST' });
 export const getMercadoLibreStatus = () => request('/mercadolibre/status');
+export const getMercadoLibreSummary = () => request('/mercadolibre/summary');
 export const getMercadoLibreListingTypes = () => request('/mercadolibre/listing-types');
 export const upgradeMercadoLibreListingType = (id, data) => request(`/mercadolibre/listing-type/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const getPropertyMlMetrics = (id, days = 30) => request(`/mercadolibre/metrics/property/${id}?days=${days}`);
 export const discoverMlExistingListings = () => request('/mercadolibre/discover-existing');
 export const linkMlExistingListing = (data) => request('/mercadolibre/link-existing', { method: 'POST', body: JSON.stringify(data) });
+
+// ZonaProp
+export const getZonaPropSummary = () => request('/zonaprop/summary');
 
 // Leads
 export const getLeads = (params) => request(`/leads?${new URLSearchParams(params).toString()}`);

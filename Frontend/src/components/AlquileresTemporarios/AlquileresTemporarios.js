@@ -276,6 +276,10 @@ function TemporaryRentalModal({ property: initialProperty, onClose }) {
         e('h2', null, property.publication_title || property.address || 'Alquiler temporario'),
         e('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
           e('span', { className: `status-badge badge-${property.status}` }, STATUS_LABELS[property.status] || property.status),
+          e('a', {
+            className: 'btn ghost sm', href: `/propiedades/${property.id}`, target: '_blank', rel: 'noopener noreferrer',
+            title: 'Abrir la ficha completa en una pestaña nueva',
+          }, 'Ir a la propiedad', e(Icons.ArrowRight, { width: 13, height: 13 })),
           e('button', { className: 'btn ghost sm', onClick: onClose }, e(Icons.Close, { width: 14, height: 14 })),
         ),
       ),

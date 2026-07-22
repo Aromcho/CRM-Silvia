@@ -8,6 +8,7 @@ import {
   oauthCallback,
   getListingTypes,
   upgradeListingType,
+  getMercadoLibreSummary,
   getPropertyMetrics,
   collectMercadoLibreMetrics,
   discoverExistingListings,
@@ -22,6 +23,7 @@ router.get('/oauth/callback', oauthCallback); // público: ML redirige acá sin 
 router.post('/sync/:propertyId', isAuth, syncToMercadoLibre);
 router.post('/sync-all', isAuth, syncAllMercadoLibre);
 router.get('/status', isAuth, getMercadoLibreStatus);
+router.get('/summary', isAuth, getMercadoLibreSummary);
 router.get('/listing-types', isAuth, getListingTypes);
 router.patch('/listing-type/:propertyId', isAuth, upgradeListingType);
 router.get('/metrics/property/:propertyId', isAuth, getPropertyMetrics);

@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Property from '../models/Property.model.js';
 import Activity from '../models/Activity.model.js';
+import { getBackendPublicUrl } from './publicUrl.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,8 +37,7 @@ function safeFilename(str) {
 }
 
 function localUrl(propertyId, filename) {
-  const base = (process.env.BACKEND_PUBLIC_URL || '').replace(/\/$/, '');
-  return `${base}/uploads/properties/${propertyId}/${filename}`;
+  return `${getBackendPublicUrl()}/uploads/properties/${propertyId}/${filename}`;
 }
 
 async function processPhotos(photos, propertyId) {
@@ -82,7 +82,22 @@ async function processPhotos(photos, propertyId) {
   return result;
 }
 
+let isSyncing = false;
+
 export const syncWithTokko = async () => {
+  if (isSyncing) {
+    console.log('Sincronización con Tokko ya en curso, se omite esta corrida.');
+    return;
+  }
+  isSyncing = true;
+  try {
+    await runSync();
+  } finally {
+    isSyncing = false;
+  }
+};
+
+const runSync = async () => {
   const limit = 20;
   let offset = 0;
   let total_count = 0;

@@ -1,8 +1,8 @@
 'use client';
 import React from 'react';
 import Icons from '../Icons/Icons';
-import { logout, triggerSync, importRentals, syncAllMercadoLibre } from '@/services/api';
-import MlDiscoverModal from './MlDiscoverModal';
+import Avatar from '../UI/Avatar';
+import { logout, triggerSync, importRentals } from '@/services/api';
 import './Sidebar.css';
 
 const e = React.createElement;
@@ -16,25 +16,13 @@ const NAV_ITEMS = [
   { key: 'archivos', label: 'Archivos', icon: Icons.Folder, section: 'principal' },
   { key: 'mostrador', label: 'Mostrador', icon: Icons.Printer, section: 'principal' },
   { key: 'reportes', label: 'Reportes', icon: Icons.BarChart, section: 'principal' },
+  { key: 'difusion', label: 'Difusión', icon: Icons.Globe, section: 'principal' },
   { key: 'usuarios', label: 'Usuarios', icon: Icons.Users, section: 'principal', superAdminOnly: true },
 ];
-
-const AVATAR_PALETTE = ['#15784f', '#2563eb', '#b8791b', '#7257c9', '#0e8a8a', '#d8504a'];
-function colorOf(str) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
-  return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
-}
-function initials(name) {
-  const p = String(name || '').trim().split(/\s+/);
-  return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase();
-}
 
 export default function Sidebar({ tab, setTab, session, onLogout }) {
   const [syncing, setSyncing] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [syncingMl, setSyncingMl] = useState(false);
-  const [showDiscoverModal, setShowDiscoverModal] = useState(false);
 
   async function handleLogout() {
     await logout();
@@ -45,19 +33,6 @@ export default function Sidebar({ tab, setTab, session, onLogout }) {
     setSyncing(true);
     await triggerSync().catch(console.error);
     setTimeout(() => setSyncing(false), 3000);
-  }
-
-  async function handleSyncMercadoLibre() {
-    if (!confirm('Esto va a publicar/actualizar TODAS las propiedades disponibles en MercadoLibre. ¿Continuar?')) return;
-    setSyncingMl(true);
-    try {
-      await syncAllMercadoLibre();
-      alert('Sync con MercadoLibre iniciado. Corre en segundo plano — revisá el feed de actividad para ver el resumen cuando termine.');
-    } catch (err) {
-      alert(err.message || 'No se pudo iniciar el sync con MercadoLibre.');
-    } finally {
-      setTimeout(() => setSyncingMl(false), 3000);
-    }
   }
 
   async function handleImportRentals() {
@@ -72,8 +47,6 @@ export default function Sidebar({ tab, setTab, session, onLogout }) {
     }
   }
 
-  const userColor = colorOf(session?.email || session?.name || '');
-  const userInitials = initials(session?.name || '?');
   const roleLabel = session?.role === 'SUPERADMIN' ? 'Super Admin' : session?.role === 'ADMIN' ? 'Administrador' : 'Usuario';
 
   return e('aside', { className: 'sidebar' },
@@ -115,19 +88,8 @@ export default function Sidebar({ tab, setTab, session, onLogout }) {
           e(Icons.FileText, { width: 14, height: 14 }),
           importing ? 'Importando…' : 'Importar alquileres (Excel)',
         ),
-      ['ADMIN', 'SUPERADMIN'].includes(session?.role) &&
-        e('button', { className: `sidebar-sync-btn${syncingMl ? ' syncing' : ''}`, onClick: handleSyncMercadoLibre, disabled: syncingMl },
-          e(Icons.RefreshCw, { width: 14, height: 14 }),
-          syncingMl ? 'Sincronizando…' : 'Sincronizar MercadoLibre',
-        ),
-      ['ADMIN', 'SUPERADMIN'].includes(session?.role) &&
-        e('button', { className: 'sidebar-sync-btn', onClick: () => setShowDiscoverModal(true) },
-          e(Icons.Star, { width: 14, height: 14 }),
-          'Vincular publicaciones existentes',
-        ),
-      showDiscoverModal && e(MlDiscoverModal, { onClose: () => setShowDiscoverModal(false) }),
       e('div', { className: 'sidebar-user' },
-        e('span', { className: 'avatar avatar-pop', style: { width: 30, height: 30, background: userColor, fontSize: 11 } }, userInitials),
+        e(Avatar, { email: session?.email, name: session?.name, size: 30 }),
         e('div', { className: 'sidebar-user-info' },
           e('div', { className: 'sidebar-user-name' }, session?.name),
           e('div', { className: 'sidebar-user-role' }, roleLabel),

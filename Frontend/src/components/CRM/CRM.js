@@ -8,6 +8,7 @@ import Leads from '../Leads/Leads';
 import Archivos from '../Archivos/Archivos';
 import Mostrador from '../Mostrador/Mostrador';
 import Reportes from '../Reportes/Reportes';
+import Difusion from '../Difusion/Difusion';
 import Users from '../Users/Users';
 import './CRM.css';
 
@@ -26,6 +27,7 @@ export default function CRM({ session, onLogout, initialTab }) {
     archivos: e(Archivos, { session }),
     mostrador: e(Mostrador, { session }),
     reportes: e(Reportes, { session }),
+    difusion: e(Difusion, { session }),
     usuarios: e(Users, { session }),
   }[effectiveTab] || e(Dashboard, { session });
 
