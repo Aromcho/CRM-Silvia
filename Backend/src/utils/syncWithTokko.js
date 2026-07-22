@@ -149,7 +149,14 @@ export const syncWithTokko = async () => {
           : [];
 
         const statusNum = Number(property.status);
-        const status = statusNum === 3 ? 'reservada' : statusNum === 4 ? 'vendida' : 'disponible';
+        const status =
+          statusNum === 1
+            ? 'en_tasacion'
+            : statusNum === 3
+            ? 'reservada'
+            : statusNum === 4
+            ? 'no_disponible'
+            : 'disponible';
 
         const existedBefore = !!existingDoc;
 

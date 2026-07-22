@@ -418,23 +418,10 @@ export async function syncProperty(propertyDoc) {
   );
   const listingsByType = new Map(existingListings.map((l) => [l.operation_type, l]));
 
-  if (propertyDoc.deleted_at) {
-    for (const listing of listingsByType.values()) {
-      if (listing.item_id && listing.status !== 'closed') {
-        try {
-          await setListingStatus(listing.item_id, 'closed');
-          listing.status = 'closed';
-          listing.last_error = null;
-        } catch (err) {
-          listing.last_error = extractMlError(err);
-        }
-        listing.updated_at = new Date();
-      }
-    }
-    const finalListings = [...listingsByType.values()];
-    await saveListingsState(propertyDoc.id, finalListings);
-    return { closed: true, listings: finalListings };
-  }
+  // Nota: `deleted_at` viene de Tokko y NO indica que la propiedad fue dada de baja (lo trae
+  // prácticamente cualquier propiedad, incluidas las disponibles). Las bajas reales ya se manejan
+  // solas: si Tokko deja de devolver la propiedad, syncWithTokko la borra de nuestra base, y
+  // syncToMercadoLibre ya responde 404 antes de llegar acá. Por eso no hace falta chequearlo aquí.
 
   const targetOps = propertyDoc.status === 'disponible' ? getPublishableOperations(propertyDoc) : [];
   const targetTypes = new Set(targetOps.map((o) => o.type));
@@ -626,7 +613,20 @@ export async function matchDiscoveredItems() {
       unmatchedMlItems.push(item);
     }
   }
-  return { matches, unmatchedMlItems };
+
+  // Una misma propiedad puede tener varios avisos viejos cerrados/vencidos con el mismo título en
+  // ML (se van acumulando con el tiempo). Si para una propiedad hay al menos un aviso "active",
+  // los cerrados son ruido histórico: no tiene sentido ofrecerlos para vincular y llevan a
+  // vincular por error el vencido en lugar del vigente (pasó con IDs reales, ver PR/incidente).
+  const hasActiveByProperty = new Map();
+  for (const m of matches) {
+    if (m.status === 'active') hasActiveByProperty.set(m.propertyId, true);
+  }
+  const filteredMatches = matches.filter(
+    (m) => m.status === 'active' || !hasActiveByProperty.get(m.propertyId)
+  );
+
+  return { matches: filteredMatches, unmatchedMlItems };
 }
 
 // Escribe el vínculo confirmado por el usuario — NO publica ni modifica nada en ML, solo guarda
