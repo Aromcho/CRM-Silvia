@@ -3,7 +3,7 @@ import Property from '../models/Property.model.js';
 import Lead from '../models/Lead.model.js';
 import Activity from '../models/Activity.model.js';
 import * as ml from '../utils/mercadolibre.service.js';
-import { collectDailyMetrics, getPropertyMetricsSeries } from '../utils/mercadolibreMetrics.service.js';
+import { collectDailyMetrics, getPropertyMetricsSeries, getPortfolioMetricsReport } from '../utils/mercadolibreMetrics.service.js';
 import { sendLeadEmail } from '../utils/email.util.js';
 
 // Estado OAuth en memoria (backend corre en una sola instancia): protege el callback de CSRF
@@ -151,6 +151,16 @@ export async function getMercadoLibreSummary(req, res) {
     });
   } catch (err) {
     res.status(500).json({ message: 'Error obteniendo resumen de MercadoLibre', detail: err.message });
+  }
+}
+
+export async function getMercadoLibreReports(req, res) {
+  const days = Math.min(parseInt(req.query.days, 10) || 30, 150); // 150 días: máximo de rango que soporta la API de ML
+  try {
+    const result = await getPortfolioMetricsReport(days);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: 'Error obteniendo reportes de MercadoLibre', detail: err.message });
   }
 }
 

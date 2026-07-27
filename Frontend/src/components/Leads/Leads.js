@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import Icons from '../Icons/Icons';
-import { getLeads, createLead, updateLead, updateLeadStatus, deleteLead, getUsers } from '@/services/api';
+import { getLeads, createLead, updateLead, updateLeadStatus, deleteLead, getUsers, getLeadEmailSetting, updateLeadEmailSetting } from '@/services/api';
 import './Leads.css';
 
 const e = React.createElement;
@@ -194,6 +194,46 @@ function NewLeadModal({ onClose, onCreated }) {
   );
 }
 
+// Los leads se guardan siempre; este switch solo prende/apaga el mail de notificación
+// (backend: Settings.leadEmailsEnabled, chequeado dentro de sendLeadEmail).
+function LeadEmailToggle() {
+  const [enabled, setEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    getLeadEmailSetting()
+      .then((res) => setEnabled(!!res?.leadEmailsEnabled))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function toggle() {
+    const next = !enabled;
+    setSaving(true);
+    setEnabled(next); // optimista
+    try {
+      const res = await updateLeadEmailSetting(next);
+      setEnabled(!!res?.leadEmailsEnabled);
+    } catch (err) {
+      setEnabled(!next); // revertir si falló
+      alert(err.message || 'No se pudo actualizar el interruptor de mails.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return null;
+
+  return e('button', {
+    type: 'button', className: `lead-email-toggle${enabled ? ' on' : ''}`, onClick: toggle, disabled: saving,
+    title: enabled ? 'Los leads nuevos mandan mail de notificación' : 'Los mails de notificación están apagados — los leads se siguen guardando',
+  },
+    e('span', { className: 'lead-email-toggle-track' }, e('span', { className: 'lead-email-toggle-thumb' })),
+    e('span', { className: 'lead-email-toggle-label' }, enabled ? 'Mails de leads: ON' : 'Mails de leads: OFF'),
+  );
+}
+
 export default function Leads({ session }) {
   const [leads, setLeads] = useState([]);
   const [total, setTotal] = useState(0);
@@ -232,7 +272,8 @@ export default function Leads({ session }) {
         e('h1', null, 'Leads'),
         e('span', { className: 'leads-count-pill' }, `${total} leads`),
       ),
-      e('div', { style: { display: 'flex', gap: 8 } },
+      e('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+        e(LeadEmailToggle),
         e('div', { className: 'search' },
           e(Icons.Search, { width: 15, height: 15 }),
           e('input', {

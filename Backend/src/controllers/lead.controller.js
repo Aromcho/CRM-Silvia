@@ -2,6 +2,7 @@ import Lead from '../models/Lead.model.js';
 import Activity from '../models/Activity.model.js';
 import Property from '../models/Property.model.js';
 import { sendLeadEmail } from '../utils/email.util.js';
+import { isLeadEmailsEnabled, setLeadEmailsEnabled } from '../utils/settings.util.js';
 
 export async function getLeads(req, res, next) {
   try {
@@ -143,6 +144,26 @@ export async function getLeadStats(req, res, next) {
       Lead.aggregate([{ $group: { _id: '$source', count: { $sum: 1 } } }]),
     ]);
     res.json({ total, byStatus, bySource });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Interruptor de "Leads": los leads siempre se guardan pase lo que pase — esto solo
+// prende/apaga el mail de notificación (sendLeadEmail lo chequea antes de mandar nada).
+export async function getLeadEmailSetting(req, res, next) {
+  try {
+    res.json({ leadEmailsEnabled: await isLeadEmailsEnabled() });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateLeadEmailSetting(req, res, next) {
+  try {
+    const { leadEmailsEnabled } = req.body;
+    const settings = await setLeadEmailsEnabled(leadEmailsEnabled);
+    res.json({ leadEmailsEnabled: settings.leadEmailsEnabled });
   } catch (error) {
     next(error);
   }

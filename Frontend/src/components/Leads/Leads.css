@@ -11,6 +11,24 @@
 
 .lead-status-chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 28px; background: var(--surface); border-bottom: 1px solid var(--line-2); flex-shrink: 0; }
 
+.lead-email-toggle {
+  display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface);
+  border-radius: 999px; padding: 5px 12px 5px 5px; cursor: pointer; font-family: inherit;
+}
+.lead-email-toggle:disabled { opacity: .6; cursor: default; }
+.lead-email-toggle-track {
+  width: 30px; height: 18px; border-radius: 999px; background: var(--ink-3); position: relative;
+  transition: background .15s; flex-shrink: 0;
+}
+.lead-email-toggle.on .lead-email-toggle-track { background: var(--green-600); }
+.lead-email-toggle-thumb {
+  position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; transition: transform .15s;
+}
+.lead-email-toggle.on .lead-email-toggle-thumb { transform: translateX(12px); }
+.lead-email-toggle-label { font-size: 12px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+.lead-email-toggle.on .lead-email-toggle-label { color: var(--green-700); }
+
 /* Kanban-like columns */
 .leads-body { flex: 1; overflow-y: auto; padding: 20px 28px; }
 .leads-list { display: flex; flex-direction: column; gap: 8px; }

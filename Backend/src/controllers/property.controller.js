@@ -4,6 +4,7 @@ import PropertyManager from '../manager/property.manager.js';
 import Activity from '../models/Activity.model.js';
 import { syncWithTokko } from '../utils/syncWithTokko.js';
 import { importRentalExcelFile, RENTAL_XLSX_PATH } from '../utils/rentalExcelImporter.js';
+import { nextManualPropertyId } from '../models/Counter.model.js';
 
 const normalizeText = (v = '') => String(v).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
 const escapeRegex = (v = '') => String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -143,7 +144,7 @@ export async function createProperty(req, res, next) {
     if (!address) return res.status(400).json({ message: 'La dirección es obligatoria' });
 
     const property = await Property.create({
-      id: Date.now(),
+      id: await nextManualPropertyId(),
       is_manual: true,
       status: 'disponible',
       address,

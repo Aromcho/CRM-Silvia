@@ -24,12 +24,39 @@ function photoSrc(photo) {
   return null;
 }
 
+// Tokko manda la superficie total en distintos campos según la propiedad (`surface` o
+// `total_surface`) y suele dejar el otro en "0" o vacío — probamos en orden y nos quedamos
+// con el primer valor > 0.
+function firstPositiveSurface(...values) {
+  for (const v of values) {
+    const n = parseFloat(v);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}
+
+function formatSurface(n) {
+  return `${new Intl.NumberFormat('es-AR').format(n)}m²`;
+}
+
+function formatPrice(ops) {
+  if (!ops || !ops.length) return null;
+  const op = ops[0];
+  if (!op.prices || !op.prices.length) return null;
+  const p = op.prices[0];
+  if (!p.price) return null;
+  const formatted = new Intl.NumberFormat('es-AR').format(p.price);
+  return `${p.currency === 'USD' ? 'USD' : '$'} ${formatted}`;
+}
+
 function todayLabel() {
   return new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function ResultRow({ property, onAdd, added }) {
   const src = photoSrc(property.photos?.[0]);
+  const totalSurface = firstPositiveSurface(property.surface, property.total_surface);
+  const price = formatPrice(property.operations);
   return e('div', { className: 'mostrador-result-row' },
     e('div', { className: 'mostrador-result-thumb' },
       src ? e('img', { src, alt: '', loading: 'lazy' }) : e(Icons.Building, { width: 18, height: 18 }),
@@ -38,9 +65,10 @@ function ResultRow({ property, onAdd, added }) {
       e('div', { className: 'mostrador-result-address' }, property.address || property.publication_title || 'Sin dirección'),
       e('div', { className: 'mostrador-result-meta' },
         [
+          price,
           property.room_amount > 0 ? `${property.room_amount} hab.` : null,
           property.bathroom_amount > 0 ? `${property.bathroom_amount} baños` : null,
-          property.total_surface ? `${property.total_surface} m²` : null,
+          totalSurface ? formatSurface(totalSurface) : null,
         ].filter(Boolean).join(' · ') || 'Sin datos de superficie',
       ),
     ),
@@ -52,22 +80,41 @@ function ResultRow({ property, onAdd, added }) {
   );
 }
 
+function SurfaceBadge({ icon, value, label }) {
+  return e('div', { className: 'mostrador-surface-badge' },
+    e('div', { className: 'mostrador-surface-badge-icon' }, e(icon, { width: 14, height: 14 })),
+    e('div', { className: 'mostrador-surface-badge-value' }, value),
+    e('div', { className: 'mostrador-surface-badge-label' }, label),
+  );
+}
+
 function PrintRow({ property, qrSrc, onRemove }) {
   const src = photoSrc(property.photos?.[0]);
+  const totalSurface = firstPositiveSurface(property.surface, property.total_surface);
+  const coveredSurface = firstPositiveSurface(property.roofed_surface);
+  const price = formatPrice(property.operations);
+  const opType = property.operations?.[0]?.operation_type;
+
   return e('div', { className: 'mostrador-print-row' },
     e('button', {
       className: 'mostrador-print-remove no-print', onClick: () => onRemove(property.id), title: 'Quitar de la lista',
     }, e(Icons.Close, { width: 12, height: 12 })),
 
+    e('div', { className: 'mostrador-print-surface' },
+      totalSurface && e(SurfaceBadge, { icon: Icons.Maximize, value: formatSurface(totalSurface), label: 'Sup. total' }),
+      coveredSurface && e(SurfaceBadge, { icon: Icons.Home2, value: formatSurface(coveredSurface), label: 'Sup. cub' }),
+      e('div', { className: 'mostrador-print-icons' },
+        e('span', null, e(Icons.Bed, { width: 12, height: 12 }), property.room_amount != null ? property.room_amount : '—'),
+        e('span', { className: 'mostrador-print-icons-sep' }),
+        e('span', null, e(Icons.Bath, { width: 12, height: 12 }), property.bathroom_amount != null ? property.bathroom_amount : '—'),
+      ),
+    ),
+
     e('div', { className: 'mostrador-print-media' },
       e('div', { className: 'mostrador-print-img' },
         src ? e('img', { src, alt: '' }) : e('div', { className: 'mostrador-print-noimg' }, e(Icons.Building, { width: 28, height: 28 })),
       ),
-      e('div', { className: 'mostrador-print-icons' },
-        e('span', null, e(Icons.Bed, { width: 12, height: 12 }), property.room_amount != null ? property.room_amount : '—'),
-        e('span', null, e(Icons.Bath, { width: 12, height: 12 }), property.bathroom_amount != null ? property.bathroom_amount : '—'),
-        e('span', null, e(Icons.Maximize, { width: 12, height: 12 }), property.total_surface ? `${property.total_surface} m²` : '—'),
-      ),
+      price && e('div', { className: 'mostrador-print-price' }, `${opType ? `${opType} · ` : ''}${price}`),
     ),
 
     e('div', { className: 'mostrador-print-info' },

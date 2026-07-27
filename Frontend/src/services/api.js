@@ -58,6 +58,7 @@ export const getMercadoLibreSummary = () => request('/mercadolibre/summary');
 export const getMercadoLibreListingTypes = () => request('/mercadolibre/listing-types');
 export const upgradeMercadoLibreListingType = (id, data) => request(`/mercadolibre/listing-type/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const getPropertyMlMetrics = (id, days = 30) => request(`/mercadolibre/metrics/property/${id}?days=${days}`);
+export const getMercadoLibreReports = (days = 30) => request(`/mercadolibre/reports?days=${days}`);
 export const discoverMlExistingListings = () => request('/mercadolibre/discover-existing');
 export const linkMlExistingListing = (data) => request('/mercadolibre/link-existing', { method: 'POST', body: JSON.stringify(data) });
 
@@ -72,6 +73,8 @@ export const updateLead = (id, data) => request(`/leads/${id}`, { method: 'PUT',
 export const updateLeadStatus = (id, status) => request(`/leads/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
 export const deleteLead = (id) => request(`/leads/${id}`, { method: 'DELETE' });
 export const getLeadStats = () => request('/leads/stats');
+export const getLeadEmailSetting = () => request('/leads/email-setting');
+export const updateLeadEmailSetting = (enabled) => request('/leads/email-setting', { method: 'PATCH', body: JSON.stringify({ leadEmailsEnabled: enabled }) });
 
 // Activity feed
 export const getActivities = (params) => request(`/activities?${new URLSearchParams(params || {}).toString()}`);

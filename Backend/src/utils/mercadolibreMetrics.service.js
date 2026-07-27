@@ -153,6 +153,71 @@ export async function collectDailyMetrics({ delayMs = 400 } = {}) {
   return { date: date_from, itemsProcessed: activeListings.length, saved };
 }
 
+// Reporte de portfolio (sección Reportes): agrega todos los snapshots del rango, sin filtrar
+// por propiedad. Arma la serie diaria, los totales, el desglose de leads por tipo de contacto,
+// y el ranking de propiedades por visitas/leads.
+export async function getPortfolioMetricsReport(days = 30) {
+  const since = new Date();
+  since.setUTCHours(0, 0, 0, 0);
+  since.setUTCDate(since.getUTCDate() - days);
+  const snapshots = await MlMetricSnapshot.find({ date: { $gte: since } }).lean();
+
+  const totals = { visits: 0, questions: 0, phoneViews: 0, whatsapp: 0, leads: 0 };
+  const leadsByType = { whatsapp: 0, question: 0, call: 0, schedule: 0, quotation: 0 };
+  const byDate = new Map();
+  const byProperty = new Map();
+
+  for (const s of snapshots) {
+    const leadsSum = Object.values(s.leadsByType || {}).reduce((a, b) => a + b, 0);
+    totals.visits += s.visits;
+    totals.questions += s.questions;
+    totals.phoneViews += s.phoneViews;
+    totals.whatsapp += s.whatsapp;
+    totals.leads += leadsSum;
+    for (const k of Object.keys(leadsByType)) leadsByType[k] += s.leadsByType?.[k] || 0;
+
+    const dateKey = isoDate(s.date);
+    const d = byDate.get(dateKey) || { date: dateKey, visits: 0, questions: 0, phoneViews: 0, whatsapp: 0, leads: 0 };
+    d.visits += s.visits;
+    d.questions += s.questions;
+    d.phoneViews += s.phoneViews;
+    d.whatsapp += s.whatsapp;
+    d.leads += leadsSum;
+    byDate.set(dateKey, d);
+
+    const p = byProperty.get(s.propertyId) || { propertyId: s.propertyId, visits: 0, leads: 0 };
+    p.visits += s.visits;
+    p.leads += leadsSum;
+    byProperty.set(s.propertyId, p);
+  }
+
+  const series = [...byDate.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
+
+  const propertyIds = [...byProperty.keys()];
+  const properties = await Property.find(
+    { id: { $in: propertyIds } },
+    { id: 1, address: 1, publication_title: 1 }
+  ).lean();
+  const propertyById = new Map(properties.map((p) => [p.id, p]));
+  const enrich = (p) => ({
+    ...p,
+    address: propertyById.get(p.propertyId)?.address || '',
+    publication_title: propertyById.get(p.propertyId)?.publication_title || '',
+  });
+
+  const topByVisits = [...byProperty.values()].sort((a, b) => b.visits - a.visits).slice(0, 10).map(enrich);
+  const topByLeads = [...byProperty.values()].filter((p) => p.leads > 0).sort((a, b) => b.leads - a.leads).slice(0, 10).map(enrich);
+
+  return {
+    range: { from: isoDate(since), to: isoDate(new Date()), days },
+    totals,
+    leadsByType,
+    series,
+    topByVisits,
+    topByLeads,
+  };
+}
+
 // Serie diaria + totales de una propiedad (suma venta+alquiler si tiene los dos avisos activos —
 // al que edita la ficha le importa "la propiedad", no cada aviso de ML por separado)
 export async function getPropertyMetricsSeries(propertyId, days = 30) {

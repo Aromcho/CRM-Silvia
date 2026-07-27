@@ -1,16 +1,28 @@
 import nodemailer from 'nodemailer';
+import { isLeadEmailsEnabled } from './settings.util.js';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Creado bajo demanda (no a nivel de módulo): si este archivo se importa transitivamente
+// antes de que dotenv.config() cargue el .env, un transporter armado al importar quedaría
+// con auth.user/pass en undefined para siempre, aunque process.env ya esté poblado después.
+let transporter = null;
+function getTransporter() {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  }
+  return transporter;
+}
 
 export async function sendLeadEmail(lead, propertyTitle = '') {
+  // El lead se guarda siempre, pase lo que pase acá — este interruptor solo frena el mail.
+  if (!(await isLeadEmailsEnabled())) return;
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
 
   const html = `
@@ -28,7 +40,7 @@ export async function sendLeadEmail(lead, propertyTitle = '') {
     </div>
   `;
 
-  await transporter.sendMail({
+  await getTransporter().sendMail({
     from: `"CRM Inmobiliaria" <${process.env.SMTP_USER}>`,
     to: process.env.LEADS_EMAIL || process.env.SMTP_USER,
     subject: `Nuevo lead: ${lead.name}${propertyTitle ? ` — ${propertyTitle}` : ''}`,

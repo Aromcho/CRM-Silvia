@@ -9,6 +9,7 @@ import {
   getListingTypes,
   upgradeListingType,
   getMercadoLibreSummary,
+  getMercadoLibreReports,
   getPropertyMetrics,
   collectMercadoLibreMetrics,
   discoverExistingListings,
@@ -24,6 +25,7 @@ router.post('/sync/:propertyId', isAuth, syncToMercadoLibre);
 router.post('/sync-all', isAuth, syncAllMercadoLibre);
 router.get('/status', isAuth, getMercadoLibreStatus);
 router.get('/summary', isAuth, getMercadoLibreSummary);
+router.get('/reports', isAuth, getMercadoLibreReports);
 router.get('/listing-types', isAuth, getListingTypes);
 router.patch('/listing-type/:propertyId', isAuth, upgradeListingType);
 router.get('/metrics/property/:propertyId', isAuth, getPropertyMetrics);
