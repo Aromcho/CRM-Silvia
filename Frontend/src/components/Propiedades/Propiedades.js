@@ -65,7 +65,7 @@ function PropCard({ property, onClick }) {
       ),
       price && e('div', { className: 'prop-card-price' }, `${opType ? `${opType} · ` : ''}${price}`),
       e('div', { className: 'prop-card-meta' },
-        property.suite_amount > 0 && e('span', { className: 'prop-meta-item' }, e(Icons.Layers, { width: 12, height: 12 }), `${property.suite_amount} amb`),
+        property.room_amount > 0 && e('span', { className: 'prop-meta-item' }, e(Icons.Layers, { width: 12, height: 12 }), `${property.room_amount} amb`),
         property.bathroom_amount > 0 && e('span', { className: 'prop-meta-item' }, '🚿 ', property.bathroom_amount),
         property.roofed_surface && e('span', { className: 'prop-meta-item' }, `${property.roofed_surface} m²`),
       ),
@@ -127,7 +127,7 @@ function PropModal({ property, onClose, session }) {
           e('div', { className: 'prop-info-item' }, e('div', { className: 'prop-info-label' }, 'Barrio'), e('div', { className: 'prop-info-value' }, property.location?.name || '—')),
           price && e('div', { className: 'prop-info-item' }, e('div', { className: 'prop-info-label' }, 'Precio'), e('div', { className: 'prop-info-value' }, price)),
           property.roofed_surface && e('div', { className: 'prop-info-item' }, e('div', { className: 'prop-info-label' }, 'Superficie cubierta'), e('div', { className: 'prop-info-value' }, `${property.roofed_surface} m²`)),
-          property.suite_amount > 0 && e('div', { className: 'prop-info-item' }, e('div', { className: 'prop-info-label' }, 'Ambientes'), e('div', { className: 'prop-info-value' }, property.suite_amount)),
+          property.room_amount > 0 && e('div', { className: 'prop-info-item' }, e('div', { className: 'prop-info-label' }, 'Ambientes'), e('div', { className: 'prop-info-value' }, property.room_amount)),
           property.bathroom_amount > 0 && e('div', { className: 'prop-info-item' }, e('div', { className: 'prop-info-label' }, 'Baños'), e('div', { className: 'prop-info-value' }, property.bathroom_amount)),
           property.parking_lot_amount > 0 && e('div', { className: 'prop-info-item' }, e('div', { className: 'prop-info-label' }, 'Cocheras'), e('div', { className: 'prop-info-value' }, property.parking_lot_amount)),
           property.reference_code && e('div', { className: 'prop-info-item' }, e('div', { className: 'prop-info-label' }, 'Ref'), e('div', { className: 'prop-info-value' }, property.reference_code)),
@@ -164,7 +164,7 @@ function PropModal({ property, onClose, session }) {
 function NewPropertyModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
     address: '', publication_title: '', type_name: '', operation_type: '',
-    currency: 'USD', price: '', location_name: '', room_amount: '', bathroom_amount: '', total_surface: '',
+    currency: 'USD', price: '', location_name: '', suite_amount: '', bathroom_amount: '', total_surface: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -233,7 +233,7 @@ function NewPropertyModal({ onClose, onCreated }) {
           ),
           e('div', { className: 'field' },
             e('label', null, 'Habitaciones'),
-            e('input', { type: 'number', value: form.room_amount, onChange: set('room_amount') }),
+            e('input', { type: 'number', value: form.suite_amount, onChange: set('suite_amount') }),
           ),
           e('div', { className: 'field' },
             e('label', null, 'Baños'),

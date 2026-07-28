@@ -600,11 +600,11 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
             {
               label: 'Características generales',
               rows: [
-                e(Row, { key: 'amb', label: 'Ambientes', icon: Icons.Layers }, e(EditableField, { type: 'number', value: property.suite_amount, onSave: (v) => saveField('suite_amount', v) })),
+                e(Row, { key: 'amb', label: 'Ambientes', icon: Icons.Layers }, e(EditableField, { type: 'number', value: property.room_amount, onSave: (v) => saveField('room_amount', v) })),
                 e(Row, { key: 'age', label: 'Antigüedad', icon: Icons.Calendar }, e(EditableField, { type: 'number', value: property.age, onSave: (v) => saveField('age', v) })),
                 e(Row, { key: 'bath', label: 'Baños', icon: Icons.Bath }, e(EditableField, { type: 'number', value: property.bathroom_amount, onSave: (v) => saveField('bathroom_amount', v) })),
                 e(Row, { key: 'cond', label: 'Condición', icon: Icons.Check }, e(EditableField, { value: property.property_condition, onSave: (v) => saveField('property_condition', v) })),
-                e(Row, { key: 'room', label: 'Dormitorios', icon: Icons.Bed }, e(EditableField, { type: 'number', value: property.room_amount, onSave: (v) => saveField('room_amount', v) })),
+                e(Row, { key: 'room', label: 'Dormitorios', icon: Icons.Bed }, e(EditableField, { type: 'number', value: property.suite_amount, onSave: (v) => saveField('suite_amount', v) })),
                 e(Row, { key: 'orient', label: 'Orientación', icon: Icons.Compass }, e(EditableField, { value: property.orientation, onSave: (v) => saveField('orientation', v) })),
                 e(Row, { key: 'floors', label: 'Plantas', icon: Icons.Home2 }, e(EditableField, { type: 'number', value: property.floors_amount, onSave: (v) => saveField('floors_amount', v) })),
                 e(Row, { key: 'sit', label: 'Situación', icon: Icons.Tag }, e(EditableField, { value: property.situation, onSave: (v) => saveField('situation', v) })),

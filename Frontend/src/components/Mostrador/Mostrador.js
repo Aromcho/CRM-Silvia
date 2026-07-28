@@ -66,7 +66,7 @@ function ResultRow({ property, onAdd, added }) {
       e('div', { className: 'mostrador-result-meta' },
         [
           price,
-          property.room_amount > 0 ? `${property.room_amount} hab.` : null,
+          property.suite_amount > 0 ? `${property.suite_amount} hab.` : null,
           property.bathroom_amount > 0 ? `${property.bathroom_amount} baños` : null,
           totalSurface ? formatSurface(totalSurface) : null,
         ].filter(Boolean).join(' · ') || 'Sin datos de superficie',
@@ -104,7 +104,7 @@ function PrintRow({ property, qrSrc, onRemove }) {
       totalSurface && e(SurfaceBadge, { icon: Icons.Maximize, value: formatSurface(totalSurface), label: 'Sup. total' }),
       coveredSurface && e(SurfaceBadge, { icon: Icons.Home2, value: formatSurface(coveredSurface), label: 'Sup. cub' }),
       e('div', { className: 'mostrador-print-icons' },
-        e('span', null, e(Icons.Bed, { width: 12, height: 12 }), property.room_amount != null ? property.room_amount : '—'),
+        e('span', null, e(Icons.Bed, { width: 12, height: 12 }), property.suite_amount != null ? property.suite_amount : '—'),
         e('span', { className: 'mostrador-print-icons-sep' }),
         e('span', null, e(Icons.Bath, { width: 12, height: 12 }), property.bathroom_amount != null ? property.bathroom_amount : '—'),
       ),
