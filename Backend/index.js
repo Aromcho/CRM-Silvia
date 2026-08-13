@@ -9,7 +9,7 @@ import connectDB from './src/utils/db.js';
 import router from './src/routes/index.router.js';
 import errorHandler from './src/middlewares/errorHandler.mid.js';
 import { startMercadoLibreMetricsCron } from './src/cron/mercadolibreMetrics.cron.js';
-import { startTokkoSyncCron } from './src/cron/tokkoSync.cron.js';
+// import { startTokkoSyncCron } from './src/cron/tokkoSync.cron.js'; // Deshabilitado: la sincronización con Tokko ahora es solo manual (botón "Sincronizar Tokko")
 
 dotenv.config();
 
@@ -46,7 +46,7 @@ app.use(errorHandler);
 async function start() {
   await connectDB();
   startMercadoLibreMetricsCron();
-  startTokkoSyncCron();
+  // startTokkoSyncCron(); // Deshabilitado: sincronización con Tokko ahora solo manual
   app.listen(PORT, () => console.log(`CRM Backend corriendo en puerto ${PORT}`));
 }
 
