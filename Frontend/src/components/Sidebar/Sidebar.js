@@ -10,7 +10,8 @@ const { useState } = React;
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: Icons.Activity, section: 'principal' },
-  // Deshabilitado hasta nuevo aviso: 'propiedades' y 'alquileres'
+  { key: 'propiedades', label: 'Propiedades', icon: Icons.Building, section: 'principal' },
+  { key: 'alquileres', label: 'Alquileres temporarios', icon: Icons.Calendar, section: 'principal' },
   { key: 'leads', label: 'Consultas', icon: Icons.Mail, section: 'principal' },
   { key: 'archivos', label: 'Archivos', icon: Icons.Folder, section: 'principal' },
   { key: 'mostrador', label: 'Mostrador', icon: Icons.Printer, section: 'principal' },
