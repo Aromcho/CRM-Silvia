@@ -3,7 +3,9 @@ import Property from '../models/Property.model.js';
 // Proyección explícita (allow-list): solo lo que la web pública necesita.
 // Deja afuera a propósito internal_data (dueños), notes, lastEditedBy/At, difusion,
 // is_manual y temporaryRental completo (no lo consume el frontend de la web hoy y
-// trae ownerPhone/alarmCode, que no deben salir de la red interna del CRM).
+// trae ownerPhone/alarmCode, que no deben salir de la red interna del CRM). Excepción:
+// se proyectan solo las 3 subfields de bookings necesarias para armar `occupation` (ver
+// toPublicJson) — nunca guestName/guestPhone/notes/alarmCode/ownerPhone.
 const PUBLIC_FIELDS = [
   'id', 'address', 'address_complement', 'age', 'apartment_door', 'appartments_per_floor',
   'bathroom_amount', 'block_number', 'branch', 'building', 'cleaning_tax', 'common_area',
@@ -21,6 +23,7 @@ const PUBLIC_FIELDS = [
   'toilet_amount', 'total_area', 'total_suites', 'total_surface', 'transaction_requirements',
   'tv_rooms', 'type', 'uncovered_parking_lot', 'unroofed_surface', 'videos', 'web_price',
   'zonification', 'createdAt', 'updatedAt',
+  'temporaryRental.bookings.startDate', 'temporaryRental.bookings.endDate', 'temporaryRental.bookings.status',
 ].join(' ');
 
 // El status interno del CRM tiene 2 valores que la web no conoce: en_tasacion (nunca se
@@ -31,9 +34,29 @@ function mapStatus(status) {
   return status;
 }
 
+// Las reservas cargadas a mano en el CRM (temporaryRental.bookings) y el campo `occupation`
+// que ya sincroniza Tokko son dos cosas separadas — el calendario de la web solo lee
+// `occupation`. Acá se fusionan como rangos {from, to} en formato YYYY-MM-DD (sin horario,
+// para no arrastrar corrimientos de zona horaria al comparar fechas del lado de la web).
+function toDateOnly(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
 function toPublicJson(doc) {
   const obj = doc.toObject ? doc.toObject() : doc;
   obj.status = mapStatus(obj.status);
+
+  const bookingRanges = (obj.temporaryRental?.bookings || [])
+    .map((b) => ({ from: toDateOnly(b.startDate), to: toDateOnly(b.endDate) }))
+    .filter((r) => r.from && r.to);
+  if (bookingRanges.length) {
+    obj.occupation = [...(obj.occupation || []), ...bookingRanges];
+  }
+  delete obj.temporaryRental;
+
   return obj;
 }
 
