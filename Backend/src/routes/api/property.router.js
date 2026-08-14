@@ -3,7 +3,7 @@ import {
   getProperties, getPropertyById, createProperty, updateProperty, updatePropertyStatus, updatePropertyDifusion,
   triggerSync, getPropertyStats, getPropertyLocations, importRentals,
 } from '../../controllers/property.controller.js';
-import { uploadPhotos, addPhotos, deletePhoto, reorderPhotos } from '../../controllers/propertyPhoto.controller.js';
+import { uploadPhotos, addPhotos, deletePhoto, reorderPhotos, updatePhotoDescription } from '../../controllers/propertyPhoto.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
 import isAdmin from '../../middlewares/isAdmin.mid.js';
 
@@ -19,6 +19,7 @@ router.patch('/:id/status', isAuth, updatePropertyStatus);
 router.patch('/:id/difusion', isAuth, updatePropertyDifusion);
 router.post('/:id/photos', isAuth, uploadPhotos.array('photos', 30), addPhotos);
 router.patch('/:id/photos/reorder', isAuth, reorderPhotos);
+router.patch('/:id/photos/:photoId/description', isAuth, updatePhotoDescription);
 router.delete('/:id/photos/:photoId', isAuth, deletePhoto);
 router.post('/sync', isAuth, isAdmin, triggerSync);
 router.post('/import-rentals', isAuth, isAdmin, importRentals);

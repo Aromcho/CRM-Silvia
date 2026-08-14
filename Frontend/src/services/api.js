@@ -49,6 +49,7 @@ export const uploadPropertyPhotos = (id, files) => {
 };
 export const deletePropertyPhoto = (id, photoId) => request(`/properties/${id}/photos/${photoId}`, { method: 'DELETE' });
 export const reorderPropertyPhotos = (id, order) => request(`/properties/${id}/photos/reorder`, { method: 'PATCH', body: JSON.stringify({ order }) });
+export const updatePropertyPhotoDescription = (id, photoId, description) => request(`/properties/${id}/photos/${photoId}/description`, { method: 'PATCH', body: JSON.stringify({ description }) });
 
 // MercadoLibre
 export const syncPropertyMercadoLibre = (id) => request(`/mercadolibre/sync/${id}`, { method: 'POST' });

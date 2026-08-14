@@ -79,6 +79,25 @@ export async function deletePhoto(req, res, next) {
   }
 }
 
+export async function updatePhotoDescription(req, res, next) {
+  try {
+    const { description } = req.body;
+    const property = await Property.findOne({ id: parseInt(req.params.id, 10) });
+    if (!property) return res.status(404).json({ message: 'Propiedad no encontrada' });
+
+    const photo = property.photos.id(req.params.photoId);
+    if (!photo) return res.status(404).json({ message: 'Foto no encontrada' });
+
+    photo.description = description || '';
+    property.lastEditedBy = req.user.id;
+    property.lastEditedAt = new Date();
+    await property.save();
+    res.json(property);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function reorderPhotos(req, res, next) {
   try {
     const { order } = req.body;

@@ -414,24 +414,29 @@ function FactCard({ property, onClick }) {
 function RentalGridPanel({ capacityGroup, title, onSelect }) {
   const [properties, setProperties] = useState([]);
   const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const searchRef = useRef(null);
 
-  const fetchProperties = useCallback(async () => {
+  const fetchProperties = useCallback(async (off = 0) => {
     setLoading(true);
-    const params = { limit: LIMIT, offset: 0, operation_type: 'Alquiler temporal' };
+    const params = { limit: LIMIT, offset: off, operation_type: 'Alquiler temporal' };
     if (search) params.searchQuery = search;
     if (capacityGroup) params.capacityGroup = capacityGroup;
     try {
       const data = await getProperties(params);
       setProperties(data?.objects || []);
       setTotal(data?.meta?.total_count || 0);
+      setOffset(off);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   }, [search, capacityGroup]);
 
-  useEffect(() => { fetchProperties(); }, [fetchProperties]);
+  useEffect(() => { fetchProperties(0); }, [fetchProperties]);
+
+  const pages = Math.ceil(total / LIMIT);
+  const currentPage = Math.floor(offset / LIMIT) + 1;
 
   return e('div', { className: 'rental-panel' },
     e('div', { className: 'prop-toolbar' },
@@ -459,6 +464,12 @@ function RentalGridPanel({ capacityGroup, title, onSelect }) {
         : properties.length === 0
           ? e('div', { className: 'prop-empty' }, e(Icons.Calendar, { width: 48, height: 48 }), e('p', null, 'No hay propiedades en esta categoría'))
           : e('div', { className: 'prop-grid' }, properties.map((p) => e(RentalCard, { key: p.id, property: p, onClick: onSelect }))),
+    ),
+
+    pages > 1 && e('div', { className: 'prop-pagination' },
+      e('button', { className: 'btn ghost sm', disabled: currentPage <= 1, onClick: () => fetchProperties((currentPage - 2) * LIMIT) }, e(Icons.ChevronLeft, { width: 14, height: 14 })),
+      e('span', null, `Página ${currentPage} de ${pages}`),
+      e('button', { className: 'btn ghost sm', disabled: currentPage >= pages, onClick: () => fetchProperties(currentPage * LIMIT) }, e(Icons.Chevron, { width: 14, height: 14 })),
     ),
   );
 }
