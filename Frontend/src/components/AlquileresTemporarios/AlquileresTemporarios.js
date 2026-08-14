@@ -34,12 +34,18 @@ function buildMonthGrid(year, month) {
   return cells;
 }
 
+function parseDateOnly(s) {
+  if (!s) return null;
+  const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function dayInBooking(date, booking) {
   if (!booking.startDate || !booking.endDate) return false;
-  const s = new Date(booking.startDate);
-  const en = new Date(booking.endDate);
+  const s = parseDateOnly(booking.startDate);
+  const en = parseDateOnly(booking.endDate);
   const d0 = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  return d0 >= new Date(s.getFullYear(), s.getMonth(), s.getDate()) && d0 <= new Date(en.getFullYear(), en.getMonth(), en.getDate());
+  return d0 >= s && d0 <= en;
 }
 
 function currentSeasonKey() {
