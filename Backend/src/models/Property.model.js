@@ -242,6 +242,8 @@ const propertySchema = new Schema({
   // CRM-specific fields
   is_manual: { type: Boolean, default: false },
   notes: String,
+  distanciaMar: String,
+  aptoMascotas: Boolean,
   lastEditedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   lastEditedAt: Date,
   // Seteado por propertyPhoto.controller.js en cualquier borrado/reorden/edición manual de fotos.

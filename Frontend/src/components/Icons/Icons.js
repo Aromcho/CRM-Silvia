@@ -56,6 +56,8 @@ const Icons = {
   DollarSign: svg([['line',{x1:'12',y1:'1',x2:'12',y2:'23'}],['path',{d:'M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'}]]),
   Compass: svg([['circle',{cx:'12',cy:'12',r:'10'}],['polygon',{points:'16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76'}]]),
   Car: svg([['rect',{x:'3',y:'11',width:'18',height:'6',rx:'2'}],['circle',{cx:'7.5',cy:'17.5',r:'1.5'}],['circle',{cx:'16.5',cy:'17.5',r:'1.5'}],['path',{d:'M5 11l1.5-4A2 2 0 0 1 8.4 5.5h7.2a2 2 0 0 1 1.9 1.5L19 11'}]]),
+  Droplet:     svg([['path',{d:'M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z'}]]),
+  Paw:         svg([['circle',{cx:'7',cy:'8.5',r:'1.7'}],['circle',{cx:'12',cy:'6',r:'1.7'}],['circle',{cx:'17',cy:'8.5',r:'1.7'}],['ellipse',{cx:'12',cy:'16',rx:'5',ry:'4'}]]),
 };
 
 export default Icons;

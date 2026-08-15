@@ -612,6 +612,16 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
                 e(Row, { key: 'suitescl', label: 'Suites con placares', icon: Icons.Bed }, e(EditableField, { type: 'number', value: property.suites_with_closets, onSave: (v) => saveField('suites_with_closets', v) })),
                 e(Row, { key: 'toilet', label: 'Toilettes', icon: Icons.Bath }, e(EditableField, { type: 'number', value: property.toilet_amount, onSave: (v) => saveField('toilet_amount', v) })),
                 e(Row, { key: 'zon', label: 'Zonificación', icon: Icons.MapPin }, e(EditableField, { value: property.zonification, onSave: (v) => saveField('zonification', v) })),
+                e(Row, { key: 'distmar', label: 'Distancia al mar', icon: Icons.Droplet }, e(EditableField, { value: property.distanciaMar, onSave: (v) => saveField('distanciaMar', v), placeholder: 'Ej: 500m — click para agregar' })),
+                e(Row, { key: 'mascotas', label: 'Apto mascotas', icon: Icons.Paw },
+                  e('label', { className: `services-editor-item${property.aptoMascotas ? ' checked' : ''}` },
+                    e('input', {
+                      type: 'checkbox', checked: !!property.aptoMascotas,
+                      onChange: () => saveField('aptoMascotas', !property.aptoMascotas),
+                    }),
+                    e('span', null, property.aptoMascotas ? 'Sí' : 'No'),
+                  ),
+                ),
               ],
             },
             {
