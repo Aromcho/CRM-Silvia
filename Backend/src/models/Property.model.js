@@ -244,6 +244,10 @@ const propertySchema = new Schema({
   notes: String,
   lastEditedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   lastEditedAt: Date,
+  // Seteado por propertyPhoto.controller.js en cualquier borrado/reorden/edición manual de fotos.
+  // Una vez presente, syncWithTokko.js deja de reconstruir `photos` para esta propiedad (si no,
+  // cada sync pisaba el array editado a mano con el set completo/orden original de Tokko).
+  photosEditedAt: Date,
   // Checklist de "Servicios, ambientes y adicionales" editado a mano en el CRM — a propósito
   // NO es `tags`/`custom_tags` (esos los pisa syncWithTokko.js con el spread de Tokko en cada
   // corrida, cada 2 min). Una vez que se toca este checklist, es la única fuente de verdad para esa UI.

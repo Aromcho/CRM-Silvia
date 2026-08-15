@@ -141,13 +141,23 @@ const runSync = async () => {
       for (const property of properties) {
         syncedIds.add(property.id);
 
-        const tokkoPhotos = await processPhotos(Array.isArray(property.photos) ? property.photos : [], property.id);
+        const existingDoc = await Property.findOne({ id: property.id }, { photos: 1, photosEditedAt: 1 }).lean();
 
-        // Preserve photos uploaded manually in the CRM (no original_url) — the sync only ever
-        // owns the Tokko-sourced subset, otherwise every 6h cron run would wipe manual uploads.
-        const existingDoc = await Property.findOne({ id: property.id }, { photos: 1 }).lean();
-        const manualPhotos = (existingDoc?.photos || []).filter((p) => !p.original_url);
-        const photos = [...tokkoPhotos, ...manualPhotos.map((p, i) => ({ ...p, order: tokkoPhotos.length + i }))];
+        // Una vez que alguien borró/reordenó/editó fotos a mano en el CRM, ese array pasa a ser
+        // la única fuente de verdad para esta propiedad: el sync deja de tocar `photos` por completo,
+        // si no cada corrida (o cada click en "Sincronizar Tokko") pisaba la curación manual con el
+        // set completo/orden original que devuelve Tokko.
+        let photos;
+        if (existingDoc?.photosEditedAt) {
+          photos = existingDoc.photos || [];
+        } else {
+          const tokkoPhotos = await processPhotos(Array.isArray(property.photos) ? property.photos : [], property.id);
+
+          // Preserve photos uploaded manually in the CRM (no original_url) — the sync only ever
+          // owns the Tokko-sourced subset, otherwise every 6h cron run would wipe manual uploads.
+          const manualPhotos = (existingDoc?.photos || []).filter((p) => !p.original_url);
+          photos = [...tokkoPhotos, ...manualPhotos.map((p, i) => ({ ...p, order: tokkoPhotos.length + i }))];
+        }
 
         const operations = Array.isArray(property.operations)
           ? property.operations.map((op) => ({

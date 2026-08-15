@@ -49,6 +49,7 @@ export async function addPhotos(req, res, next) {
     property.photos.push(...entries);
     property.lastEditedBy = req.user.id;
     property.lastEditedAt = new Date();
+    property.photosEditedAt = new Date();
     await property.save();
     res.status(201).json(property);
   } catch (error) {
@@ -72,6 +73,7 @@ export async function deletePhoto(req, res, next) {
     photo.deleteOne();
     property.lastEditedBy = req.user.id;
     property.lastEditedAt = new Date();
+    property.photosEditedAt = new Date();
     await property.save();
     res.json(property);
   } catch (error) {
@@ -91,6 +93,7 @@ export async function updatePhotoDescription(req, res, next) {
     photo.description = description || '';
     property.lastEditedBy = req.user.id;
     property.lastEditedAt = new Date();
+    property.photosEditedAt = new Date();
     await property.save();
     res.json(property);
   } catch (error) {
@@ -115,6 +118,7 @@ export async function reorderPhotos(req, res, next) {
 
     property.lastEditedBy = req.user.id;
     property.lastEditedAt = new Date();
+    property.photosEditedAt = new Date();
     await property.save();
     res.json(property);
   } catch (error) {
