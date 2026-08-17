@@ -72,7 +72,7 @@
   display: flex; align-items: center; gap: 8px;
   width: 100%; padding: 8px 10px; margin-bottom: 4px; border-radius: 9px;
   color: rgba(255,255,255,.45); font-size: 12px; font-weight: 600;
-  transition: .12s; cursor: pointer;
+  transition: .12s; cursor: pointer; text-decoration: none; box-sizing: border-box;
 }
 .sidebar-sync-btn:hover { color: var(--mint-400); background: rgba(79,183,138,.1); }
 .sidebar-sync-btn.syncing { color: var(--mint-400); }

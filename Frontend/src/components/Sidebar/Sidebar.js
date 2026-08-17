@@ -2,11 +2,10 @@
 import React from 'react';
 import Icons from '../Icons/Icons';
 import Avatar from '../UI/Avatar';
-import { logout, triggerSync, importRentals } from '@/services/api';
+import { logout } from '@/services/api';
 import './Sidebar.css';
 
 const e = React.createElement;
-const { useState } = React;
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: Icons.Activity, section: 'principal' },
@@ -21,30 +20,9 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar({ tab, setTab, session, onLogout }) {
-  const [syncing, setSyncing] = useState(false);
-  const [importing, setImporting] = useState(false);
-
   async function handleLogout() {
     await logout();
     onLogout();
-  }
-
-  async function handleSync() {
-    setSyncing(true);
-    await triggerSync().catch(console.error);
-    setTimeout(() => setSyncing(false), 3000);
-  }
-
-  async function handleImportRentals() {
-    setImporting(true);
-    try {
-      const summary = await importRentals();
-      alert(`Importación completada.\nPropiedades actualizadas: ${summary.updated}\nBloques sin ID: ${summary.unmatchedIds.length}`);
-    } catch (err) {
-      alert(err.message || 'No se pudo importar el Excel de alquileres.');
-    } finally {
-      setImporting(false);
-    }
   }
 
   const roleLabel = session?.role === 'SUPERADMIN' ? 'Super Admin' : session?.role === 'ADMIN' ? 'Administrador' : 'Usuario';
@@ -78,16 +56,10 @@ export default function Sidebar({ tab, setTab, session, onLogout }) {
 
     // Bottom
     e('div', { className: 'sidebar-bottom' },
-      ['ADMIN', 'SUPERADMIN'].includes(session?.role) &&
-        e('button', { className: `sidebar-sync-btn${syncing ? ' syncing' : ''}`, onClick: handleSync },
-          e(Icons.RefreshCw, { width: 14, height: 14 }),
-          syncing ? 'Sincronizando…' : 'Sincronizar Tokko',
-        ),
-      ['ADMIN', 'SUPERADMIN'].includes(session?.role) &&
-        e('button', { className: `sidebar-sync-btn${importing ? ' syncing' : ''}`, onClick: handleImportRentals, disabled: importing },
-          e(Icons.FileText, { width: 14, height: 14 }),
-          importing ? 'Importando…' : 'Importar alquileres (Excel)',
-        ),
+      e('a', { className: 'sidebar-sync-btn', href: 'https://agenda.silviafernandezpropiedades.com.ar/', target: '_blank', rel: 'noopener noreferrer' },
+        e(Icons.ExternalLink, { width: 14, height: 14 }),
+        'Ir a la agenda',
+      ),
       e('div', { className: 'sidebar-user' },
         e(Avatar, { email: session?.email, name: session?.name, size: 30 }),
         e('div', { className: 'sidebar-user-info' },
