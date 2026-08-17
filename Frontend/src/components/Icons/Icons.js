@@ -58,6 +58,7 @@ const Icons = {
   Car: svg([['rect',{x:'3',y:'11',width:'18',height:'6',rx:'2'}],['circle',{cx:'7.5',cy:'17.5',r:'1.5'}],['circle',{cx:'16.5',cy:'17.5',r:'1.5'}],['path',{d:'M5 11l1.5-4A2 2 0 0 1 8.4 5.5h7.2a2 2 0 0 1 1.9 1.5L19 11'}]]),
   Droplet:     svg([['path',{d:'M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z'}]]),
   Paw:         svg([['circle',{cx:'7',cy:'8.5',r:'1.7'}],['circle',{cx:'12',cy:'6',r:'1.7'}],['circle',{cx:'17',cy:'8.5',r:'1.7'}],['ellipse',{cx:'12',cy:'16',rx:'5',ry:'4'}]]),
+  Eye:         svg([['path',{d:'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'}],['circle',{cx:'12',cy:'12',r:'3'}]]),
 };
 
 export default Icons;

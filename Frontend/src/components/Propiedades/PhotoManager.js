@@ -6,34 +6,53 @@ import { uploadPropertyPhotos, deletePropertyPhoto, reorderPropertyPhotos, updat
 import './PhotoManager.css';
 
 const e = React.createElement;
-const { useState, useRef } = React;
+const { useState, useRef, useEffect } = React;
 
 export default function PhotoManager({ property, onPropertyChange }) {
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
   const [descEditId, setDescEditId] = useState(null);
   const [descDraft, setDescDraft] = useState('');
+  const [lightboxIndex, setLightboxIndex] = useState(null);
   const fileInputRef = useRef(null);
 
   const photos = property.photos || [];
 
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    function onKeyDown(ev) {
+      if (ev.key === 'Escape') setLightboxIndex(null);
+      else if (ev.key === 'ArrowRight') setLightboxIndex((i) => (i + 1) % photos.length);
+      else if (ev.key === 'ArrowLeft') setLightboxIndex((i) => (i - 1 + photos.length) % photos.length);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [lightboxIndex, photos.length]);
+
   async function handleFilesSelected(ev) {
-    const files = ev.target.files;
-    if (!files || !files.length) return;
+    const files = Array.from(ev.target.files || []);
+    if (!files.length) return;
     setUploading(true);
     setError('');
-    try {
-      const updated = await uploadPropertyPhotos(property.id, files);
-      onPropertyChange(updated);
-    } catch (err) {
-      setError(err.message || 'No se pudieron subir las fotos.');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+    const failed = [];
+    for (let i = 0; i < files.length; i++) {
+      setUploadProgress({ current: i + 1, total: files.length });
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const updated = await uploadPropertyPhotos(property.id, [files[i]]);
+        onPropertyChange(updated);
+      } catch (err) {
+        failed.push(files[i].name);
+      }
     }
+    if (failed.length) setError(`No se pudieron subir: ${failed.join(', ')}`);
+    setUploading(false);
+    setUploadProgress(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   async function handleDelete(photoId) {
@@ -125,9 +144,12 @@ export default function PhotoManager({ property, onPropertyChange }) {
       }),
       e('label', { htmlFor: 'photo-upload-input', className: `btn primary sm${uploading ? ' disabled' : ''}` },
         e(Icons.Upload, { width: 14, height: 14 }),
-        uploading ? 'Subiendo…' : 'Subir fotos',
+        uploading ? `Subiendo ${uploadProgress?.current || 1}/${uploadProgress?.total || 1}…` : 'Subir fotos',
       ),
-      e('span', { className: 'photo-upload-hint' }, `${photos.length} foto${photos.length === 1 ? '' : 's'} — la primera es la portada`),
+      !uploading && e('span', { className: 'photo-upload-hint' }, `${photos.length} foto${photos.length === 1 ? '' : 's'} — la primera es la portada`),
+      uploading && uploadProgress && e('div', { className: 'photo-upload-progress' },
+        e('div', { className: 'photo-upload-progress-bar', style: { width: `${(uploadProgress.current / uploadProgress.total) * 100}%` } }),
+      ),
     ),
 
     error && e('div', { className: 'photo-manager-error' }, error),
@@ -154,6 +176,10 @@ export default function PhotoManager({ property, onPropertyChange }) {
                 src ? e('img', { src, alt: `Foto ${i + 1}`, draggable: false }) : e('div', { className: 'photo-card-noimg' }, e(Icons.Image, { width: 22, height: 22 })),
                 i === 0 && e('span', { className: 'photo-card-cover' }, 'Portada'),
                 !p.original_url && e('span', { className: 'photo-card-manual' }, 'Subida manual'),
+                src && e('button', {
+                  type: 'button', className: 'photo-card-view', title: 'Ver en grande',
+                  onClick: (ev) => { ev.stopPropagation(); setLightboxIndex(i); },
+                }, e(Icons.Eye, { width: 18, height: 18 })),
               ),
               e('div', { className: 'photo-card-actions' },
                 e('button', { className: `btn ghost xs${p.description ? ' has-desc' : ''}`, disabled: busy, onClick: () => openDescriptionEditor(p), title: p.description ? 'Editar descripción' : 'Agregar descripción' },
@@ -177,5 +203,30 @@ export default function PhotoManager({ property, onPropertyChange }) {
             );
           }),
         ),
+
+    lightboxIndex !== null && photos[lightboxIndex] && e('div', {
+      className: 'photo-lightbox', onClick: () => setLightboxIndex(null),
+    },
+      e('button', {
+        type: 'button', className: 'photo-lightbox-close', title: 'Cerrar',
+        onClick: (ev) => { ev.stopPropagation(); setLightboxIndex(null); },
+      }, e(Icons.Close, { width: 20, height: 20 })),
+
+      photos.length > 1 && e('button', {
+        type: 'button', className: 'photo-lightbox-nav photo-lightbox-prev', title: 'Anterior',
+        onClick: (ev) => { ev.stopPropagation(); setLightboxIndex((lightboxIndex - 1 + photos.length) % photos.length); },
+      }, e(Icons.ChevronLeft, { width: 24, height: 24 })),
+
+      e('div', { className: 'photo-lightbox-content', onClick: (ev) => ev.stopPropagation() },
+        e('img', { src: photoSrc(photos[lightboxIndex]), alt: `Foto ${lightboxIndex + 1}` }),
+        photos[lightboxIndex].description && e('div', { className: 'photo-lightbox-desc' }, photos[lightboxIndex].description),
+        e('div', { className: 'photo-lightbox-count' }, `${lightboxIndex + 1} / ${photos.length}`),
+      ),
+
+      photos.length > 1 && e('button', {
+        type: 'button', className: 'photo-lightbox-nav photo-lightbox-next', title: 'Siguiente',
+        onClick: (ev) => { ev.stopPropagation(); setLightboxIndex((lightboxIndex + 1) % photos.length); },
+      }, e(Icons.Chevron, { width: 24, height: 24 })),
+    ),
   );
 }
