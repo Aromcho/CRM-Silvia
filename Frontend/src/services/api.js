@@ -13,7 +13,7 @@ async function request(path, options = {}) {
       ...options,
     });
   } catch {
-    return null;
+    throw new Error('No se pudo conectar con el servidor.');
   }
 
   const text = await response.text();
