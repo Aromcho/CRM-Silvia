@@ -475,7 +475,11 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
       e('button', { className: 'btn ghost sm detail-back', onClick: onBack },
         e(Icons.ChevronLeft, { width: 14, height: 14 }), 'Propiedades'),
       e('div', { className: 'detail-crumb-sep' }, '/'),
-      e('h1', null, property.publication_title || property.address || 'Propiedad'),
+      e('h1', null, e(EditableField, {
+        value: property.publication_title,
+        placeholder: property.address || 'Propiedad',
+        onSave: (v) => saveField('publication_title', v),
+      })),
       e('div', { className: 'detail-header-actions' },
         e('a', {
           href: propertyWebUrl(property), target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost sm',

@@ -279,7 +279,11 @@ function TemporaryRentalModal({ property: initialProperty, onClose }) {
   return e('div', { className: 'prop-modal-overlay', onClick: onClose },
     e('div', { className: 'prop-modal rental-modal', onClick: (ev) => ev.stopPropagation() },
       e('div', { className: 'prop-modal-head' },
-        e('h2', null, property.publication_title || property.address || 'Alquiler temporario'),
+        e('h2', null, e(EditableField, {
+          value: property.publication_title,
+          placeholder: property.address || 'Alquiler temporario',
+          onSave: (v) => saveField('publication_title', v),
+        })),
         e('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
           e('span', { className: `status-badge badge-${property.status}` }, STATUS_LABELS[property.status] || property.status),
           e('a', {
