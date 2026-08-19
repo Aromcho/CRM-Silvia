@@ -40,7 +40,7 @@ function localUrl(propertyId, filename) {
   return `${getBackendPublicUrl()}/uploads/properties/${propertyId}/${filename}`;
 }
 
-async function processPhotos(photos, propertyId) {
+export async function processPhotos(photos, propertyId) {
   const result = [];
   const propDir = path.join(UPLOADS_DIR, String(propertyId));
 
@@ -80,6 +80,74 @@ async function processPhotos(photos, propertyId) {
   }
 
   return result;
+}
+
+// Transforma un objeto "property" tal como lo devuelve la API de Tokko y lo upsertea en Mongo.
+// Reutilizado tanto por el sync completo (runSync) como por scripts que traen una sola propiedad.
+export async function upsertPropertyFromTokko(property) {
+  const existingDoc = await Property.findOne({ id: property.id }, { photos: 1, photosEditedAt: 1 }).lean();
+
+  let photos;
+  if (existingDoc?.photosEditedAt) {
+    photos = existingDoc.photos || [];
+  } else {
+    const tokkoPhotos = await processPhotos(Array.isArray(property.photos) ? property.photos : [], property.id);
+    const manualPhotos = (existingDoc?.photos || []).filter((p) => !p.original_url);
+    photos = [...tokkoPhotos, ...manualPhotos.map((p, i) => ({ ...p, order: tokkoPhotos.length + i }))];
+  }
+
+  const operations = Array.isArray(property.operations)
+    ? property.operations.map((op) => ({
+        operation_id: op.operation_id ?? null,
+        operation_type: op.operation_type || null,
+        prices: (op.prices || []).map((p) => ({
+          currency: p.currency,
+          price: p.price || 0,
+          period: p.period ?? '',
+          period_number: p.period_number ?? null,
+          is_promotional: p.is_promotional || false,
+        })),
+      }))
+    : [];
+
+  const statusNum = Number(property.status);
+  const status =
+    statusNum === 1
+      ? 'en_tasacion'
+      : statusNum === 3
+      ? 'reservada'
+      : statusNum === 4
+      ? 'no_disponible'
+      : 'disponible';
+
+  const existedBefore = !!existingDoc;
+
+  const doc = await Property.findOneAndUpdate(
+    { id: property.id },
+    {
+      $set: {
+        ...property,
+        photos,
+        operations,
+        status,
+        description: property.description || '',
+        rich_description: property.rich_description || '',
+      },
+    },
+    { upsert: true, new: true }
+  );
+
+  if (!existedBefore) {
+    await Activity.create({
+      type: 'property_created',
+      description: `Nueva propiedad sincronizada: "${doc.publication_title || doc.address || doc.id}"`,
+      entityId: String(doc.id),
+      entityType: 'property',
+      meta: { propertyId: doc.id },
+    }).catch(console.error);
+  }
+
+  return { doc, existedBefore };
 }
 
 let isSyncing = false;
@@ -141,74 +209,12 @@ const runSync = async () => {
       for (const property of properties) {
         syncedIds.add(property.id);
 
-        const existingDoc = await Property.findOne({ id: property.id }, { photos: 1, photosEditedAt: 1 }).lean();
-
         // Una vez que alguien borró/reordenó/editó fotos a mano en el CRM, ese array pasa a ser
         // la única fuente de verdad para esta propiedad: el sync deja de tocar `photos` por completo,
         // si no cada corrida (o cada click en "Sincronizar Tokko") pisaba la curación manual con el
-        // set completo/orden original que devuelve Tokko.
-        let photos;
-        if (existingDoc?.photosEditedAt) {
-          photos = existingDoc.photos || [];
-        } else {
-          const tokkoPhotos = await processPhotos(Array.isArray(property.photos) ? property.photos : [], property.id);
-
-          // Preserve photos uploaded manually in the CRM (no original_url) — the sync only ever
-          // owns the Tokko-sourced subset, otherwise every 6h cron run would wipe manual uploads.
-          const manualPhotos = (existingDoc?.photos || []).filter((p) => !p.original_url);
-          photos = [...tokkoPhotos, ...manualPhotos.map((p, i) => ({ ...p, order: tokkoPhotos.length + i }))];
-        }
-
-        const operations = Array.isArray(property.operations)
-          ? property.operations.map((op) => ({
-              operation_id: op.operation_id ?? null,
-              operation_type: op.operation_type || null,
-              prices: (op.prices || []).map((p) => ({
-                currency: p.currency,
-                price: p.price || 0,
-                period: p.period ?? '',
-                period_number: p.period_number ?? null,
-                is_promotional: p.is_promotional || false,
-              })),
-            }))
-          : [];
-
-        const statusNum = Number(property.status);
-        const status =
-          statusNum === 1
-            ? 'en_tasacion'
-            : statusNum === 3
-            ? 'reservada'
-            : statusNum === 4
-            ? 'no_disponible'
-            : 'disponible';
-
-        const existedBefore = !!existingDoc;
-
-        const doc = await Property.findOneAndUpdate(
-          { id: property.id },
-          {
-            $set: {
-              ...property,
-              photos,
-              operations,
-              status,
-              description: property.description || '',
-              rich_description: property.rich_description || '',
-            },
-          },
-          { upsert: true, new: true }
-        );
-
-        if (!existedBefore) {
-          Activity.create({
-            type: 'property_created',
-            description: `Nueva propiedad sincronizada: "${doc.publication_title || doc.address || doc.id}"`,
-            entityId: String(doc.id),
-            entityType: 'property',
-            meta: { propertyId: doc.id },
-          }).catch(console.error);
-        }
+        // set completo/orden original que devuelve Tokko. Idem manual_tags/photosEditedAt: ver
+        // upsertPropertyFromTokko.
+        await upsertPropertyFromTokko(property);
 
         await delay(80);
       }
