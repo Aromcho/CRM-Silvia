@@ -138,12 +138,14 @@ export async function upsertPropertyFromTokko(property) {
   );
 
   if (!existedBefore) {
+    const firstPhoto = doc.photos?.[0];
+    const image = firstPhoto ? (firstPhoto.local_image || firstPhoto.image_url || firstPhoto.thumb_url || '') : '';
     await Activity.create({
       type: 'property_created',
       description: `Nueva propiedad sincronizada: "${doc.publication_title || doc.address || doc.id}"`,
       entityId: String(doc.id),
       entityType: 'property',
-      meta: { propertyId: doc.id, address: doc.address || '', image: doc.photos?.[0]?.local_image || '' },
+      meta: { propertyId: doc.id, address: doc.address || '', image },
     }).catch(console.error);
   }
 

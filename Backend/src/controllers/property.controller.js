@@ -64,8 +64,10 @@ function buildPropertyChanges(oldDoc, updates) {
   return changes;
 }
 
-function propertyActivitySnapshot(property) {
-  return { address: property.address || '', image: property.photos?.[0]?.local_image || '' };
+export function propertyActivitySnapshot(property) {
+  const photo = property.photos?.[0];
+  const image = photo ? (photo.local_image || photo.image_url || photo.thumb_url || '') : '';
+  return { address: property.address || '', image };
 }
 
 const splitValues = (value) => {

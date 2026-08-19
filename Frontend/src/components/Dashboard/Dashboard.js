@@ -35,6 +35,7 @@ const LEAD_STATUS_COLORS = {
 
 function propertyActivityFallback(act) {
   if (act.type === 'property_created') return 'Propiedad agregada';
+  if (act.meta?.photosAdded) return `Se ${act.meta.photosAdded === 1 ? 'agregó 1 foto' : `agregaron ${act.meta.photosAdded} fotos`}`;
   if (act.meta?.platform) return `Difusión actualizada en ${act.meta.platform === 'mercadolibre' ? 'MercadoLibre' : 'ZonaProp'}`;
   if (act.meta?.newStatus) return `Estado cambiado a "${act.meta.newStatus}"`;
   return 'Propiedad actualizada';

@@ -3,7 +3,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 import Property from '../models/Property.model.js';
+import Activity from '../models/Activity.model.js';
 import { getBackendPublicUrl } from '../utils/publicUrl.js';
+import { propertyActivitySnapshot } from './property.controller.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,6 +53,15 @@ export async function addPhotos(req, res, next) {
     property.lastEditedAt = new Date();
     property.photosEditedAt = new Date();
     await property.save();
+
+    await Activity.create({
+      type: 'property_updated',
+      description: `${req.user.name} agregó ${entries.length} foto${entries.length === 1 ? '' : 's'} a "${property.publication_title || property.address}"`,
+      userId: req.user.id, userName: req.user.name, userEmail: req.user.email,
+      entityId: String(property.id), entityType: 'property',
+      meta: { propertyId: property.id, ...propertyActivitySnapshot(property), photosAdded: entries.length },
+    });
+
     res.status(201).json(property);
   } catch (error) {
     next(error);
