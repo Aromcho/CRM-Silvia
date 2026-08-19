@@ -281,7 +281,16 @@ function OperationTabs({ operations, saveField }) {
     op
       ? e('div', { className: 'prop-info-grid' },
           e(Row, { label: 'Tipo de operación' }, e(EditableField, { value: op.operation_type, onSave: (v) => saveField(`operations.${activeTab.opIndex}.operation_type`, v) })),
-          price && e(Row, { label: `Precio (${price.currency || ''})` }, e(EditableField, { type: 'number', value: price.price, onSave: (v) => saveField(`operations.${activeTab.opIndex}.prices.0.price`, v) })),
+          price && e(Row, { label: 'Precio' },
+            e('div', { className: 'price-currency-field' },
+              e('select', {
+                className: 'price-currency-select',
+                value: price.currency || 'USD',
+                onChange: (ev) => saveField(`operations.${activeTab.opIndex}.prices.0.currency`, ev.target.value),
+              }, e('option', { value: 'USD' }, 'USD'), e('option', { value: 'ARS' }, 'ARS')),
+              e(EditableField, { type: 'number', value: price.price, onSave: (v) => saveField(`operations.${activeTab.opIndex}.prices.0.price`, v) }),
+            ),
+          ),
         )
       : e('div', { className: 'op-disabled-note' }, 'Operación no habilitada para esta propiedad.'),
   );

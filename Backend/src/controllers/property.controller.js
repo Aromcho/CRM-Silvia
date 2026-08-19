@@ -5,6 +5,17 @@ import Activity from '../models/Activity.model.js';
 import { syncWithTokko } from '../utils/syncWithTokko.js';
 import { importRentalExcelFile, RENTAL_XLSX_PATH } from '../utils/rentalExcelImporter.js';
 import { nextManualPropertyId } from '../models/Counter.model.js';
+import * as ml from '../utils/mercadolibre.service.js';
+
+// Re-sincroniza con MercadoLibre en cada edición desde el CRM, para no depender de que alguien
+// se acuerde de tocar "Sincronizar ahora". Solo para propiedades YA publicadas (tienen item_id) —
+// si nunca se publicó a mano, una edición cualquiera no debe crear una publicación nueva sola.
+async function triggerMlSync(property) {
+  const listings = property.difusion?.mercadolibre?.listings || [];
+  if (!listings.some((l) => l.item_id)) return;
+  if (!(await ml.isConnected())) return;
+  await ml.syncProperty(property);
+}
 
 const normalizeText = (v = '') => String(v).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
 const escapeRegex = (v = '') => String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -35,6 +46,7 @@ const ACTIVITY_FIELD_LABELS = {
 function activityFieldLabel(path) {
   if (ACTIVITY_FIELD_LABELS[path]) return ACTIVITY_FIELD_LABELS[path];
   if (/^operations\.\d+\.prices\.0\.price$/.test(path)) return 'Precio';
+  if (/^operations\.\d+\.prices\.0\.currency$/.test(path)) return 'Moneda';
   if (/^operations\.\d+\.operation_type$/.test(path)) return 'Tipo de operación';
   return path;
 }
@@ -272,6 +284,7 @@ export async function updateProperty(req, res, next) {
     });
 
     res.json(property);
+    triggerMlSync(property).catch((err) => console.error(`No se pudo re-sincronizar la propiedad ${property.id} con MercadoLibre`, err.message));
   } catch (error) {
     next(error);
   }
@@ -296,6 +309,7 @@ export async function updatePropertyStatus(req, res, next) {
     });
 
     res.json(property);
+    triggerMlSync(property).catch((err) => console.error(`No se pudo re-sincronizar la propiedad ${property.id} con MercadoLibre`, err.message));
   } catch (error) {
     next(error);
   }

@@ -45,7 +45,36 @@ function propertyPriceLine(property) {
   return opLabel ? `${opLabel} · ${priceLabel}` : priceLabel;
 }
 
-function propertyCardHtml(property) {
+// Mensaje precargado para retomar el contacto con el lead — mismo tono que usa el CRM
+// (Frontend/src/components/Leads/Leads.js, botón de WhatsApp de la lista de leads).
+function leadFollowUpMessage(lead, propertyUrl) {
+  const greeting = lead.name ? `¡Hola ${lead.name}!` : '¡Hola!';
+  const propRef = propertyUrl ? ` Te contacto porque nos dejaste tus datos para que te contactáramos por esta propiedad: ${propertyUrl}` : ' Te contacto por tu consulta.';
+  return `${greeting} Te escribo de Silvia Fernández Inmobiliaria.${propRef}`;
+}
+
+const BTN_BASE = 'display:inline-block;text-decoration:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;margin:0 8px 8px 0;';
+
+function contactButtonsHtml(lead, propertyUrl) {
+  const message = leadFollowUpMessage(lead, propertyUrl);
+  const digits = String(lead.phone || '').replace(/\D/g, '');
+  const buttons = [];
+
+  if (propertyUrl) {
+    buttons.push(`<a href="${propertyUrl}" style="${BTN_BASE}background:#15784f;color:#fff;">Ver publicación</a>`);
+  }
+  if (digits) {
+    buttons.push(`<a href="https://wa.me/${digits}?text=${encodeURIComponent(message)}" style="${BTN_BASE}background:#25d366;color:#fff;">WhatsApp</a>`);
+    buttons.push(`<a href="tel:${digits}" style="${BTN_BASE}background:#2563eb;color:#fff;">Llamar</a>`);
+  }
+  if (lead.email) {
+    const subject = `Re: tu consulta en Silvia Fernández Inmobiliaria`;
+    buttons.push(`<a href="mailto:${lead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}" style="${BTN_BASE}background:#fff;color:#15784f;border:1px solid #15784f;">Enviar correo</a>`);
+  }
+  return buttons.join('');
+}
+
+function propertyCardHtml(property, lead) {
   if (!property) return '';
   const title = property.publication_title || property.address || `#${property.id}`;
   const barrio = property.location?.name || property.location?.full_location || '';
@@ -60,7 +89,7 @@ function propertyCardHtml(property) {
         <div style="font-size:15px;font-weight:700;color:#15784f;margin-bottom:4px;">${title}</div>
         ${barrio ? `<div style="font-size:13px;color:#5a6b62;margin-bottom:8px;">${barrio}</div>` : ''}
         ${priceLine ? `<div style="font-size:13px;color:#333;margin-bottom:12px;">${priceLine}</div>` : ''}
-        <a href="${url}" style="display:inline-block;background:#15784f;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;">Ver publicación</a>
+        <div>${contactButtonsHtml(lead, url)}</div>
       </div>
     </div>
   `;
@@ -90,7 +119,7 @@ export async function sendLeadEmail(lead, property = null) {
         <tr><td style="padding:8px 0;color:#5a6b62;font-weight:600;">Mensaje</td><td style="padding:8px 0;">${lead.message || '—'}</td></tr>
         <tr><td style="padding:8px 0;color:#5a6b62;font-weight:600;">Fecha</td><td style="padding:8px 0;">${new Date().toLocaleString('es-AR')}</td></tr>
       </table>
-      ${propertyCardHtml(property)}
+      ${property ? propertyCardHtml(property, lead) : `<div style="margin-top:16px;">${contactButtonsHtml(lead, '')}</div>`}
     </div>
   `;
 

@@ -166,6 +166,12 @@
 .detail-status-select:disabled { cursor: default; opacity: .75; }
 .detail-status-select option { color: #111; background: #fff; }
 
+.price-currency-field { display: flex; align-items: center; gap: 8px; }
+.price-currency-select {
+  border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 6px;
+  font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; color: var(--ink-2);
+}
+
 /* Aside */
 .detail-aside-card {
   background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
