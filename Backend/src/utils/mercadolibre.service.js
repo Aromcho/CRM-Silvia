@@ -356,7 +356,7 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
     .filter((p) => p.local_image)
     .sort((a, b) => (a.order || 0) - (b.order || 0))
     .slice(0, maxPictures)
-    .map((p) => ({ source: `${base}${p.local_image}` }));
+    .map((p) => ({ source: p.local_image.startsWith('http') ? p.local_image : `${base}${p.local_image}` }));
 
   const location = await resolveMlLocation(property);
   if (!location) {
