@@ -185,6 +185,15 @@ export async function resolveCategoryId(property, operationType) {
     const direct = typeName && categories.find((c) => c.name.toLowerCase().includes(typeName));
     if (direct) topId = direct.id;
   }
+  // Tipos como "Hotel"/"Complejo"/"Apart Hotel"/"Emprendimiento" no tienen categoría propia en
+  // el árbol de Inmuebles de ML (confirmado contra la API real: Casas, Departamentos, PH, Terrenos
+  // y Lotes, Oficinas, Locales, Cocheras, Depósitos y Galpones, Quintas, Campos, Consultorios,
+  // Fondo de Comercio, Parcelas/Nichos/Bóvedas, Tiempo Compartido, Camas Náuticas, Otros Inmuebles).
+  // "Otros Inmuebles" es el cajón de sastre oficial de ML para todo lo que no encaja arriba.
+  if (!topId) {
+    const fallback = categories.find((c) => /otros/i.test(c.name));
+    if (fallback) topId = fallback.id;
+  }
   if (!topId) throw new Error(`No se pudo mapear el tipo de propiedad "${property.type?.name}" a una categoría de MercadoLibre`);
   return drillToLeafCategory(topId, operationType);
 }

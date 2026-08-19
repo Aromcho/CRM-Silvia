@@ -17,7 +17,7 @@ const splitValues = (value) => {
 const OPERATION_ALIASES = {
   venta: ['Venta', 'Sale'], comprar: ['Venta', 'Sale'],
   alquiler: ['Alquiler', 'Rent'],
-  'alquiler temporal': ['Alquiler', 'Alquiler temporal', 'Alquiler Temporario', 'Temporary Rent'],
+  'alquiler temporal': ['Alquiler temporal', 'Alquiler Temporario', 'Temporary Rent'],
 };
 const PROPERTY_TYPE_ALIASES = {
   casa: ['Casa', 'Casas', 'House'],
