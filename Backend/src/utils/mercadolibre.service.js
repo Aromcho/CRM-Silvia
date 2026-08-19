@@ -279,6 +279,12 @@ function normalizeLocationName(str) {
   return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
+// Localidades de Tokko sin entrada propia en el cat\u00e1logo de ciudades de ML: se resuelven contra
+// la ciudad del cat\u00e1logo m\u00e1s cercana, solo a fines de la publicaci\u00f3n en MercadoLibre.
+const ML_LOCATION_ALIASES = {
+  'las gaviotas': 'mar azul',
+};
+
 async function getMlLocationIndex() {
   const now = Date.now();
   if (mlLocationIndexCache && now - mlLocationIndexCachedAt < CATEGORY_TREE_TTL) return mlLocationIndexCache;
@@ -301,7 +307,8 @@ async function getMlLocationIndex() {
 async function resolveMlLocation(property) {
   if (!property.location?.name) return undefined;
   const index = await getMlLocationIndex();
-  const match = index.get(normalizeLocationName(property.location.name));
+  const normalized = normalizeLocationName(property.location.name);
+  const match = index.get(normalized) || index.get(ML_LOCATION_ALIASES[normalized]);
   // Si no matchea ninguna ciudad del catálogo de ML, mejor no mandar location incompleta
   // (ML la rechaza igual) que mandar algo adivinado — el error de /items/validate va a ser más claro así.
   if (!match) return undefined;
@@ -597,7 +604,9 @@ export async function syncProperty(propertyDoc) {
 // Corre secuencial y de a una propiedad; se corta apenas el token deja de servir, porque
 // seguir insistiendo por cada propiedad restante no tiene sentido si hay que reconectar la cuenta.
 export async function syncAllProperties({ delayMs = 1200 } = {}) {
-  const properties = await Property.find({ deleted_at: { $exists: false } }).lean();
+  // `deleted_at` no indica baja real (viene de Tokko en casi cualquier propiedad, ver nota en syncProperty):
+  // no hay que filtrar por él acá.
+  const properties = await Property.find({}).lean();
   const results = { total: properties.length, ok: 0, failed: 0, errors: [] };
   for (const property of properties) {
     try {
