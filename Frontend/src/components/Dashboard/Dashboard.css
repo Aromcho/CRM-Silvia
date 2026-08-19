@@ -44,6 +44,7 @@
 }
 .feed-item:last-child { border-bottom: none; }
 .feed-item:hover { background: var(--mint-50); }
+.feed-item-link { text-decoration: none; color: inherit; cursor: pointer; }
 .feed-icon {
   width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
@@ -52,8 +53,14 @@
 .feed-icon.lead { background: #eff6ff; color: #2563eb; }
 .feed-icon.system { background: var(--line-2); color: var(--ink-3); }
 .feed-icon.user { background: #f0ecfd; color: #7257c9; }
+.feed-thumb { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; object-fit: cover; }
 .feed-content { flex: 1; min-width: 0; }
 .feed-desc { font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 1.4; margin-bottom: 2px; }
+.feed-prop-line { display: flex; align-items: baseline; gap: 6px; margin-bottom: 2px; }
+.feed-prop-address { font-size: 12.5px; font-weight: 700; color: var(--ink); line-height: 1.4; }
+.feed-prop-id { font-size: 10.5px; font-weight: 700; color: var(--ink-3); flex-shrink: 0; }
+.feed-changes { margin: 3px 0 2px; padding-left: 16px; font-size: 11.5px; color: var(--ink-3); display: flex; flex-direction: column; gap: 2px; }
+.feed-changes li { line-height: 1.4; }
 .feed-time { font-size: 11px; color: var(--ink-3); font-weight: 500; }
 .feed-empty { padding: 40px 20px; text-align: center; color: var(--ink-3); font-size: 13px; }
 

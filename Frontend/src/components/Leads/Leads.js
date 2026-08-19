@@ -19,6 +19,16 @@ const STATUS_OPTS = [
 ];
 const STATUS_LABELS = Object.fromEntries(STATUS_OPTS.filter((s) => s.key !== 'all').map((s) => [s.key, s.label]));
 const SOURCE_OPTS = ['manual', 'mercadolibre', 'zonaprop', 'web', 'whatsapp', 'otro'];
+const SOURCE_LABELS = { manual: 'Manual', mercadolibre: 'MercadoLibre', zonaprop: 'ZonaProp', web: 'Web', whatsapp: 'WhatsApp', otro: 'Otro' };
+const LIMIT = 20;
+
+function isoDate(d) { return d.toISOString().slice(0, 10); }
+function daysAgoIso(n) { const d = new Date(); d.setDate(d.getDate() - n); return isoDate(d); }
+const DATE_PRESETS = [
+  { key: 'today', label: 'Hoy', from: () => isoDate(new Date()), to: () => isoDate(new Date()) },
+  { key: '7d', label: '7 días', from: () => daysAgoIso(6), to: () => isoDate(new Date()) },
+  { key: '30d', label: '30 días', from: () => daysAgoIso(29), to: () => isoDate(new Date()) },
+];
 
 const AVATAR_PALETTE = ['#15784f', '#2563eb', '#b8791b', '#7257c9', '#0e8a8a', '#d8504a'];
 function colorOf(str) {
@@ -51,15 +61,12 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString('es-AR');
 }
 
-function LeadModal({ lead: initialLead, onClose, onUpdated }) {
+function LeadModal({ lead: initialLead, users, onClose, onUpdated }) {
   const [lead, setLead] = useState(initialLead);
   const [notes, setNotes] = useState(initialLead.notes || '');
   const [saving, setSaving] = useState(false);
-  const [users, setUsers] = useState([]);
   const [property, setProperty] = useState(null);
   const [propertyLoading, setPropertyLoading] = useState(false);
-
-  useEffect(() => { getUsers().then((u) => setUsers(u || [])).catch(() => {}); }, []);
 
   useEffect(() => {
     if (!lead.propertyId) { setProperty(null); return; }
@@ -295,34 +302,75 @@ function LeadEmailToggle() {
 export default function Leads({ session }) {
   const [leads, setLeads] = useState([]);
   const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
+  const [assignedFilter, setAssignedFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [activePreset, setActivePreset] = useState(null);
+  const [users, setUsers] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showNew, setShowNew] = useState(false);
 
-  const fetchLeads = useCallback(async () => {
+  useEffect(() => { getUsers().then((u) => setUsers(u || [])).catch(() => {}); }, []);
+
+  const fetchLeads = useCallback(async (off = 0) => {
     setLoading(true);
-    const params = { limit: 100 };
+    const params = { limit: LIMIT, offset: off };
     if (search) params.searchQuery = search;
     if (statusFilter !== 'all') params.status = statusFilter;
+    if (sourceFilter !== 'all') params.source = sourceFilter;
+    if (assignedFilter !== 'all') params.assignedTo = assignedFilter;
+    if (dateFrom) params.dateFrom = dateFrom;
+    if (dateTo) params.dateTo = dateTo;
     try {
       const data = await getLeads(params);
       setLeads(data?.objects || []);
       setTotal(data?.meta?.total || 0);
+      setOffset(off);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
-  }, [search, statusFilter]);
+  }, [search, statusFilter, sourceFilter, assignedFilter, dateFrom, dateTo]);
 
-  useEffect(() => { fetchLeads(); }, [fetchLeads]);
+  useEffect(() => { fetchLeads(0); }, [fetchLeads]);
+
+  function applyPreset(preset) {
+    setActivePreset(preset.key);
+    setDateFrom(preset.from());
+    setDateTo(preset.to());
+  }
+
+  function clearDates() {
+    setActivePreset(null);
+    setDateFrom('');
+    setDateTo('');
+  }
+
+  const hasFilters = search || statusFilter !== 'all' || sourceFilter !== 'all' || assignedFilter !== 'all' || dateFrom || dateTo;
+  function clearAllFilters() {
+    setSearch('');
+    setStatusFilter('all');
+    setSourceFilter('all');
+    setAssignedFilter('all');
+    clearDates();
+  }
 
   function handleUpdated(updatedLead, deleted = false) {
     if (deleted) {
       setLeads((ls) => ls.filter((l) => l._id !== selected?._id));
+      setTotal((t) => Math.max(0, t - 1));
     } else {
       setLeads((ls) => ls.map((l) => l._id === updatedLead._id ? updatedLead : l));
     }
   }
+
+  const pages = Math.ceil(total / LIMIT);
+  const currentPage = Math.floor(offset / LIMIT) + 1;
+  const rangeFrom = total === 0 ? 0 : offset + 1;
+  const rangeTo = Math.min(offset + LIMIT, total);
 
   return e('div', { className: 'leads' },
     e('div', { className: 'leads-toolbar' },
@@ -330,14 +378,14 @@ export default function Leads({ session }) {
         e('h1', null, 'Leads'),
         e('span', { className: 'leads-count-pill' }, `${total} leads`),
       ),
-      e('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+      e('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
         e(LeadEmailToggle),
         e('div', { className: 'search' },
           e(Icons.Search, { width: 15, height: 15 }),
           e('input', {
             placeholder: 'Buscar por nombre, email…', value: search,
             onChange: (ev) => setSearch(ev.target.value),
-            onKeyDown: (ev) => ev.key === 'Enter' && fetchLeads(),
+            onKeyDown: (ev) => ev.key === 'Enter' && fetchLeads(0),
             style: { width: 200 },
           }),
           search ? e('button', { className: 'search-clear', onClick: () => setSearch('') }, e(Icons.Close, { width: 13, height: 13 })) : null,
@@ -358,6 +406,43 @@ export default function Leads({ session }) {
       ),
     ),
 
+    e('div', { className: 'lead-filters-bar' },
+      e('div', { className: 'lead-filter-group' },
+        e('label', null, 'Fecha'),
+        DATE_PRESETS.map((p) => e('button', {
+          key: p.key, type: 'button',
+          className: `btn xs${activePreset === p.key ? ' primary' : ' ghost'}`,
+          onClick: () => applyPreset(p),
+        }, p.label)),
+        e('input', {
+          type: 'date', className: 'lead-date-input', value: dateFrom,
+          onChange: (ev) => { setActivePreset(null); setDateFrom(ev.target.value); },
+        }),
+        e('span', { className: 'lead-filter-sep' }, '—'),
+        e('input', {
+          type: 'date', className: 'lead-date-input', value: dateTo,
+          onChange: (ev) => { setActivePreset(null); setDateTo(ev.target.value); },
+        }),
+        (dateFrom || dateTo) && e('button', { type: 'button', className: 'btn ghost xs', onClick: clearDates }, 'Todo'),
+      ),
+      e('div', { className: 'lead-filter-group' },
+        e('label', null, 'Fuente'),
+        e('select', { value: sourceFilter, onChange: (ev) => setSourceFilter(ev.target.value) },
+          e('option', { value: 'all' }, 'Todas'),
+          SOURCE_OPTS.map((s) => e('option', { key: s, value: s }, SOURCE_LABELS[s] || s)),
+        ),
+      ),
+      e('div', { className: 'lead-filter-group' },
+        e('label', null, 'Asignado a'),
+        e('select', { value: assignedFilter, onChange: (ev) => setAssignedFilter(ev.target.value) },
+          e('option', { value: 'all' }, 'Todos'),
+          e('option', { value: 'none' }, 'Sin asignar'),
+          users.map((u) => e('option', { key: u._id, value: u._id }, u.name)),
+        ),
+      ),
+      hasFilters && e('button', { type: 'button', className: 'btn ghost xs', onClick: clearAllFilters }, e(Icons.Close, { width: 12, height: 12 }), 'Limpiar filtros'),
+    ),
+
     e('div', { className: 'leads-body' },
       loading
         ? e('div', { className: 'loading-state' }, 'Cargando leads…')
@@ -374,7 +459,8 @@ export default function Leads({ session }) {
                     e('div', { className: 'lead-card-email' }, lead.email),
                     e('div', { className: 'lead-card-meta' },
                       lead.propertyTitle && e('span', { className: 'lead-card-property' }, e(Icons.Building, { width: 10, height: 10 }), lead.propertyTitle.slice(0, 30)),
-                      e('span', { className: 'lead-card-source' }, lead.source),
+                      e('span', { className: 'lead-card-source' }, SOURCE_LABELS[lead.source] || lead.source),
+                      lead.assignedTo?.name && e('span', { className: 'lead-card-assigned' }, e(Icons.User, { width: 10, height: 10 }), lead.assignedTo.name),
                     ),
                   ),
                   e('div', { className: 'lead-card-right' },
@@ -386,7 +472,14 @@ export default function Leads({ session }) {
             ),
     ),
 
-    selected && e(LeadModal, { lead: selected, onClose: () => setSelected(null), onUpdated: (l, del) => { handleUpdated(l, del); if (del) setSelected(null); } }),
+    pages > 1 && e('div', { className: 'leads-pagination' },
+      e('span', null, `Mostrando ${rangeFrom}–${rangeTo} de ${total}`),
+      e('button', { className: 'btn ghost sm', disabled: currentPage <= 1, onClick: () => fetchLeads((currentPage - 2) * LIMIT) }, e(Icons.ChevronLeft, { width: 14, height: 14 })),
+      e('span', null, `Página ${currentPage} de ${pages}`),
+      e('button', { className: 'btn ghost sm', disabled: currentPage >= pages, onClick: () => fetchLeads(currentPage * LIMIT) }, e(Icons.Chevron, { width: 14, height: 14 })),
+    ),
+
+    selected && e(LeadModal, { lead: selected, users, onClose: () => setSelected(null), onUpdated: (l, del) => { handleUpdated(l, del); if (del) setSelected(null); } }),
     showNew && e(NewLeadModal, { onClose: () => setShowNew(false), onCreated: (lead) => { setLeads((ls) => [lead, ...ls]); setTotal((t) => t + 1); } }),
   );
 }

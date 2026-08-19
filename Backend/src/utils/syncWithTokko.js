@@ -143,7 +143,7 @@ export async function upsertPropertyFromTokko(property) {
       description: `Nueva propiedad sincronizada: "${doc.publication_title || doc.address || doc.id}"`,
       entityId: String(doc.id),
       entityType: 'property',
-      meta: { propertyId: doc.id },
+      meta: { propertyId: doc.id, address: doc.address || '', image: doc.photos?.[0]?.local_image || '' },
     }).catch(console.error);
   }
 

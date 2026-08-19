@@ -9,6 +9,65 @@ import { nextManualPropertyId } from '../models/Counter.model.js';
 const normalizeText = (v = '') => String(v).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
 const escapeRegex = (v = '') => String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Etiquetas en español para el diff de "Actividad reciente" — mismos labels que usa PropertyDetail.js
+// en sus <Row label="...">, para que el feed diga lo mismo que el usuario ve al editar.
+const ACTIVITY_FIELD_LABELS = {
+  address: 'Dirección', publication_title: 'Título de publicación', description: 'Descripción',
+  'location.name': 'Barrio / zona', 'location.full_location': 'Ubicación',
+  credit_eligible: 'Crédito', expenses: 'Expensas',
+  room_amount: 'Ambientes', age: 'Antigüedad', bathroom_amount: 'Baños', property_condition: 'Condición',
+  suite_amount: 'Dormitorios', orientation: 'Orientación', floors_amount: 'Plantas', situation: 'Situación',
+  total_suites: 'Suites', suites_with_closets: 'Suites con placares', toilet_amount: 'Toilettes',
+  zonification: 'Zonificación', distanciaMar: 'Distancia al mar', aptoMascotas: 'Admite mascotas',
+  parking_lot_amount: 'Cocheras', covered_parking_lot: 'Cocheras cubiertas', uncovered_parking_lot: 'Cocheras descubiertas',
+  common_area: 'Salas comunes', living_amount: 'Livings', tv_rooms: 'Salas de TV', dining_room: 'Comedores',
+  surface: 'Terreno', unroofed_surface: 'Superficie descubierta', roofed_surface: 'Superficie cubierta',
+  semiroofed_surface: 'Superficie semicubierta', total_surface: 'Total construido',
+  depth_measure: 'Fondo', front_measure: 'Frente', land_access: 'Acceso al terreno',
+  'producer.name': 'Nombre del productor', 'producer.phone': 'Teléfono del productor', 'producer.email': 'Email del productor',
+  'internal_data.commission': 'Comisión', 'internal_data.producer_comision': 'Comisión productor',
+  'internal_data.key_location': 'Ubicación de llave', 'internal_data.legally_checked_text': 'Estado legal',
+  'internal_data.internal_comments': 'Comentarios internos', 'internal_data.transaction_requirements': 'Requisitos de la transacción',
+  notes: 'Notas del equipo', manual_tags: 'Etiquetas', reference_code: 'Código de referencia', 'type.name': 'Tipo de propiedad',
+  real_address: 'Dirección real', status: 'Estado',
+};
+
+function activityFieldLabel(path) {
+  if (ACTIVITY_FIELD_LABELS[path]) return ACTIVITY_FIELD_LABELS[path];
+  if (/^operations\.\d+\.prices\.0\.price$/.test(path)) return 'Precio';
+  if (/^operations\.\d+\.operation_type$/.test(path)) return 'Tipo de operación';
+  return path;
+}
+
+function getByPath(obj, path) {
+  return path.split('.').reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
+}
+
+function formatValueForActivity(v) {
+  if (v === undefined || v === null || v === '') return '(vacío)';
+  if (typeof v === 'boolean') return v ? 'Sí' : 'No';
+  if (Array.isArray(v)) return v.length ? v.join(', ') : '(vacío)';
+  return String(v);
+}
+
+// Compara `updates` (paths tipo "location.name" o "operations.0.prices.0.price") contra el doc viejo
+// para poder mostrar "cambió X de A a B" en el feed en vez de solo "editó la propiedad".
+function buildPropertyChanges(oldDoc, updates) {
+  const changes = [];
+  for (const path of Object.keys(updates)) {
+    if (path === 'lastEditedBy' || path === 'lastEditedAt') continue;
+    const from = getByPath(oldDoc, path);
+    const to = updates[path];
+    if (JSON.stringify(from ?? null) === JSON.stringify(to ?? null)) continue;
+    changes.push({ path, label: activityFieldLabel(path), from: formatValueForActivity(from), to: formatValueForActivity(to) });
+  }
+  return changes;
+}
+
+function propertyActivitySnapshot(property) {
+  return { address: property.address || '', image: property.photos?.[0]?.local_image || '' };
+}
+
 const splitValues = (value) => {
   if (value === undefined || value === null) return [];
   return (Array.isArray(value) ? value : [value]).flatMap((i) => String(i).split(',')).map((i) => i.trim()).filter(Boolean);
@@ -165,7 +224,7 @@ export async function createProperty(req, res, next) {
       description: `${req.user.name} agregó manualmente la propiedad "${property.publication_title || property.address}"`,
       userId: req.user.id, userName: req.user.name, userEmail: req.user.email,
       entityId: String(property.id), entityType: 'property',
-      meta: { propertyId: property.id },
+      meta: { propertyId: property.id, ...propertyActivitySnapshot(property) },
     });
 
     res.status(201).json(property);
@@ -185,18 +244,29 @@ export async function updateProperty(req, res, next) {
     updates.lastEditedBy = req.user.id;
     updates.lastEditedAt = new Date();
 
+    const oldDoc = await Property.findOne({ id: parseInt(id, 10) }).lean();
+    if (!oldDoc) return res.status(404).json({ message: 'Propiedad no encontrada' });
+    const changes = buildPropertyChanges(oldDoc, updates);
+
     const property = await Property.findOneAndUpdate({ id: parseInt(id, 10) }, { $set: updates }, { new: true });
     if (!property) return res.status(404).json({ message: 'Propiedad no encontrada' });
 
+    const label = property.address || property.publication_title || `#${property.id}`;
+    const description = changes.length === 1
+      ? `${req.user.name} cambió "${changes[0].label}" de "${changes[0].from}" a "${changes[0].to}" en "${label}"`
+      : changes.length > 1
+        ? `${req.user.name} actualizó ${changes.length} campos en "${label}": ${changes.map((c) => c.label).join(', ')}`
+        : `${req.user.name} editó la propiedad "${label}"`;
+
     await Activity.create({
       type: 'property_updated',
-      description: `${req.user.name} editó la propiedad "${property.publication_title || property.address}"`,
+      description,
       userId: req.user.id,
       userName: req.user.name,
       userEmail: req.user.email,
       entityId: String(property.id),
       entityType: 'property',
-      meta: { propertyId: property.id, changes: Object.keys(updates) },
+      meta: { propertyId: property.id, ...propertyActivitySnapshot(property), changes },
     });
 
     res.json(property);
@@ -220,7 +290,7 @@ export async function updatePropertyStatus(req, res, next) {
       description: `${req.user.name} cambió el estado de "${property.publication_title || property.address}" a "${status}"`,
       userId: req.user.id, userName: req.user.name, userEmail: req.user.email,
       entityId: String(property.id), entityType: 'property',
-      meta: { propertyId: property.id, newStatus: status },
+      meta: { propertyId: property.id, ...propertyActivitySnapshot(property), newStatus: status },
     });
 
     res.json(property);
@@ -252,7 +322,7 @@ export async function updatePropertyDifusion(req, res, next) {
       description: `${req.user.name} actualizó la difusión en ${platformLabel} de "${property.publication_title || property.address}"`,
       userId: req.user.id, userName: req.user.name, userEmail: req.user.email,
       entityId: String(property.id), entityType: 'property',
-      meta: { propertyId: property.id, platform, published: !!published },
+      meta: { propertyId: property.id, ...propertyActivitySnapshot(property), platform, published: !!published },
     });
 
     res.json(property);

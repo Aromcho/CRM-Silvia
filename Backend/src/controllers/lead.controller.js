@@ -6,11 +6,17 @@ import { isLeadEmailsEnabled, setLeadEmailsEnabled } from '../utils/settings.uti
 
 export async function getLeads(req, res, next) {
   try {
-    const { status, source, assignedTo, searchQuery, limit = 50, offset = 0 } = req.query;
+    const { status, source, assignedTo, searchQuery, dateFrom, dateTo, limit = 50, offset = 0 } = req.query;
     const filter = {};
     if (status && status !== 'all') filter.status = status;
     if (source && source !== 'all') filter.source = source;
-    if (assignedTo) filter.assignedTo = assignedTo;
+    if (assignedTo === 'none') filter.assignedTo = null;
+    else if (assignedTo) filter.assignedTo = assignedTo;
+    if (dateFrom || dateTo) {
+      filter.createdAt = {};
+      if (dateFrom) filter.createdAt.$gte = new Date(`${dateFrom}T00:00:00.000Z`);
+      if (dateTo) filter.createdAt.$lte = new Date(`${dateTo}T23:59:59.999Z`);
+    }
     if (searchQuery) {
       const q = searchQuery.trim();
       filter.$or = [

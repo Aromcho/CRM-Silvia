@@ -2,6 +2,7 @@
 import React from 'react';
 import Icons from '../Icons/Icons';
 import { getActivities, getPropertyStats, getLeadStats } from '@/services/api';
+import { photoSrc } from '@/lib/data';
 import './Dashboard.css';
 
 const e = React.createElement;
@@ -31,6 +32,13 @@ const LEAD_STATUS_LABELS = {
 const LEAD_STATUS_COLORS = {
   nuevo: '#2563eb', en_progreso: '#b8791b', contactado: '#15784f', reservado: '#7257c9', cerrado: '#0e8a8a', descartado: '#8a978f',
 };
+
+function propertyActivityFallback(act) {
+  if (act.type === 'property_created') return 'Propiedad agregada';
+  if (act.meta?.platform) return `Difusión actualizada en ${act.meta.platform === 'mercadolibre' ? 'MercadoLibre' : 'ZonaProp'}`;
+  if (act.meta?.newStatus) return `Estado cambiado a "${act.meta.newStatus}"`;
+  return 'Propiedad actualizada';
+}
 
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -113,13 +121,35 @@ export default function Dashboard({ session }) {
                 activities.map((act) => {
                   const Ico = ACTIVITY_ICONS[act.type] || Icons.Activity;
                   const cls = ACTIVITY_TYPE[act.type] || 'system';
-                  return e('div', { key: act._id, className: 'feed-item' },
-                    e('div', { className: `feed-icon ${cls}` }, e(Ico, { width: 14, height: 14 })),
+                  const isProperty = act.entityType === 'property' && act.entityId;
+                  const thumb = isProperty && act.meta?.image ? photoSrc({ local_image: act.meta.image }) : null;
+                  const changes = Array.isArray(act.meta?.changes) ? act.meta.changes : [];
+
+                  const inner = e(React.Fragment, null,
+                    thumb
+                      ? e('img', { src: thumb, alt: '', className: 'feed-thumb' })
+                      : e('div', { className: `feed-icon ${cls}` }, e(Ico, { width: 14, height: 14 })),
                     e('div', { className: 'feed-content' },
-                      e('div', { className: 'feed-desc' }, act.description),
-                      e('div', { className: 'feed-time' }, timeAgo(act.createdAt)),
+                      isProperty
+                        ? e(React.Fragment, null,
+                            e('div', { className: 'feed-prop-line' },
+                              e('span', { className: 'feed-prop-address' }, act.meta?.address || act.description),
+                              e('span', { className: 'feed-prop-id' }, `#${act.entityId}`),
+                            ),
+                            changes.length > 0
+                              ? e('ul', { className: 'feed-changes' },
+                                  changes.slice(0, 4).map((c, i) => e('li', { key: i }, `${c.label}: "${c.from}" → "${c.to}"`)),
+                                )
+                              : e('div', { className: 'feed-desc' }, propertyActivityFallback(act)),
+                          )
+                        : e('div', { className: 'feed-desc' }, act.description),
+                      e('div', { className: 'feed-time' }, `${act.userName ? `${act.userName} · ` : ''}${timeAgo(act.createdAt)}`),
                     ),
                   );
+
+                  return isProperty
+                    ? e('a', { key: act._id, href: `/propiedades/${act.entityId}`, className: 'feed-item feed-item-link' }, inner)
+                    : e('div', { key: act._id, className: 'feed-item' }, inner);
                 }),
               ),
       ),
