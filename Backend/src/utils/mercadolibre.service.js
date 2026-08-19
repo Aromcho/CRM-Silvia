@@ -356,6 +356,13 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
   if (findAttr(attributes, 'MAINTENANCE_FEE') && property.expenses) {
     attrPayload.push({ id: 'MAINTENANCE_FEE', value_name: String(property.expenses) });
   }
+  // Obligatorio para categoría Terrenos (confirmado por error real de ML: item.attributes.missing_required
+  // → LAND_ACCESS). Tokko no manda este dato — se carga a mano en la ficha (campo "Acceso al terreno").
+  const landAccessAttr = findAttr(attributes, 'LAND_ACCESS');
+  if (landAccessAttr && property.land_access) {
+    const valueId = matchListValue(landAccessAttr, [property.land_access]);
+    if (valueId) attrPayload.push({ id: 'LAND_ACCESS', value_id: valueId });
+  }
   // TODO: IS_SUITABLE_FOR_PETS también es obligatorio para Inmuebles y no hay campo equivalente
   // en Property.model.js (temporaryRental.mascotas es de otro circuito). Si el POST/validate lo pide,
   // hay que agregar el campo al modelo o decidir un valor por defecto (no asumirlo a ciegas).

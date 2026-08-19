@@ -34,6 +34,7 @@ const ML_ATTRIBUTE_LABELS = {
   BEDROOMS: 'los dormitorios', FULL_BATHROOMS: 'los baños', PARKING_LOTS: 'las cocheras',
   MAINTENANCE_FEE: 'las expensas', OPERATION: 'el tipo de operación', PROPERTY_TYPE: 'el tipo de propiedad',
   ROOMS: 'los ambientes', IS_SUITABLE_FOR_PETS: 'si admite mascotas',
+  LAND_ACCESS: 'el acceso al terreno (Pavimentado / Tierra / Ripio, en la sección "Superficies y medidas")',
 };
 const ML_FIELD_LABELS = {
   category_id: 'la categoría de la propiedad', location: 'la ubicación (localidad)', price: 'el precio',
@@ -50,6 +51,14 @@ const ML_ERROR_CODE_MESSAGES = {
 
 function translateMlCause(cause) {
   if (ML_ERROR_CODE_MESSAGES[cause.code]) return ML_ERROR_CODE_MESSAGES[cause.code];
+  // "The attributes [LAND_ACCESS] are required for category..." (item.attributes.missing_required):
+  // el/los código/s van en el texto del mensaje, no en `references`.
+  const missingMatch = /attributes \[([A-Z_, ]+)\]/.exec(cause.message || '');
+  if (missingMatch) {
+    const codes = missingMatch[1].split(',').map((c) => c.trim()).filter(Boolean);
+    const labels = codes.map((c) => ML_ATTRIBUTE_LABELS[c] || c);
+    return `Falta cargar ${labels.join(', ')}.`;
+  }
   const ref = (cause.references || [])[0] || cause.code || '';
   const attrMatch = ref.match(/attributes\.([A-Z_]+)/);
   if (attrMatch && ML_ATTRIBUTE_LABELS[attrMatch[1]]) return `Falta cargar ${ML_ATTRIBUTE_LABELS[attrMatch[1]]}.`;
@@ -666,6 +675,11 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
           e(Row, { label: 'Total construido', icon: Icons.Maximize }, e(EditableField, { value: property.total_surface, onSave: (v) => saveField('total_surface', v) })),
           e(Row, { label: 'Fondo', icon: Icons.Maximize }, e(EditableField, { value: property.depth_measure, onSave: (v) => saveField('depth_measure', v) })),
           e(Row, { label: 'Frente', icon: Icons.Maximize }, e(EditableField, { value: property.front_measure, onSave: (v) => saveField('front_measure', v) })),
+          e(Row, { label: 'Acceso al terreno', icon: Icons.Maximize },
+            e(EditableField, {
+              value: property.land_access, onSave: (v) => saveField('land_access', v),
+              placeholder: 'Pavimentado / Tierra / Ripio — requerido por MercadoLibre para Terrenos',
+            })),
         ),
 
         e('div', { className: 'detail-section' },

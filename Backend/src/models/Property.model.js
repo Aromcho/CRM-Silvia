@@ -193,6 +193,7 @@ const propertySchema = new Schema({
     weight: Number,
     zip_code: String,
   },
+  land_access: String, // acceso al terreno (ej. "Pavimentado"/"Tierra"/"Ripio") — MercadoLibre lo pide obligatorio para Terrenos (LAND_ACCESS), Tokko no lo maneja
   location_level: Schema.Types.Mixed,
   lot_number: String,
   occupation: Array,
