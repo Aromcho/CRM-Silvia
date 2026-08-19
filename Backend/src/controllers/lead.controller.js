@@ -53,11 +53,14 @@ export async function createLead(req, res, next) {
     const { name, email, phone, message, propertyId, source, assignedTo } = req.body;
     if (!name || !email) return res.status(400).json({ message: 'Nombre y email son requeridos' });
 
-    let propertyTitle = '';
+    let property = null;
     if (propertyId) {
-      const prop = await Property.findOne({ id: parseInt(propertyId, 10) }, { publication_title: 1, address: 1 }).lean();
-      propertyTitle = prop?.publication_title || prop?.address || '';
+      property = await Property.findOne(
+        { id: parseInt(propertyId, 10) },
+        { publication_title: 1, address: 1, location: 1, operations: 1, photos: 1, id: 1 },
+      ).lean();
     }
+    const propertyTitle = property?.publication_title || property?.address || '';
 
     const lead = await Lead.create({ name, email, phone, message, propertyId, propertyTitle, source, assignedTo });
 
@@ -70,7 +73,7 @@ export async function createLead(req, res, next) {
     });
 
     // Send email notification in background
-    sendLeadEmail(lead, propertyTitle).catch(console.error);
+    sendLeadEmail(lead, property).catch(console.error);
 
     res.status(201).json(lead);
   } catch (error) {

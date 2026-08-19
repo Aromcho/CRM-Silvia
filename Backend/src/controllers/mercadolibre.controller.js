@@ -294,11 +294,12 @@ export async function handleMercadoLibreLead(req, res) {
 
     let propertyId;
     let propertyTitle = '';
+    let property = null;
     if (itemId) {
-      const prop = await Property.findOne({ 'difusion.mercadolibre.listings.item_id': String(itemId) }).lean();
-      if (prop) {
-        propertyId = prop.id;
-        propertyTitle = prop.publication_title || prop.address || '';
+      property = await Property.findOne({ 'difusion.mercadolibre.listings.item_id': String(itemId) }).lean();
+      if (property) {
+        propertyId = property.id;
+        propertyTitle = property.publication_title || property.address || '';
       }
     }
 
@@ -312,7 +313,7 @@ export async function handleMercadoLibreLead(req, res) {
       message,
     });
 
-    sendLeadEmail(lead, propertyTitle).catch(console.error);
+    sendLeadEmail(lead, property).catch(console.error);
 
     await Activity.create({
       type: 'lead_created',
