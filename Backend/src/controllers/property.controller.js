@@ -28,6 +28,7 @@ const PROPERTY_TYPE_ALIASES = {
   local: ['Local', 'Locales', 'Local Comercial'],
   oficina: ['Oficina', 'Oficinas'],
   hotel: ['Complejo', 'Hotel', 'Hoteles', 'Apart Hotel', 'Emprendimiento'],
+  complejo: ['Complejo', 'Hotel', 'Hoteles', 'Apart Hotel', 'Emprendimiento'],
 };
 
 function buildRegexList(values, aliases) {

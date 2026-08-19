@@ -20,9 +20,9 @@ const STATUSES = [
 ];
 
 const OPERATION_TYPES = ['Todas', 'Venta', 'Alquiler'];
-const PROPERTY_TYPES = ['Todos', 'Casa', 'Departamento', 'PH', 'Terreno', 'Local', 'Oficina'];
+const PROPERTY_TYPES = ['Todos', 'Casa', 'Departamento', 'PH', 'Terreno', 'Local', 'Oficina', 'Complejo'];
 const CREATE_OPERATION_TYPES = ['Venta', 'Alquiler'];
-const CREATE_PROPERTY_TYPES = ['Casa', 'Departamento', 'PH', 'Terreno', 'Local', 'Oficina'];
+const CREATE_PROPERTY_TYPES = ['Casa', 'Departamento', 'PH', 'Terreno', 'Local', 'Oficina', 'Complejo'];
 const STATUS_LABELS = { disponible: 'Disponible', reservada: 'Reservada', vendida: 'Vendida', en_tasacion: 'En tasación', no_disponible: 'No disponible' };
 
 function formatPrice(ops) {
