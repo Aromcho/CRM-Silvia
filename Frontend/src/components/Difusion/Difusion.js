@@ -2,6 +2,7 @@
 import React from 'react';
 import Icons from '../Icons/Icons';
 import { getMercadoLibreSummary, syncAllMercadoLibre, getMercadoLibreSummaryProperties } from '@/services/api';
+import { photoSrc } from '@/lib/data';
 import './Difusion.css';
 
 const e = React.createElement;
@@ -37,33 +38,56 @@ function StatTile({ label, value, filter, active, onClick }) {
 }
 
 function MercadoLibrePropertyRow({ item }) {
+  const [showRecs, setShowRecs] = useState(false);
   const tone = qualityTone(item.health_percentage);
-  return e('div', { className: 'difusion-list-row' },
-    e('div', { className: 'difusion-list-row-head' },
-      e('div', { className: 'difusion-list-row-title' },
-        item.publication_title || item.address || `Propiedad #${item.propertyId}`,
+  const actions = item.health_actions || [];
+  const src = photoSrc(item.photo);
+
+  return e(React.Fragment, null,
+    e('tr', { className: 'difusion-list-tr' },
+      e('td', { className: 'difusion-list-td-img' },
+        src
+          ? e('img', { src, alt: '', className: 'difusion-list-thumb' })
+          : e('div', { className: 'difusion-list-thumb difusion-list-thumb-empty' }),
       ),
-      e('div', { className: 'difusion-list-row-badges' },
-        e('span', { className: 'difusion-badge' }, OPERATION_LABELS[item.operation_type] || item.operation_type),
-        item.listing_type_id && e('span', { className: 'difusion-badge' }, TIER_LABELS[item.listing_type_id] || item.listing_type_id),
-        item.url && e('a', {
-          href: item.url, target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost xs', title: 'Ver aviso',
-        }, e(Icons.ExternalLink, { width: 12, height: 12 })),
+      e('td', null, item.type_name || '—'),
+      e('td', null, item.reference_code || '—'),
+      e('td', null, item.location_name || '—'),
+      e('td', { className: 'difusion-list-td-address' },
+        item.address || item.publication_title || `Propiedad #${item.propertyId}`,
+        e('div', { className: 'difusion-list-row-badges' },
+          e('span', { className: 'difusion-badge' }, OPERATION_LABELS[item.operation_type] || item.operation_type),
+          item.listing_type_id && e('span', { className: 'difusion-badge' }, TIER_LABELS[item.listing_type_id] || item.listing_type_id),
+          item.url && e('a', {
+            href: item.url, target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost xs', title: 'Ver aviso',
+          }, e(Icons.ExternalLink, { width: 12, height: 12 })),
+        ),
+      ),
+      e('td', { className: 'difusion-list-td-quality' },
+        item.health_percentage != null
+          ? e(React.Fragment, null,
+              e('div', { className: 'difusion-list-quality-head' },
+                e('span', { className: `difusion-list-quality-pct tone-${tone}` }, `${item.health_percentage}%`),
+                actions.length > 0 && e('button', {
+                  type: 'button', className: 'btn ghost xs', onClick: () => setShowRecs((v) => !v),
+                }, `${showRecs ? 'Ocultar' : 'Ver'} qué falta (${actions.length})`),
+              ),
+              e('div', { className: 'difusion-list-quality-bar' },
+                e('div', { className: `difusion-list-quality-fill tone-${tone}`, style: { width: `${item.health_percentage}%` } }),
+              ),
+            )
+          : item.last_error
+            ? e('span', { className: 'difusion-list-error' }, item.last_error)
+            : e('span', { className: 'difusion-list-quality-pct tone-unknown' }, '—'),
       ),
     ),
-    item.health_percentage != null && e('div', { className: 'difusion-list-quality' },
-      e('div', { className: 'difusion-list-quality-head' },
-        e('span', null, 'Calidad de la publicación'),
-        e('span', { className: `difusion-list-quality-pct tone-${tone}` }, `${item.health_percentage}%`),
-      ),
-      e('div', { className: 'difusion-list-quality-bar' },
-        e('div', { className: `difusion-list-quality-fill tone-${tone}`, style: { width: `${item.health_percentage}%` } }),
-      ),
-      item.health_actions?.length > 0 && e('ul', { className: 'difusion-list-recs' },
-        item.health_actions.map((a, i) => e('li', { key: i }, a)),
+    showRecs && actions.length > 0 && e('tr', { className: 'difusion-list-tr-recs' },
+      e('td', { colSpan: 6 },
+        e('ul', { className: 'difusion-list-recs' },
+          actions.map((a, i) => e('li', { key: i }, a)),
+        ),
       ),
     ),
-    item.last_error && e('div', { className: 'difusion-list-error' }, item.last_error),
   );
 }
 
@@ -86,7 +110,23 @@ function MercadoLibrePropertiesPanel({ filter }) {
       ? e('div', { className: 'difusion-portal-loading' }, 'Cargando…')
       : !items?.length
         ? e('div', { className: 'difusion-portal-loading' }, 'No hay propiedades en esta categoría.')
-        : items.map((item, i) => e(MercadoLibrePropertyRow, { key: `${item.propertyId}-${item.operation_type}-${i}`, item })),
+        : e('div', { className: 'difusion-list-table-wrap' },
+            e('table', { className: 'difusion-list-table' },
+              e('thead', null,
+                e('tr', null,
+                  e('th', null, 'Imagen'),
+                  e('th', null, 'Tipo'),
+                  e('th', null, 'Cód. ref.'),
+                  e('th', null, 'Ubicación'),
+                  e('th', null, 'Dirección'),
+                  e('th', null, 'Calidad'),
+                ),
+              ),
+              e('tbody', null,
+                items.map((item, i) => e(MercadoLibrePropertyRow, { key: `${item.propertyId}-${item.operation_type}-${i}`, item })),
+              ),
+            ),
+          ),
   );
 }
 

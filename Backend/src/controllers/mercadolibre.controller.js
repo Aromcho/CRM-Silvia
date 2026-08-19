@@ -164,7 +164,11 @@ export async function getMercadoLibreSummaryProperties(req, res) {
   try {
     const properties = await Property.find(
       { status: { $in: ML_ELIGIBLE_STATUSES }, 'difusion.mercadolibre.listings.0': { $exists: true } },
-      { id: 1, address: 1, publication_title: 1, 'difusion.mercadolibre.listings': 1 }
+      {
+        id: 1, address: 1, publication_title: 1, reference_code: 1,
+        type: 1, 'location.name': 1, 'location.short_location': 1,
+        photos: { $slice: 1 }, 'difusion.mercadolibre.listings': 1,
+      }
     ).lean();
 
     const rows = [];
@@ -177,10 +181,15 @@ export async function getMercadoLibreSummaryProperties(req, res) {
         const isError = !isActive && l.last_error;
         const matches = { simples: isSimple, premium: isPremium, alertas: isAlerta, errores: isError }[filter];
         if (!matches) continue;
+        const photo = p.photos?.[0] || null;
         rows.push({
           propertyId: p.id,
+          reference_code: p.reference_code || '',
           address: p.address || '',
           publication_title: p.publication_title || '',
+          type_name: p.type?.name || '',
+          location_name: p.location?.name || p.location?.short_location || '',
+          photo: photo ? { local_image: photo.local_image, image_url: photo.image_url, thumb_url: photo.thumb_url } : null,
           operation_type: l.operation_type,
           listing_type_id: l.listing_type_id,
           status: l.status,
