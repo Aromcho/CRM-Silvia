@@ -1,7 +1,8 @@
 'use client';
 import React from 'react';
 import Icons from '../Icons/Icons';
-import { getLeads, createLead, updateLead, updateLeadStatus, deleteLead, getUsers, getLeadEmailSetting, updateLeadEmailSetting } from '@/services/api';
+import { getLeads, createLead, updateLead, updateLeadStatus, deleteLead, getUsers, getLeadEmailSetting, updateLeadEmailSetting, getPropertyById } from '@/services/api';
+import { photoSrc, formatPrice, propertyWebUrl } from '@/lib/data';
 import './Leads.css';
 
 const e = React.createElement;
@@ -30,6 +31,14 @@ function initials(name) {
   return (p[0]?.[0] || '?') + (p[1]?.[0] || '');
 }
 
+function waLink(phone, lead) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return null;
+  const propRef = lead?.propertyTitle ? ` sobre "${lead.propertyTitle}"` : '';
+  const msg = encodeURIComponent(`¡Hola ${lead?.name || ''}! 👋 Te contacto de Silvia Fernández Inmobiliaria por tu consulta${propRef}.`);
+  return `https://wa.me/${digits}?text=${msg}`;
+}
+
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -47,8 +56,25 @@ function LeadModal({ lead: initialLead, onClose, onUpdated }) {
   const [notes, setNotes] = useState(initialLead.notes || '');
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState([]);
+  const [property, setProperty] = useState(null);
+  const [propertyLoading, setPropertyLoading] = useState(false);
 
   useEffect(() => { getUsers().then((u) => setUsers(u || [])).catch(() => {}); }, []);
+
+  useEffect(() => {
+    if (!lead.propertyId) { setProperty(null); return; }
+    let alive = true;
+    setPropertyLoading(true);
+    getPropertyById(lead.propertyId)
+      .then((p) => { if (alive) setProperty(p); })
+      .catch(() => { if (alive) setProperty(null); })
+      .finally(() => { if (alive) setPropertyLoading(false); });
+    return () => { alive = false; };
+  }, [lead.propertyId]);
+
+  const wa = waLink(lead.phone, lead);
+  const tel = lead.phone ? 'tel:' + lead.phone.replace(/\s/g, '') : null;
+  const mail = lead.email ? 'mailto:' + lead.email : null;
 
   async function handleAssign(userId) {
     setSaving(true);
@@ -96,11 +122,43 @@ function LeadModal({ lead: initialLead, onClose, onUpdated }) {
         ),
       ),
       e('div', { className: 'lead-modal-body' },
+        e('div', { className: 'lead-contact-actions' },
+          e('a', {
+            className: 'lead-cbtn wa' + (wa ? '' : ' off'), href: wa || undefined, target: '_blank', rel: 'noreferrer',
+            title: wa ? 'Escribir por WhatsApp' : 'Sin teléfono', onClick: (ev) => { if (!wa) ev.preventDefault(); },
+          }, e(Icons.WhatsApp, { width: 15, height: 15 }), 'WhatsApp'),
+          e('a', {
+            className: 'lead-cbtn call' + (tel ? '' : ' off'), href: tel || undefined,
+            title: tel ? 'Llamar' : 'Sin teléfono', onClick: (ev) => { if (!tel) ev.preventDefault(); },
+          }, e(Icons.Phone, { width: 14, height: 14 }), 'Llamar'),
+          e('a', {
+            className: 'lead-cbtn mail' + (mail ? '' : ' off'), href: mail || undefined,
+            title: mail ? 'Enviar email' : 'Sin email', onClick: (ev) => { if (!mail) ev.preventDefault(); },
+          }, e(Icons.Mail, { width: 14, height: 14 }), 'Email'),
+        ),
+
         e('div', { className: 'lead-info-row' }, e('span', { className: 'lead-info-icon' }, e(Icons.Mail, { width: 14, height: 14 })), e('span', { className: 'lead-info-label' }, 'Email'), e('span', { className: 'lead-info-value' }, lead.email)),
         lead.phone && e('div', { className: 'lead-info-row' }, e('span', { className: 'lead-info-icon' }, e(Icons.Phone, { width: 14, height: 14 })), e('span', { className: 'lead-info-label' }, 'Teléfono'), e('span', { className: 'lead-info-value' }, lead.phone)),
-        lead.propertyTitle && e('div', { className: 'lead-info-row' }, e('span', { className: 'lead-info-icon' }, e(Icons.Building, { width: 14, height: 14 })), e('span', { className: 'lead-info-label' }, 'Propiedad'), e('span', { className: 'lead-info-value' }, lead.propertyTitle)),
         e('div', { className: 'lead-info-row' }, e('span', { className: 'lead-info-icon' }, e(Icons.Tag, { width: 14, height: 14 })), e('span', { className: 'lead-info-label' }, 'Fuente'), e('span', { className: 'lead-info-value' }, lead.source)),
         lead.message && e('div', { className: 'lead-info-row' }, e('span', { className: 'lead-info-icon' }, e(Icons.Mail, { width: 14, height: 14 })), e('span', { className: 'lead-info-label' }, 'Mensaje'), e('span', { className: 'lead-info-value' }, lead.message)),
+
+        (lead.propertyId || lead.propertyTitle) && e('div', { style: { marginTop: 14 } },
+          e('div', { style: { fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', marginBottom: 8 } }, 'Propiedad consultada'),
+          propertyLoading
+            ? e('div', { className: 'lead-property-card lead-property-loading' }, 'Cargando propiedad…')
+            : property
+              ? e('a', { className: 'lead-property-card', href: propertyWebUrl(property), target: '_blank', rel: 'noreferrer' },
+                  photoSrc((property.photos || [])[0])
+                    ? e('img', { className: 'lead-property-img', src: photoSrc(property.photos[0]), alt: '' })
+                    : e('span', { className: 'lead-property-img lead-property-img-empty' }, e(Icons.Building, { width: 18, height: 18 })),
+                  e('div', { className: 'lead-property-body' },
+                    e('span', { className: 'lead-property-title' }, property.publication_title || lead.propertyTitle || `Propiedad #${lead.propertyId}`),
+                    formatPrice(property.operations) && e('span', { className: 'lead-property-price' }, formatPrice(property.operations)),
+                  ),
+                  e(Icons.ExternalLink, { width: 14, height: 14 }),
+                )
+              : e('div', { className: 'lead-info-row' }, e('span', { className: 'lead-info-icon' }, e(Icons.Building, { width: 14, height: 14 })), e('span', { className: 'lead-info-label' }, 'Propiedad'), e('span', { className: 'lead-info-value' }, lead.propertyTitle || `#${lead.propertyId} (no encontrada)`)),
+        ),
 
         e('div', null, e('div', { style: { fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', marginBottom: 8, marginTop: 14 } }, 'Cambiar estado'),
           e('div', { className: 'lead-status-bar' },

@@ -273,7 +273,7 @@ const propertySchema = new Schema({
         updated_at: Date,
         listing_type_id: String, // 'silver' | 'gold' | 'gold_premium' (Plata/Oro-Destacado/Oro Premium-Superdestacado)
         health_percentage: Number, // 0-100, calidad de la publicación según ML
-        health_actions: [String], // recomendaciones en texto plano para mejorar la calidad
+        health_actions: [{ id: String, title: String, description: String, cta: String }], // objetivos pendientes, mismo formato que el widget "Calidad de tu publicación" de ML
         health_checked_at: Date,
       }],
     },

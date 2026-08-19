@@ -452,13 +452,35 @@ export async function upgradeListingType(propertyId, operationType, listingTypeI
   return updated.difusion?.mercadolibre?.listings || [];
 }
 
-// Etiquetas legibles para los goals confirmados en la doc real de "Calidad de las Publicaciones - Inmuebles"
+// Copys del widget "Calidad de tu publicación" de ML (título + bajada + texto del botón), confirmados
+// contra la doc real de "Calidad de las Publicaciones - Inmuebles" que pegó el usuario para picture/
+// technical_specification/video; upgrade_listing y publish siguen el mismo formato de a 3 líneas.
 const HEALTH_GOAL_LABELS = {
-  picture: (goal) => `Agregar más fotos${goal.data?.min ? ` (mínimo ${goal.data.min})` : ''}`,
-  technical_specification: () => 'Completar los atributos técnicos de la publicación',
-  video: () => 'Agregar un video o tour virtual (campo video_id)',
-  upgrade_listing: () => 'Mejorar el nivel de destaque de la publicación',
-  publish: () => 'Publicar el aviso',
+  picture: (goal) => ({
+    title: `Agregá ${goal.data?.min ? `al menos ${goal.data.min} fotos` : 'más fotos'} a tu publicación.`,
+    description: 'Las fotos son lo primero que ven los compradores para decidirse.',
+    cta: 'Agregar fotos',
+  }),
+  technical_specification: () => ({
+    title: 'Completá las especificaciones técnicas de tu publicación.',
+    description: 'Ayudá a tus compradores a tomar una decisión informada.',
+    cta: 'Completar especificaciones',
+  }),
+  video: () => ({
+    title: 'Agregá un video para mostrar tu publicación en acción.',
+    description: 'Mostrá tu publicación en acción.',
+    cta: 'Agregar video',
+  }),
+  upgrade_listing: () => ({
+    title: 'Mejorá el nivel de destaque de tu publicación.',
+    description: 'Las publicaciones más destacadas reciben más visitas.',
+    cta: 'Mejorar publicación',
+  }),
+  publish: () => ({
+    title: 'Publicá tu aviso.',
+    description: 'Tu aviso todavía no está publicado.',
+    cta: 'Publicar',
+  }),
 };
 
 // GET /items/{id}/health → { item_id, health (0-1), level, goals: [{id, name, apply, progress, progress_max, data?}] }
@@ -477,7 +499,10 @@ export async function refreshListingHealth(itemId) {
   }
   const health_percentage = data.health == null ? null : Math.round(data.health * 100);
   const pendingGoals = (data.goals || []).filter((g) => g.apply && g.progress < g.progress_max);
-  const health_actions = pendingGoals.map((g) => (HEALTH_GOAL_LABELS[g.id]?.(g)) || g.name || g.id);
+  const health_actions = pendingGoals.map((g) => {
+    const label = HEALTH_GOAL_LABELS[g.id]?.(g);
+    return { id: g.id, title: label?.title || g.name || g.id, description: label?.description || '', cta: label?.cta || '' };
+  });
   return { health_percentage, health_actions, health_checked_at: new Date() };
 }
 

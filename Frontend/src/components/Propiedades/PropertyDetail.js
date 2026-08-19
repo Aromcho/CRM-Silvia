@@ -103,7 +103,7 @@ function MlPublishGuidance({ property }) {
     ),
     improvements.length > 0 && e('div', { className: 'ml-guidance-block ml-guidance-tip' },
       e('div', { className: 'ml-guidance-title' }, e(Icons.Star, { width: 13, height: 13 }), 'MercadoLibre sugiere mejorar:'),
-      e('ul', null, improvements.map((im, i) => e('li', { key: i }, listings.length > 1 ? `${im.opLabel}: ${im.action}` : im.action))),
+      e('ul', null, improvements.map((im, i) => e('li', { key: i }, listings.length > 1 ? `${im.opLabel}: ${im.action.title}` : im.action.title))),
     ),
   );
 }
@@ -379,9 +379,16 @@ function MlListingRow({ listing: l, listingTypes, onUpgrade }) {
       ),
       actions.length > 0 && e('button', {
         type: 'button', className: 'btn ghost xs ml-recs-toggle', onClick: () => setShowRecs((v) => !v),
-      }, e(Icons.AlertTriangle, { width: 12, height: 12 }), `${showRecs ? 'Ocultar' : 'Ver'} recomendaciones (${actions.length})`),
-      showRecs && e('ul', { className: 'ml-recs-list' },
-        actions.map((a, i) => e('li', { key: i }, a)),
+      }, e(Icons.AlertTriangle, { width: 12, height: 12 }), `${showRecs ? 'Ocultar' : 'Ver'} qué falta (${actions.length})`),
+      showRecs && e('div', { className: 'ml-goals' },
+        e('div', { className: 'ml-goals-title' }, `${actions.length} ${actions.length === 1 ? 'objetivo por lograr' : 'objetivos por lograr'}`),
+        actions.map((a, i) => e('div', { key: a.id || i, className: 'ml-goal-card' },
+          e('div', { className: 'ml-goal-text' },
+            e('div', { className: 'ml-goal-title' }, a.title),
+            a.description && e('div', { className: 'ml-goal-desc' }, a.description),
+          ),
+          a.cta && e('span', { className: 'ml-goal-cta' }, a.cta),
+        )),
       ),
     ),
 
@@ -427,9 +434,14 @@ function MercadoLibreCard({ property, onSynced }) {
     }
   }
 
+  const thumb = photoSrc(property.photos?.[0]);
+
   return e('div', { className: 'difusion-card', style: { '--difusion-accent': '#ffe600' } },
     e('div', { className: 'difusion-card-head' },
-      e('div', { className: 'difusion-card-title' }, 'MercadoLibre'),
+      e('div', { className: 'difusion-card-title-group' },
+        thumb && e('img', { src: thumb, alt: '', className: 'difusion-card-thumb' }),
+        e('div', { className: 'difusion-card-title' }, 'MercadoLibre'),
+      ),
       e('button', {
         type: 'button', className: 'btn ghost xs', onClick: handleSync, disabled: syncing,
       }, e(Icons.RefreshCw, { width: 12, height: 12 }), syncing ? 'Sincronizando…' : 'Sincronizar ahora'),
