@@ -146,18 +146,47 @@ const TYPE_KEYWORDS = {
   quinta: ['quinta', 'campo'],
 };
 
-export async function resolveCategoryId(property) {
+const categoryDetailRawCache = new Map();
+
+async function getCategoryDetail(categoryId) {
+  if (categoryDetailRawCache.has(categoryId)) return categoryDetailRawCache.get(categoryId);
+  const { data } = await mlRequest('get', `/categories/${categoryId}`);
+  categoryDetailRawCache.set(categoryId, data);
+  return data;
+}
+
+// El árbol de Inmuebles tiene profundidad variable: "Casas" (MLA1466) baja directo a Alquiler
+// (hoja) o Venta -> Emprendimientos/Propiedades Individuales (dos niveles más). ML rechaza el
+// POST si la categoría no es hoja ("Is not allowed to post... leaf category"), así que hay que
+// bajar recursivamente hasta children_categories vacío (confirmado pegándole a la API real).
+async function drillToLeafCategory(categoryId, operationType) {
+  const detail = await getCategoryDetail(categoryId);
+  const children = detail.children_categories || [];
+  if (children.length === 0) return categoryId;
+  const opName = operationType === 'venta' ? 'venta' : 'alquiler'; // match exacto: evita que "alquiler" matchee "Alquiler Temporario"
+  const next =
+    children.find((c) => c.name.toLowerCase() === opName) ||
+    children.find((c) => c.name.toLowerCase().includes('individual')) || // Emprendimientos vs Propiedades Individuales: nuestras propiedades son individuales
+    children[0];
+  return drillToLeafCategory(next.id, operationType);
+}
+
+export async function resolveCategoryId(property, operationType) {
   const categories = await getRealEstateCategories();
   const typeName = (property.type?.name || '').toLowerCase();
+  let topId = null;
   for (const keywords of Object.values(TYPE_KEYWORDS)) {
     if (keywords.some((kw) => typeName.includes(kw))) {
       const match = categories.find((c) => keywords.some((kw) => c.name.toLowerCase().includes(kw)));
-      if (match) return match.id;
+      if (match) { topId = match.id; break; }
     }
   }
-  const direct = typeName && categories.find((c) => c.name.toLowerCase().includes(typeName));
-  if (direct) return direct.id;
-  throw new Error(`No se pudo mapear el tipo de propiedad "${property.type?.name}" a una categoría de MercadoLibre`);
+  if (!topId) {
+    const direct = typeName && categories.find((c) => c.name.toLowerCase().includes(typeName));
+    if (direct) topId = direct.id;
+  }
+  if (!topId) throw new Error(`No se pudo mapear el tipo de propiedad "${property.type?.name}" a una categoría de MercadoLibre`);
+  return drillToLeafCategory(topId, operationType);
 }
 
 let listingTypesCache = null;
@@ -183,15 +212,11 @@ async function getCategoryAttributes(categoryId) {
   return data;
 }
 
-const categoryDetailCache = new Map();
 const DEFAULT_MAX_PICTURES = 10; // fallback solo si la categoría no informa el campo (no debería pasar)
 
 async function getCategoryMaxPictures(categoryId) {
-  if (categoryDetailCache.has(categoryId)) return categoryDetailCache.get(categoryId);
-  const { data } = await mlRequest('get', `/categories/${categoryId}`);
-  const max = data.settings?.max_pictures_per_item || DEFAULT_MAX_PICTURES;
-  categoryDetailCache.set(categoryId, max);
-  return max;
+  const detail = await getCategoryDetail(categoryId);
+  return detail.settings?.max_pictures_per_item || DEFAULT_MAX_PICTURES;
 }
 
 function findAttr(attributes, id) {
@@ -234,8 +259,55 @@ function extractMlError(err) {
   return mlError ? JSON.stringify(mlError) : err.message;
 }
 
+// Property.location.state viene de Tokko como URL de su propio catálogo (ej. "/api/v1/state/150/"),
+// no es un nombre usable por ML. La Classified Locations API de ML no tiene búsqueda por texto:
+// hay que bajar country -> states -> cities y matchear por nombre (confirmado pegándole a la API real,
+// ej. "Mar Azul" vive dentro del estado "Bs.As. Costa Atlántica"). Se indexa una sola vez y se cachea.
+let mlLocationIndexCache = null;
+let mlLocationIndexCachedAt = 0;
+
+function normalizeLocationName(str) {
+  return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+async function getMlLocationIndex() {
+  const now = Date.now();
+  if (mlLocationIndexCache && now - mlLocationIndexCachedAt < CATEGORY_TREE_TTL) return mlLocationIndexCache;
+  const { data: country } = await mlRequest('get', '/classified_locations/countries/AR');
+  const index = new Map();
+  for (const state of country.states || []) {
+    const { data: stateDetail } = await mlRequest('get', `/classified_locations/states/${state.id}`);
+    for (const city of stateDetail.cities || []) {
+      const key = normalizeLocationName(city.name);
+      if (!index.has(key)) {
+        index.set(key, { state: { id: state.id, name: state.name }, city: { id: city.id, name: city.name } });
+      }
+    }
+  }
+  mlLocationIndexCache = index;
+  mlLocationIndexCachedAt = now;
+  return index;
+}
+
+async function resolveMlLocation(property) {
+  if (!property.location?.name) return undefined;
+  const index = await getMlLocationIndex();
+  const match = index.get(normalizeLocationName(property.location.name));
+  // Si no matchea ninguna ciudad del catálogo de ML, mejor no mandar location incompleta
+  // (ML la rechaza igual) que mandar algo adivinado — el error de /items/validate va a ser más claro así.
+  if (!match) return undefined;
+  return {
+    latitude: property.geo_lat,
+    longitude: property.geo_long,
+    address_line: property.address,
+    country: { id: 'AR' },
+    state: { id: match.state.id },
+    city: { id: match.city.id },
+  };
+}
+
 export async function mapPropertyToMlItem(property, operationType, operation) {
-  const categoryId = await resolveCategoryId(property);
+  const categoryId = await resolveCategoryId(property, operationType);
   const attributes = await getCategoryAttributes(categoryId);
   const maxPictures = await getCategoryMaxPictures(categoryId);
   const price = operation.prices[0];
@@ -260,6 +332,11 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
   if (findAttr(attributes, 'FULL_BATHROOMS') && property.bathroom_amount) {
     attrPayload.push({ id: 'FULL_BATHROOMS', value_name: String(property.bathroom_amount) });
   }
+  // Obligatorio en Inmuebles (confirmado contra /categories/{id}/attributes de ML): cantidad de cocheras.
+  // A diferencia de los demás campos numéricos, 0 es un valor válido y hay que mandarlo igual.
+  if (findAttr(attributes, 'PARKING_LOTS') && property.parking_lot_amount != null) {
+    attrPayload.push({ id: 'PARKING_LOTS', value_name: String(property.parking_lot_amount) });
+  }
   if (findAttr(attributes, 'TOTAL_AREA') && property.total_surface) {
     attrPayload.push({ id: 'TOTAL_AREA', value_name: `${parseFloat(property.total_surface)} m²` });
   }
@@ -281,6 +358,11 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
     .slice(0, maxPictures)
     .map((p) => ({ source: `${base}${p.local_image}` }));
 
+  const location = await resolveMlLocation(property);
+  if (!location) {
+    throw new Error(`No se pudo resolver la ubicación "${property.location?.name}" contra el catálogo de ubicaciones de MercadoLibre`);
+  }
+
   return {
     title: (property.publication_title || property.address || 'Propiedad').slice(0, 60),
     category_id: categoryId,
@@ -295,16 +377,7 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
     official_store_id: null, // obligatorio en null si la cuenta no es Tienda Oficial (confirmado por doc)
     pictures,
     attributes: attrPayload,
-    location:
-      property.geo_lat && property.geo_long
-        ? {
-            latitude: property.geo_lat,
-            longitude: property.geo_long,
-            address_line: property.address,
-            city: { name: property.location?.name },
-            state: { name: property.location?.state },
-          }
-        : undefined,
+    location,
   };
 }
 

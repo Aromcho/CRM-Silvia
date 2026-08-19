@@ -31,6 +31,78 @@ const DIFUSION_PLATFORMS = [
 const ML_STATUS_LABELS = { active: 'Activo', paused: 'Pausado', closed: 'Cerrado' };
 const ML_OPERATION_LABELS = { venta: 'Venta', alquiler: 'Alquiler' };
 
+// Traduce los errores de validación crudos que devuelve la API de MercadoLibre (JSON con códigos
+// tipo "item.category_id.invalid") a frases en español que entienda alguien que no maneja la API.
+const ML_ATTRIBUTE_LABELS = {
+  TOTAL_AREA: 'la superficie total', COVERED_AREA: 'la superficie cubierta',
+  BEDROOMS: 'los dormitorios', FULL_BATHROOMS: 'los baños', PARKING_LOTS: 'las cocheras',
+  MAINTENANCE_FEE: 'las expensas', OPERATION: 'el tipo de operación', PROPERTY_TYPE: 'el tipo de propiedad',
+  ROOMS: 'los ambientes', IS_SUITABLE_FOR_PETS: 'si admite mascotas',
+};
+const ML_FIELD_LABELS = {
+  category_id: 'la categoría de la propiedad', location: 'la ubicación (localidad)', price: 'el precio',
+  pictures: 'las fotos', title: 'el título del aviso', currency_id: 'la moneda', attributes: 'los datos de la propiedad',
+  listing_type_id: 'el tipo de publicación', available_quantity: 'la cantidad disponible', condition: 'la condición',
+};
+const ML_ERROR_CODE_MESSAGES = {
+  'item.category_id.invalid': 'La categoría elegida para esta propiedad no es válida para publicar en MercadoLibre.',
+  'item.location.invalid': 'Falta o está mal cargada la localidad de la propiedad.',
+  'item.price.invalid': 'El precio cargado no es válido para MercadoLibre.',
+  'item.pictures.length': 'Necesita al menos una foto para poder publicarse.',
+  'item.pictures.invalid': 'Alguna de las fotos no pudo subirse a MercadoLibre.',
+};
+
+function translateMlCause(cause) {
+  if (ML_ERROR_CODE_MESSAGES[cause.code]) return ML_ERROR_CODE_MESSAGES[cause.code];
+  const ref = (cause.references || [])[0] || cause.code || '';
+  const attrMatch = ref.match(/attributes\.([A-Z_]+)/);
+  if (attrMatch && ML_ATTRIBUTE_LABELS[attrMatch[1]]) return `Falta cargar ${ML_ATTRIBUTE_LABELS[attrMatch[1]]}.`;
+  const field = ref.replace(/^item\./, '').split('.')[0];
+  if (ML_FIELD_LABELS[field]) return `Hay un problema con ${ML_FIELD_LABELS[field]} de la propiedad.`;
+  return cause.message ? `MercadoLibre reportó: ${cause.message}` : 'Hay un dato que MercadoLibre no acepta y hay que revisar.';
+}
+
+function translateMlError(rawError) {
+  if (!rawError) return [];
+  try {
+    const parsed = JSON.parse(rawError);
+    if (Array.isArray(parsed.cause) && parsed.cause.length) {
+      return [...new Set(parsed.cause.map(translateMlCause))];
+    }
+    return [parsed.message || rawError];
+  } catch {
+    return [rawError];
+  }
+}
+
+// Junta, en lenguaje natural, lo que falta para publicar y las mejoras que sugiere MercadoLibre —
+// se muestra siempre debajo del hint bar, sin importar en qué tab esté parado el usuario.
+function MlPublishGuidance({ property }) {
+  const listings = property.difusion?.mercadolibre?.listings || [];
+  const blockers = [];
+  const improvements = [];
+  for (const l of listings) {
+    const opLabel = ML_OPERATION_LABELS[l.operation_type] || l.operation_type;
+    if (l.last_error) {
+      for (const reason of translateMlError(l.last_error)) blockers.push({ opLabel, reason });
+    } else if (l.status === 'active' && l.health_actions?.length) {
+      for (const action of l.health_actions) improvements.push({ opLabel, action });
+    }
+  }
+  if (!blockers.length && !improvements.length) return null;
+
+  return e('div', { className: 'ml-guidance-bar' },
+    blockers.length > 0 && e('div', { className: 'ml-guidance-block ml-guidance-error' },
+      e('div', { className: 'ml-guidance-title' }, e(Icons.AlertTriangle, { width: 13, height: 13 }), 'Para publicarse en MercadoLibre necesita:'),
+      e('ul', null, blockers.map((b, i) => e('li', { key: i }, listings.length > 1 ? `${b.opLabel}: ${b.reason}` : b.reason))),
+    ),
+    improvements.length > 0 && e('div', { className: 'ml-guidance-block ml-guidance-tip' },
+      e('div', { className: 'ml-guidance-title' }, e(Icons.Star, { width: 13, height: 13 }), 'MercadoLibre sugiere mejorar:'),
+      e('ul', null, improvements.map((im, i) => e('li', { key: i }, listings.length > 1 ? `${im.opLabel}: ${im.action}` : im.action))),
+    ),
+  );
+}
+
 function Row({ label, icon, children }) {
   return e('div', { className: 'prop-info-item' },
     e('div', { className: 'prop-info-label' }, icon && e(icon, { width: 12, height: 12 }), label),
@@ -554,6 +626,8 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
       e(Icons.Edit, { width: 12, height: 12 }),
       'Hacé click en cualquier dato para editarlo. Los cambios se guardan solos.',
     ),
+
+    e(MlPublishGuidance, { property }),
 
     e('div', { className: 'detail-layout' },
       activeTab === 'fotos'

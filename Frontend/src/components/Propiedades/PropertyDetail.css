@@ -31,6 +31,15 @@
   border-bottom: 1px solid var(--line-2); flex-shrink: 0;
 }
 
+/* Guía de publicación de MercadoLibre en lenguaje natural — debajo del hint bar, en todas las tabs */
+.ml-guidance-bar { display: flex; flex-direction: column; gap: 8px; padding: 12px 28px; border-bottom: 1px solid var(--line-2); flex-shrink: 0; }
+.ml-guidance-block { border-radius: 10px; padding: 10px 14px; font-size: 12.5px; }
+.ml-guidance-block ul { margin: 6px 0 0; padding-left: 18px; }
+.ml-guidance-block li { margin: 2px 0; }
+.ml-guidance-title { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.ml-guidance-error { background: #fdecea; color: #a83226; }
+.ml-guidance-tip { background: var(--mint-50); color: var(--green-700); }
+
 /* Pinned Dirección + aside — always visible above the tabs, regardless of active tab */
 .detail-pinned { padding: 20px 28px 0; background: var(--surface); flex-shrink: 0; }
 
