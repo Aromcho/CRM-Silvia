@@ -154,6 +154,49 @@ export async function getMercadoLibreSummary(req, res) {
   }
 }
 
+// Detalle por propiedad para cada tile de la card de Difusión: mismo criterio que
+// getMercadoLibreSummary pero devolviendo la lista en vez del conteo.
+export async function getMercadoLibreSummaryProperties(req, res) {
+  const { filter } = req.query;
+  if (!['simples', 'premium', 'alertas', 'errores'].includes(filter)) {
+    return res.status(400).json({ message: 'Filtro inválido. Usá simples, premium, alertas o errores.' });
+  }
+  try {
+    const properties = await Property.find(
+      { status: { $in: ML_ELIGIBLE_STATUSES }, 'difusion.mercadolibre.listings.0': { $exists: true } },
+      { id: 1, address: 1, publication_title: 1, 'difusion.mercadolibre.listings': 1 }
+    ).lean();
+
+    const rows = [];
+    for (const p of properties) {
+      for (const l of p.difusion?.mercadolibre?.listings || []) {
+        const isActive = l.status === 'active';
+        const isSimple = isActive && l.listing_type_id === 'silver';
+        const isPremium = isActive && ['gold', 'gold_premium'].includes(l.listing_type_id);
+        const isAlerta = isActive && l.health_percentage != null && l.health_percentage < ML_HEALTH_ALERT_THRESHOLD;
+        const isError = !isActive && l.last_error;
+        const matches = { simples: isSimple, premium: isPremium, alertas: isAlerta, errores: isError }[filter];
+        if (!matches) continue;
+        rows.push({
+          propertyId: p.id,
+          address: p.address || '',
+          publication_title: p.publication_title || '',
+          operation_type: l.operation_type,
+          listing_type_id: l.listing_type_id,
+          status: l.status,
+          url: l.url,
+          health_percentage: l.health_percentage ?? null,
+          health_actions: l.health_actions || [],
+          last_error: l.last_error || '',
+        });
+      }
+    }
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Error obteniendo el detalle de MercadoLibre', detail: err.message });
+  }
+}
+
 export async function getMercadoLibreReports(req, res) {
   const days = Math.min(parseInt(req.query.days, 10) || 30, 150); // 150 días: máximo de rango que soporta la API de ML
   try {

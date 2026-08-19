@@ -56,6 +56,7 @@ export const syncPropertyMercadoLibre = (id) => request(`/mercadolibre/sync/${id
 export const syncAllMercadoLibre = () => request('/mercadolibre/sync-all', { method: 'POST' });
 export const getMercadoLibreStatus = () => request('/mercadolibre/status');
 export const getMercadoLibreSummary = () => request('/mercadolibre/summary');
+export const getMercadoLibreSummaryProperties = (filter) => request(`/mercadolibre/summary/properties?filter=${filter}`);
 export const getMercadoLibreListingTypes = () => request('/mercadolibre/listing-types');
 export const upgradeMercadoLibreListingType = (id, data) => request(`/mercadolibre/listing-type/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const getPropertyMlMetrics = (id, days = 30) => request(`/mercadolibre/metrics/property/${id}?days=${days}`);

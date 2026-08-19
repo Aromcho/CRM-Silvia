@@ -6,7 +6,7 @@ import PhotoManager from './PhotoManager';
 import MlStats from './MlStats';
 import PropertyMap from './PropertyMap';
 import {
-  updateProperty, updatePropertyStatus, updatePropertyDifusion, syncPropertyMercadoLibre,
+  updateProperty, updatePropertyStatus, syncPropertyMercadoLibre,
   getMercadoLibreListingTypes, upgradeMercadoLibreListingType,
 } from '@/services/api';
 import { photoSrc, formatPrice, STATUS_LABELS, propertyWebUrl } from '@/lib/data';
@@ -22,10 +22,6 @@ const PAGE_TABS = [
   { key: 'mapa', label: 'Mapa' },
   { key: 'difusion', label: 'Difusión' },
   { key: 'estadisticas', label: 'Estadísticas' },
-];
-
-const DIFUSION_PLATFORMS = [
-  { key: 'zonaprop', label: 'ZonaProp', accent: '#00b4f0' },
 ];
 
 const ML_STATUS_LABELS = { active: 'Activo', paused: 'Pausado', closed: 'Cerrado' };
@@ -319,56 +315,6 @@ function CopyableFact({ icon, value, label }) {
   );
 }
 
-function DifusionPlatform({ platform, label, accent, data, onUpdate }) {
-  const [url, setUrl] = useState(data?.url || '');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => { setUrl(data?.url || ''); }, [data?.url]);
-
-  async function toggle() {
-    setSaving(true);
-    try { await onUpdate(platform, { published: !data?.published, url }); }
-    finally { setSaving(false); }
-  }
-
-  async function saveUrl() {
-    if (url === (data?.url || '')) return;
-    setSaving(true);
-    try { await onUpdate(platform, { published: !!data?.published, url }); }
-    finally { setSaving(false); }
-  }
-
-  const published = !!data?.published;
-
-  return e('div', { className: 'difusion-card', style: { '--difusion-accent': accent } },
-    e('div', { className: 'difusion-card-head' },
-      e('div', { className: 'difusion-card-title' }, label),
-      e('button', {
-        type: 'button', className: `difusion-toggle${published ? ' on' : ''}`,
-        onClick: toggle, disabled: saving, title: published ? 'Marcar como no publicada' : 'Marcar como publicada',
-      }, e('span', { className: 'difusion-toggle-knob' })),
-    ),
-    e('div', { className: `difusion-card-status${published ? ' on' : ''}` },
-      e('span', { className: 'difusion-status-dot' }),
-      published ? 'Publicada' : 'No publicada',
-    ),
-    e('div', { className: 'difusion-card-field' },
-      e('label', null, 'Link del aviso'),
-      e('div', { className: 'difusion-url-row' },
-        e('input', {
-          type: 'text', className: 'difusion-url-input', value: url, placeholder: 'https://…',
-          onChange: (ev) => setUrl(ev.target.value), onBlur: saveUrl,
-          onKeyDown: (ev) => { if (ev.key === 'Enter') ev.target.blur(); },
-        }),
-        url && e('a', { href: url, target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost xs', title: 'Abrir aviso' },
-          e(Icons.ExternalLink, { width: 12, height: 12 })),
-      ),
-    ),
-    data?.updated_at && e('div', { className: 'difusion-card-updated' },
-      `Actualizado ${new Date(data.updated_at).toLocaleDateString('es-AR')}`),
-  );
-}
-
 let mlListingTypesCache = null;
 
 function qualityTone(pct) {
@@ -522,12 +468,6 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
     setProperty(updated);
   }
 
-  async function saveDifusion(platform, data) {
-    const updated = await updatePropertyDifusion(property.id, { platform, ...data });
-    setProperty(updated);
-    return updated;
-  }
-
   function onMercadoLibreSynced(listings) {
     setProperty((prev) => ({
       ...prev,
@@ -646,10 +586,6 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
               e('p', { className: 'detail-section-sub' }, 'Marcá manualmente si la propiedad está publicada en cada portal y guardá el link del aviso.'),
               e('div', { className: 'difusion-grid' },
                 e(MercadoLibreCard, { key: 'mercadolibre', property, onSynced: onMercadoLibreSynced }),
-                DIFUSION_PLATFORMS.map((p) => e(DifusionPlatform, {
-                  key: p.key, platform: p.key, label: p.label, accent: p.accent,
-                  data: property.difusion?.[p.key], onUpdate: saveDifusion,
-                })),
               ),
             ),
           )

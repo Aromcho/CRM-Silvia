@@ -25,6 +25,45 @@
 
 .difusion-stat-tile {
   border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--surface);
+  text-align: left; font: inherit; width: 100%; cursor: default;
 }
+.difusion-stat-tile.clickable { cursor: pointer; transition: border-color .15s, background .15s; }
+.difusion-stat-tile.clickable:hover { border-color: var(--difusion-accent, var(--green-600)); background: var(--surface-2); }
+.difusion-stat-tile.active { border-color: var(--difusion-accent, var(--green-600)); background: var(--surface-2); }
 .difusion-stat-label { font-size: 10.5px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px; }
 .difusion-stat-value { font-size: 22px; font-weight: 800; color: var(--ink); }
+
+.difusion-list-panel {
+  margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px;
+}
+.difusion-list-panel-title { font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 10px; }
+
+.difusion-list-row { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; background: var(--surface); }
+.difusion-list-row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.difusion-list-row-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+.difusion-list-row-badges { display: flex; align-items: center; gap: 6px; }
+.difusion-badge {
+  font-size: 10.5px; font-weight: 700; color: var(--ink-3); background: var(--surface-2);
+  border-radius: 999px; padding: 3px 9px; text-transform: uppercase; letter-spacing: .2px;
+}
+
+.difusion-list-quality { margin-top: 6px; }
+.difusion-list-quality-head { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: var(--ink-3); margin-bottom: 5px; }
+.difusion-list-quality-pct.tone-good { color: var(--status-disponible-color, #1a8f5e); }
+.difusion-list-quality-pct.tone-warn { color: #b8791b; }
+.difusion-list-quality-pct.tone-bad { color: var(--status-vendida-color, #c0392b); }
+.difusion-list-quality-pct.tone-unknown { color: var(--ink-3); }
+
+.difusion-list-quality-bar { height: 6px; border-radius: 999px; background: var(--line-2); overflow: hidden; }
+.difusion-list-quality-fill { height: 100%; border-radius: 999px; transition: width .2s; }
+.difusion-list-quality-fill.tone-good { background: var(--status-disponible-color, #1a8f5e); }
+.difusion-list-quality-fill.tone-warn { background: #b8791b; }
+.difusion-list-quality-fill.tone-bad { background: var(--status-vendida-color, #c0392b); }
+.difusion-list-quality-fill.tone-unknown { background: var(--ink-3); }
+
+.difusion-list-recs {
+  margin: 8px 0 0; padding-left: 18px; font-size: 12px; color: var(--ink-2); display: flex; flex-direction: column; gap: 3px;
+}
+.difusion-list-recs li { line-height: 1.4; }
+
+.difusion-list-error { margin-top: 6px; font-size: 12px; color: var(--status-vendida-color, #c0392b); }
