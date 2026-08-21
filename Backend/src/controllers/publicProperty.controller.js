@@ -28,7 +28,8 @@ const PUBLIC_FIELDS = [
 
 // El status interno del CRM tiene 2 valores que la web no conoce: en_tasacion (nunca se
 // expone, es una propiedad sin tasar aún) y no_disponible (se traduce a "vendida", que es
-// como la web ya mostraba el status 4 de Tokko antes de este cambio).
+// como la web ya mostraba el status 4 de Tokko antes de este cambio). "alquilado" sí se
+// expone tal cual: la web lo muestra con el ribbon "ALQUILADO".
 function mapStatus(status) {
   if (status === 'no_disponible') return 'vendida';
   return status;

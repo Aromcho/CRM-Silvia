@@ -2,6 +2,7 @@ export const STATUS_LABELS = {
   disponible: 'Disponible',
   reservada: 'Reservada',
   vendida: 'Vendida',
+  alquilado: 'Alquilado',
   en_tasacion: 'En tasación',
   no_disponible: 'No disponible',
 };

@@ -15,6 +15,7 @@ const STATUSES = [
   { key: 'disponible', label: 'Disponible', dot: '#15784f' },
   { key: 'reservada', label: 'Reservada', dot: '#b8791b' },
   { key: 'vendida', label: 'Vendida', dot: '#d8504a' },
+  { key: 'alquilado', label: 'Alquilado', dot: '#2f6fed' },
   { key: 'en_tasacion', label: 'En tasación', dot: '#7257c9' },
   { key: 'no_disponible', label: 'No disponible', dot: '#8a978f' },
 ];
@@ -23,7 +24,7 @@ const OPERATION_TYPES = ['Todas', 'Venta', 'Alquiler'];
 const PROPERTY_TYPES = ['Todos', 'Casa', 'Departamento', 'PH', 'Terreno', 'Local', 'Oficina', 'Complejo'];
 const CREATE_OPERATION_TYPES = ['Venta', 'Alquiler'];
 const CREATE_PROPERTY_TYPES = ['Casa', 'Departamento', 'PH', 'Terreno', 'Local', 'Oficina', 'Complejo'];
-const STATUS_LABELS = { disponible: 'Disponible', reservada: 'Reservada', vendida: 'Vendida', en_tasacion: 'En tasación', no_disponible: 'No disponible' };
+const STATUS_LABELS = { disponible: 'Disponible', reservada: 'Reservada', vendida: 'Vendida', alquilado: 'Alquilado', en_tasacion: 'En tasación', no_disponible: 'No disponible' };
 
 function formatPrice(ops) {
   if (!ops || !ops.length) return null;

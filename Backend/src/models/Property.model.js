@@ -222,7 +222,7 @@ const propertySchema = new Schema({
   seo_description: String,
   seo_keywords: String,
   situation: String,
-  status: { type: String, enum: ['disponible', 'reservada', 'vendida', 'en_tasacion', 'no_disponible'], default: 'disponible', index: true },
+  status: { type: String, enum: ['disponible', 'reservada', 'vendida', 'alquilado', 'en_tasacion', 'no_disponible'], default: 'disponible', index: true },
   suite_amount: { type: Number, index: true },
   suites_with_closets: Number,
   surface: String,

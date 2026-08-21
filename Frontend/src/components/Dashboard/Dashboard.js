@@ -21,10 +21,10 @@ const ACTIVITY_TYPE = {
   lead_status_changed: 'lead', lead_assigned: 'lead', user_login: 'user', sync_completed: 'system',
 };
 const STATUS_LABELS = {
-  disponible: 'Disponibles', reservada: 'Reservadas', vendida: 'Vendidas', en_tasacion: 'En tasación', no_disponible: 'No disp.',
+  disponible: 'Disponibles', reservada: 'Reservadas', vendida: 'Vendidas', alquilado: 'Alquilados', en_tasacion: 'En tasación', no_disponible: 'No disp.',
 };
 const STATUS_COLORS = {
-  disponible: '#15784f', reservada: '#b8791b', vendida: '#d8504a', en_tasacion: '#7257c9', no_disponible: '#8a978f',
+  disponible: '#15784f', reservada: '#b8791b', vendida: '#d8504a', alquilado: '#2f6fed', en_tasacion: '#7257c9', no_disponible: '#8a978f',
 };
 const LEAD_STATUS_LABELS = {
   nuevo: 'Nuevos', en_progreso: 'En progreso', contactado: 'Contactados', reservado: 'Reservados', cerrado: 'Cerrados', descartado: 'Descartados',

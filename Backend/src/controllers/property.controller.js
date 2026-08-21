@@ -294,7 +294,7 @@ export async function updatePropertyStatus(req, res, next) {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const allowed = ['disponible', 'reservada', 'vendida', 'en_tasacion', 'no_disponible'];
+    const allowed = ['disponible', 'reservada', 'vendida', 'alquilado', 'en_tasacion', 'no_disponible'];
     if (!allowed.includes(status)) return res.status(400).json({ message: 'Estado inválido' });
 
     const property = await Property.findOneAndUpdate({ id: parseInt(id, 10) }, { $set: { status, lastEditedBy: req.user.id, lastEditedAt: new Date() } }, { new: true });
