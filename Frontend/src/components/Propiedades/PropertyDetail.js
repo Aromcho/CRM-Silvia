@@ -24,6 +24,8 @@ const PAGE_TABS = [
   { key: 'estadisticas', label: 'Estadísticas' },
 ];
 
+const PROPERTY_TYPES = ['Casa', 'Departamento', 'PH', 'Terreno', 'Local', 'Oficina', 'Complejo'];
+
 const ML_STATUS_LABELS = { active: 'Activo', paused: 'Pausado', closed: 'Cerrado' };
 const ML_OPERATION_LABELS = { venta: 'Venta', alquiler: 'Alquiler' };
 
@@ -559,7 +561,17 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
             ),
             e('div', { className: 'detail-summary-row' },
               e('div', { className: 'prop-info-label' }, e(Icons.Tag, { width: 12, height: 12 }), 'Referencia | Tipo'),
-              e('div', null, `${property.reference_code || '—'} | ${property.type?.name || '—'}`),
+              e('div', { className: 'ref-type-field' },
+                e('span', null, property.reference_code || '—'),
+                e('span', null, ' | '),
+                e('select', {
+                  value: property.type?.name || '',
+                  onChange: (ev) => saveField('type.name', ev.target.value),
+                },
+                  e('option', { value: '' }, 'Sin especificar'),
+                  PROPERTY_TYPES.map((t) => e('option', { key: t, value: t }, t)),
+                ),
+              ),
             ),
             e('div', { className: 'detail-summary-row' },
               e('div', { className: 'prop-info-label' }, e(Icons.Edit, { width: 12, height: 12 }), 'Título de publicación'),

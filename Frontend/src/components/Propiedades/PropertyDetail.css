@@ -172,6 +172,12 @@
   font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; color: var(--ink-2);
 }
 
+.ref-type-field { display: flex; align-items: center; gap: 4px; }
+.ref-type-field select {
+  border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 6px;
+  font-size: 12px; font-family: inherit; cursor: pointer; color: var(--ink-2); background: var(--surface);
+}
+
 /* Aside */
 .detail-aside-card {
   background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
