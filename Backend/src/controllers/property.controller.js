@@ -30,6 +30,7 @@ const ACTIVITY_FIELD_LABELS = {
   suite_amount: 'Dormitorios', orientation: 'Orientación', floors_amount: 'Plantas', situation: 'Situación',
   total_suites: 'Suites', suites_with_closets: 'Suites con placares', toilet_amount: 'Toilettes',
   zonification: 'Zonificación', distanciaMar: 'Distancia al mar', aptoMascotas: 'Admite mascotas',
+  aptoCredito: 'Apto crédito', aptoFinanciacion: 'Apto financiación',
   parking_lot_amount: 'Cocheras', covered_parking_lot: 'Cocheras cubiertas', uncovered_parking_lot: 'Cocheras descubiertas',
   common_area: 'Salas comunes', living_amount: 'Livings', tv_rooms: 'Salas de TV', dining_room: 'Comedores',
   surface: 'Terreno', unroofed_surface: 'Superficie descubierta', roofed_surface: 'Superficie cubierta',

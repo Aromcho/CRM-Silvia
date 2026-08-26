@@ -245,6 +245,8 @@ const propertySchema = new Schema({
   notes: String,
   distanciaMar: String,
   aptoMascotas: Boolean,
+  aptoCredito: Boolean,
+  aptoFinanciacion: Boolean,
   lastEditedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   lastEditedAt: Date,
   // Seteado por propertyPhoto.controller.js en cualquier borrado/reorden/edición manual de fotos.

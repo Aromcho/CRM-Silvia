@@ -22,7 +22,7 @@ const PUBLIC_FIELDS = [
   'suite_amount', 'suites_with_closets', 'surface', 'surface_measurement', 'tags',
   'toilet_amount', 'total_area', 'total_suites', 'total_surface', 'transaction_requirements',
   'tv_rooms', 'type', 'uncovered_parking_lot', 'unroofed_surface', 'videos', 'web_price',
-  'zonification', 'createdAt', 'updatedAt', 'distanciaMar', 'aptoMascotas',
+  'zonification', 'createdAt', 'updatedAt', 'distanciaMar', 'aptoMascotas', 'aptoCredito', 'aptoFinanciacion',
   'temporaryRental.bookings.startDate', 'temporaryRental.bookings.endDate', 'temporaryRental.bookings.status',
 ].join(' ');
 
