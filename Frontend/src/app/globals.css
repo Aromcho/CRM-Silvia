@@ -126,6 +126,32 @@ input, select, textarea { font-family: inherit; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fade-out-saved { 0% { opacity: 0; transform: translateY(-2px); } 15% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; } }
 
+/* Rich text field (descripción con formato) */
+.rich-text-field-wrap { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.rich-text-display { display: flex; align-items: flex-start; gap: 6px; cursor: pointer; border-radius: 8px; padding: 6px 8px; margin: -6px -8px; transition: .12s; }
+.rich-text-display:hover { background: var(--mint-100); }
+.rich-text-display.empty { color: var(--ink-3); font-style: italic; }
+.rich-text-display .editable-field-icon { margin-top: 2px; flex-shrink: 0; }
+.rich-text-field-wrap.editing {
+  border: 1px solid var(--green-500); border-radius: 10px; background: #fff;
+  box-shadow: 0 0 0 3px var(--mint-100); overflow: hidden;
+}
+.rich-text-toolbar { display: flex; align-items: center; gap: 2px; padding: 6px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.rich-text-toolbar-btn {
+  min-width: 26px; height: 26px; padding: 0 6px; border: none; border-radius: 6px; background: transparent;
+  color: var(--ink-2); font-size: 13px; cursor: pointer; transition: .12s;
+}
+.rich-text-toolbar-btn:hover { background: var(--mint-100); }
+.rich-text-toolbar-btn.active { background: var(--green-600); color: #fff; }
+.rich-text-content, .rich-text-display .ProseMirror, .rich-text-display .rich-text-content {
+  outline: none; font-size: inherit; color: var(--ink); line-height: 1.6; width: 100%;
+}
+.rich-text-content { padding: 9px 12px; min-height: 90px; }
+.rich-text-content p, .rich-text-display p { margin: 0 0 .7em; }
+.rich-text-content p:last-child, .rich-text-display p:last-child { margin-bottom: 0; }
+.rich-text-content ul, .rich-text-content ol, .rich-text-display ul, .rich-text-display ol { margin: 0 0 .7em 1.25em; padding: 0; }
+.rich-text-content strong, .rich-text-display strong { font-weight: 700; }
+
 /* Property / Lead status badge colors */
 .badge-disponible { color: var(--status-disponible-color); background: var(--status-disponible-bg); }
 .badge-reservada { color: var(--status-reservada-color); background: var(--status-reservada-bg); }

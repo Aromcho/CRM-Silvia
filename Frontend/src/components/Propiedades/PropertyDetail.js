@@ -2,9 +2,11 @@
 import React from 'react';
 import Icons from '../Icons/Icons';
 import EditableField from '../UI/EditableField';
+import RichTextField from '../UI/RichTextField';
 import PhotoManager from './PhotoManager';
 import MlStats from './MlStats';
 import PropertyMap from './PropertyMap';
+import DuplicatePropertyModal from './DuplicatePropertyModal';
 import {
   updateProperty, updatePropertyStatus, syncPropertyMercadoLibre,
   getMercadoLibreListingTypes, upgradeMercadoLibreListingType,
@@ -468,6 +470,7 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
   const [property, setProperty] = useState(initialProperty);
   const [activeTab, setActiveTab] = useState('detalles');
   const [changingStatus, setChangingStatus] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
   useEffect(() => { setProperty(initialProperty); }, [initialProperty]);
   useEffect(() => {
@@ -525,6 +528,10 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
         onSave: (v) => saveField('publication_title', v),
       })),
       e('div', { className: 'detail-header-actions' },
+        e('button', {
+          className: 'btn ghost sm', onClick: () => setShowDuplicateModal(true),
+          title: 'Crear una copia de esta propiedad con otro ID para publicarla con otra operación (ej. alquiler temporario)',
+        }, e(Icons.Copy, { width: 13, height: 13 }), 'Duplicar'),
         e('a', {
           href: propertyWebUrl(property), target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost sm',
         }, e(Icons.ExternalLink, { width: 13, height: 13 }), 'Ver en la web'),
@@ -740,7 +747,7 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
 
         e('div', { className: 'detail-section' },
           e('h3', null, 'Descripción'),
-          e(EditableField, { value: property.description, onSave: (v) => saveField('description', v), multiline: true, placeholder: 'Sin descripción — click para agregar' }),
+          e(RichTextField, { value: property.description, onSave: (v) => saveField('description', v), placeholder: 'Sin descripción — click para agregar' }),
         ),
 
         e('div', { className: 'detail-section' },
@@ -782,5 +789,7 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
         ),
       ),
     ),
+
+    showDuplicateModal && e(DuplicatePropertyModal, { property, onClose: () => setShowDuplicateModal(false) }),
   );
 }

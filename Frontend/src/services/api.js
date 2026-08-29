@@ -39,6 +39,7 @@ export const createProperty = (data) => request('/properties', { method: 'POST',
 export const updateProperty = (id, data) => request(`/properties/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const updatePropertyStatus = (id, status) => request(`/properties/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
 export const updatePropertyDifusion = (id, data) => request(`/properties/${id}/difusion`, { method: 'PATCH', body: JSON.stringify(data) });
+export const duplicateProperty = (id, operationType) => request(`/properties/${id}/duplicate`, { method: 'POST', body: JSON.stringify({ operation_type: operationType }) });
 export const getPropertyStats = () => request('/properties/stats');
 export const triggerSync = () => request('/properties/sync', { method: 'POST' });
 export const importRentals = () => request('/properties/import-rentals', { method: 'POST' });

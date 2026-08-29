@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   getProperties, getPropertyById, createProperty, updateProperty, updatePropertyStatus, updatePropertyDifusion,
-  triggerSync, getPropertyStats, getPropertyLocations, importRentals,
+  triggerSync, getPropertyStats, getPropertyLocations, importRentals, duplicateProperty,
 } from '../../controllers/property.controller.js';
 import { uploadPhotos, addPhotos, deletePhoto, reorderPhotos, updatePhotoDescription } from '../../controllers/propertyPhoto.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
@@ -14,6 +14,7 @@ router.get('/stats', isAuth, getPropertyStats);
 router.get('/locations', isAuth, getPropertyLocations);
 router.get('/:id', isAuth, getPropertyById);
 router.post('/', isAuth, createProperty);
+router.post('/:id/duplicate', isAuth, duplicateProperty);
 router.put('/:id', isAuth, updateProperty);
 router.patch('/:id/status', isAuth, updatePropertyStatus);
 router.patch('/:id/difusion', isAuth, updatePropertyDifusion);

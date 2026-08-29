@@ -134,7 +134,10 @@ function PropModal({ property, onClose, session }) {
           property.reference_code && e('div', { className: 'prop-info-item' }, e('div', { className: 'prop-info-label' }, 'Ref'), e('div', { className: 'prop-info-value' }, property.reference_code)),
         ),
 
-        property.description && e('div', { className: 'prop-desc' }, property.description.slice(0, 400) + (property.description.length > 400 ? '…' : '')),
+        property.description && (() => {
+          const plainDesc = property.description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          return plainDesc && e('div', { className: 'prop-desc' }, plainDesc.slice(0, 400) + (plainDesc.length > 400 ? '…' : ''));
+        })(),
 
         e('div', { className: 'prop-status-section' },
           e('label', null, 'Cambiar estado'),

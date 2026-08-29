@@ -10,6 +10,9 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@tiptap/pm": "^3.30.5",
+    "@tiptap/react": "^3.30.5",
+    "@tiptap/starter-kit": "^3.30.5",
     "leaflet": "^1.9.4",
     "next": "14.2.10",
     "qrcode": "^1.5.4",

@@ -1,4 +1,7 @@
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import sanitizeHtml from 'sanitize-html';
 import Property from '../models/Property.model.js';
 import PropertyManager from '../manager/property.manager.js';
 import Activity from '../models/Activity.model.js';
@@ -6,6 +9,10 @@ import { syncWithTokko } from '../utils/syncWithTokko.js';
 import { importRentalExcelFile, RENTAL_XLSX_PATH } from '../utils/rentalExcelImporter.js';
 import { nextManualPropertyId } from '../models/Counter.model.js';
 import * as ml from '../utils/mercadolibre.service.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads', 'properties');
 
 // Re-sincroniza con MercadoLibre en cada edición desde el CRM, para no depender de que alguien
 // se acuerde de tocar "Sincronizar ahora". Solo para propiedades YA publicadas (tienen item_id) —
@@ -19,6 +26,14 @@ async function triggerMlSync(property) {
 
 const normalizeText = (v = '') => String(v).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
 const escapeRegex = (v = '') => String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// La descripción se edita como texto enriquecido en el CRM y se inyecta como HTML crudo en la
+// web pública (dangerouslySetInnerHTML), así que se sanitiza acá antes de guardar — solo se
+// permiten las etiquetas que puede producir el editor (Tiptap StarterKit), sin atributos ni estilos.
+const sanitizeDescription = (html) => sanitizeHtml(html, {
+  allowedTags: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li'],
+  allowedAttributes: {},
+});
 
 // Etiquetas en español para el diff de "Actividad reciente" — mismos labels que usa PropertyDetail.js
 // en sus <Row label="...">, para que el feed diga lo mismo que el usuario ve al editar.
@@ -213,6 +228,85 @@ export async function getPropertyById(req, res, next) {
   }
 }
 
+// Operación destino que puede elegir el usuario al duplicar — 'Alquiler temporal' es el motivo
+// principal de esta función (ej. poner en alquiler de temporada una casa que está en venta).
+const DUPLICATE_OPERATION_LABELS = { Venta: 'Venta', Alquiler: 'Alquiler', 'Alquiler temporal': 'Alquiler temporario' };
+
+// Copia los archivos de fotos a una carpeta propia para la propiedad nueva (uploads/properties/<newId>/)
+// para que la copia sea independiente: borrar/reordenar fotos ahí no debe tocar al original.
+// Las URLs externas (Tokko: image_url/thumb_url/original_url) se copian tal cual, no son archivos locales.
+function duplicatePhotos(oldId, newId, photos) {
+  const oldDir = path.join(UPLOADS_DIR, String(oldId));
+  const newDir = path.join(UPLOADS_DIR, String(newId));
+  return (photos || []).map((photo) => {
+    const copy = { ...photo };
+    delete copy._id;
+    for (const key of ['local_image', 'local_original', 'local_thumb']) {
+      const url = photo[key];
+      if (!url) continue;
+      const filename = path.basename(url);
+      const srcPath = path.join(oldDir, filename);
+      if (!fs.existsSync(srcPath)) continue;
+      if (!fs.existsSync(newDir)) fs.mkdirSync(newDir, { recursive: true });
+      fs.copyFileSync(srcPath, path.join(newDir, filename));
+      copy[key] = url.replace(`/properties/${oldId}/`, `/properties/${newId}/`);
+    }
+    return copy;
+  });
+}
+
+export async function duplicateProperty(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { operation_type } = req.body;
+    if (!operation_type || !DUPLICATE_OPERATION_LABELS[operation_type]) {
+      return res.status(400).json({ message: 'Elegí a qué operación pasa la copia (Venta, Alquiler o Alquiler temporario).' });
+    }
+
+    const original = await Property.findOne({ id: parseInt(id, 10) }).lean();
+    if (!original) return res.status(404).json({ message: 'Propiedad no encontrada' });
+
+    const newId = await nextManualPropertyId();
+    const photos = duplicatePhotos(original.id, newId, original.photos);
+    const isTemporaryRental = /temp/i.test(operation_type);
+
+    const { _id, __v, id: _oldId, createdAt, updatedAt, ...rest } = original;
+
+    const duplicated = await Property.create({
+      ...rest,
+      id: newId,
+      is_manual: true,
+      status: 'disponible',
+      photos,
+      operations: [{ operation_type, prices: [] }],
+      has_temporary_rent: isTemporaryRental,
+      temporaryRental: undefined,
+      public_url: '',
+      reference_code: '',
+      difusion: {
+        mercadolibre: { published: false, url: '', listings: [] },
+        zonaprop: { published: false, url: '' },
+      },
+      lastEditedBy: req.user.id,
+      lastEditedAt: new Date(),
+      photosEditedAt: photos.length ? new Date() : undefined,
+    });
+
+    const operationLabel = DUPLICATE_OPERATION_LABELS[operation_type];
+    await Activity.create({
+      type: 'property_duplicated',
+      description: `${req.user.name} duplicó "${original.publication_title || original.address}" como ${operationLabel} (nueva propiedad #${newId})`,
+      userId: req.user.id, userName: req.user.name, userEmail: req.user.email,
+      entityId: String(newId), entityType: 'property',
+      meta: { propertyId: newId, sourcePropertyId: original.id, operationType: operation_type, ...propertyActivitySnapshot(duplicated) },
+    });
+
+    res.status(201).json(duplicated);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function createProperty(req, res, next) {
   try {
     const { address, publication_title, type_name, operation_type, currency, price, location_name, room_amount, bathroom_amount, total_surface } = req.body;
@@ -255,6 +349,10 @@ export async function updateProperty(req, res, next) {
 
     delete updates.id;
     delete updates._id;
+
+    if (typeof updates.description === 'string') {
+      updates.description = sanitizeDescription(updates.description);
+    }
 
     updates.lastEditedBy = req.user.id;
     updates.lastEditedAt = new Date();

@@ -6,7 +6,7 @@ const activitySchema = new Schema(
       type: String,
       enum: [
         'property_created', 'property_updated', 'property_synced',
-        'property_status_changed', 'lead_created', 'lead_updated',
+        'property_status_changed', 'property_duplicated', 'lead_created', 'lead_updated',
         'lead_status_changed', 'lead_assigned', 'user_login', 'sync_completed', 'rentals_imported',
         'ml_sync', 'ml_sync_completed', 'ml_token_error',
       ],
