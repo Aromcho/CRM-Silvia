@@ -374,12 +374,7 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
   // en Property.model.js (temporaryRental.mascotas es de otro circuito). Si el POST/validate lo pide,
   // hay que agregar el campo al modelo o decidir un valor por defecto (no asumirlo a ciegas).
 
-  const base = (process.env.BACKEND_PUBLIC_URL || '').replace(/\/$/, '');
-  const pictures = (property.photos || [])
-    .filter((p) => p.local_image)
-    .sort((a, b) => (a.order || 0) - (b.order || 0))
-    .slice(0, maxPictures)
-    .map((p) => ({ source: p.local_image.startsWith('http') ? p.local_image : `${base}${p.local_image}` }));
+  const pictures = buildPictures(property, maxPictures);
 
   const location = await resolveMlLocation(property);
   if (!location) {
@@ -423,7 +418,8 @@ async function publishListing(propertyDoc, operationType, operation) {
     item_id: data.id,
     category_id: item.category_id,
     url: data.permalink,
-    status: 'active',
+    status: data.status || 'active',
+    sub_status: (data.sub_status && data.sub_status[0]) || null,
     listing_type_id: item.listing_type_id,
   };
 }
@@ -437,6 +433,27 @@ async function updateListingPrice(itemId, operation) {
 
 async function setListingStatus(itemId, status) {
   await mlRequest('put', `/items/${itemId}`, { data: { status } });
+}
+
+async function updateListingPictures(itemId, pictures) {
+  await mlRequest('put', `/items/${itemId}`, { data: { pictures } });
+}
+
+// Verdad de estado: lo único confiable es lo que devuelve ML en este momento. ML puede pausar/poner
+// en revisión un item por su cuenta (ej. moderación de fotos) sin que ninguna llamada nuestra haya
+// fallado, así que nunca hay que asumir 'active' localmente — siempre hay que leerlo de acá.
+async function fetchListingStatus(itemId) {
+  const { data } = await mlRequest('get', `/items/${itemId}?attributes=id,status,sub_status`);
+  return { status: data.status, sub_status: (data.sub_status && data.sub_status[0]) || null };
+}
+
+function buildPictures(property, maxPictures) {
+  const base = (process.env.BACKEND_PUBLIC_URL || '').replace(/\/$/, '');
+  return (property.photos || [])
+    .filter((p) => p.local_image)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .slice(0, maxPictures)
+    .map((p) => ({ source: p.local_image.startsWith('http') ? p.local_image : `${base}${p.local_image}` }));
 }
 
 // Sube/baja el nivel de destaque de un aviso ya publicado (Plata/Oro/Oro Premium). Tiene costo real
@@ -552,8 +569,26 @@ export async function syncProperty(propertyDoc) {
     try {
       if (existing?.item_id) {
         await updateListingPrice(existing.item_id, operation);
-        if (existing.status !== 'active') await setListingStatus(existing.item_id, 'active');
-        existing.status = 'active';
+        // Reintentar reactivar solo si el último estado que conocíamos no era 'active' — si ML lo
+        // pausó por moderación (ej. fotos), esta llamada puede fallar o no alcanzar por sí sola:
+        // no cortamos el sync por eso, el GET de abajo va a reflejar el estado real de todos modos.
+        if (existing.status !== 'active') {
+          try { await setListingStatus(existing.item_id, 'active'); } catch (statusErr) { /* ver comentario arriba */ }
+        }
+        // Manda las fotos vigentes en cada sync: antes esto nunca se hacía en un update, así que
+        // corregir/reemplazar fotos en el CRM después de publicar no llegaba a ML (causa real del
+        // caso "CRM dice activo, ML dice inactivo por fotos" — ver Activity 2026-09-01).
+        try {
+          const maxPictures = await getCategoryMaxPictures(existing.category_id);
+          await updateListingPictures(existing.item_id, buildPictures(propertyDoc, maxPictures));
+        } catch (picErr) {
+          console.error(`No se pudieron actualizar las fotos del item ${existing.item_id}`, picErr.response?.data || picErr.message);
+        }
+        // Nunca asumimos el estado: se lee de vuelta de ML después de nuestros cambios, así el CRM
+        // no puede quedar diciendo "activo" mientras ML lo tiene pausado/en revisión.
+        const real = await fetchListingStatus(existing.item_id);
+        existing.status = real.status;
+        existing.sub_status = real.sub_status;
         existing.last_error = null;
         existing.updated_at = new Date();
       } else {
