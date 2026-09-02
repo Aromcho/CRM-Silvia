@@ -128,9 +128,12 @@ export async function syncAllZonaprop(req, res) {
 }
 
 // Backfill/reconciliación de avisos que ya existían antes de esta integración (ver PLAN_ZONAPROP.md
-// §9.1) — idempotente, se puede correr las veces que haga falta. Se responde sincrónico (no como
-// sync-all) porque es rápido (~200 avisos, solo lecturas + un update por match nuevo).
+// §9.1) — idempotente, se puede correr las veces que haga falta. Fire-and-forget (mismo patrón que
+// sync-all): son ~190 consultas secuenciales a Mongo + llamadas a ZonaProp, y en producción (más
+// latencia real a Mongo/Navent que en local) puede superar el proxy_read_timeout de Nginx (60s) y
+// tirar un 502 aunque el proceso siga bien — confirmado 2026-09-02 contra el VPS real.
 export async function reconcileZonaprop(req, res) {
+  res.json({ started: true });
   try {
     const summary = await zp.reconcileExistingListings();
     await Activity.create({
@@ -140,9 +143,14 @@ export async function reconcileZonaprop(req, res) {
       userName: req.user?.name,
       meta: summary,
     });
-    res.json(summary);
   } catch (err) {
-    res.status(502).json({ message: 'Error reconciliando con ZonaProp', detail: err.message });
+    console.error('Error en la reconciliación de ZonaProp', err.message);
+    await Activity.create({
+      type: 'zp_reconciled',
+      description: `Reconciliación de ZonaProp falló: ${err.message}`,
+      userId: req.user?.id,
+      userName: req.user?.name,
+    }).catch(() => {});
   }
 }
 

@@ -372,13 +372,12 @@ function ZonaPropDifusionCard() {
   async function handleReconcile() {
     setReconciling(true);
     try {
-      const result = await reconcileZonaProp();
-      alert(`Reconciliación completa: ${result.linked} avisos vinculados nuevos, ${result.alreadyLinked} ya estaban vinculados, ${result.unmatched.length} sin match (de ${result.total} avisos online en ZonaProp).`);
-      load();
+      await reconcileZonaProp();
+      alert('Reconciliación con ZonaProp iniciada. Corre en segundo plano — revisá el feed de actividad para ver el resumen cuando termine.');
     } catch (err) {
-      alert(err.message || 'No se pudo reconciliar con ZonaProp.');
+      alert(err.message || 'No se pudo iniciar la reconciliación con ZonaProp.');
     } finally {
-      setReconciling(false);
+      setTimeout(() => { setReconciling(false); load(); }, 3000);
     }
   }
 
