@@ -4,6 +4,7 @@ import Icons from '../Icons/Icons';
 import {
   getMercadoLibreSummary, syncAllMercadoLibre, getMercadoLibreSummaryProperties,
   getZonaPropSummary, syncAllZonaProp, getZonaPropSummaryProperties, reconcileZonaProp,
+  configureZonaPropCallbacks,
 } from '@/services/api';
 import { photoSrc } from '@/lib/data';
 import './Difusion.css';
@@ -341,6 +342,7 @@ function ZonaPropDifusionCard() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [reconciling, setReconciling] = useState(false);
+  const [configuringCallbacks, setConfiguringCallbacks] = useState(false);
   const [activeFilter, setActiveFilter] = useState(null);
 
   const load = useCallback(() => {
@@ -380,6 +382,19 @@ function ZonaPropDifusionCard() {
     }
   }
 
+  async function handleConfigureCallbacks() {
+    if (!confirm('Esto configura en ZonaProp la URL pública de este servidor para recibir leads y novedades de estado en tiempo real. Solo hace falta correrlo una vez por ambiente (sandbox/producción). ¿Continuar?')) return;
+    setConfiguringCallbacks(true);
+    try {
+      const result = await configureZonaPropCallbacks();
+      alert(`Callbacks configurados: ${result.url}\nSuscripto a: ${(result.subscribed || []).join(', ')}`);
+    } catch (err) {
+      alert(err.message || 'No se pudieron configurar los callbacks de ZonaProp.');
+    } finally {
+      setConfiguringCallbacks(false);
+    }
+  }
+
   return e('div', { className: 'difusion-portal-card', style: { '--difusion-accent': '#8bc53f' } },
     e('div', { className: 'difusion-portal-head' },
       e('div', { className: 'difusion-portal-title' },
@@ -387,6 +402,10 @@ function ZonaPropDifusionCard() {
         e('div', { className: 'difusion-portal-sub' }, 'Argentina'),
       ),
       e('div', { className: 'difusion-portal-actions' },
+        e('button', {
+          type: 'button', className: 'btn ghost sm', onClick: handleConfigureCallbacks, disabled: configuringCallbacks,
+          title: 'Registra en ZonaProp la URL pública de este servidor para recibir leads y novedades — correr una sola vez por ambiente',
+        }, configuringCallbacks ? 'Configurando…' : 'Configurar callbacks'),
         e('button', {
           type: 'button', className: 'btn ghost sm', onClick: handleReconcile, disabled: reconciling,
           title: 'Vincula avisos que ya existen en ZonaProp (ej. sindicados por Tokko) con las propiedades del CRM, sin duplicarlos',

@@ -179,4 +179,6 @@ Todo el flujo de punta a punta quedó escrito y **probado contra el sandbox real
 
 ## Cómo retomar
 
-Lo único que falta para que esto esté 100% operativo en sandbox es un chequeo visual en el navegador (login real) y, cuando el usuario lo pida explícitamente: correr `configureCallbacks()` una vez deployado a una URL pública, y mandar el mail pidiendo credenciales de producción (§8).
+Lo único que falta para que esto esté 100% operativo en sandbox es un chequeo visual en el navegador (login real) y, cuando el usuario lo pida explícitamente: correr "Configurar callbacks" (botón agregado en la card de ZonaProp en Difusión, dispara `configureCallbacks()`) una vez deployado a una URL pública, y mandar el mail pidiendo credenciales de producción (§8, texto ya redactado, sin enviar — se lo pasé al usuario 2026-09-02).
+
+**Deploy 2026-09-02:** todo el trabajo de esta sesión quedó pusheado a `origin/main` (commits `db598e0` + merge `2e4f241` con un fix de MercadoLibre que alguien había commiteado directo en el VPS — sin conflicto). El usuario agregó las variables `ZP_*` al `.env` de producción (con `ZP_API_BASE` todavía apuntando a sandbox a propósito). Falta que el usuario haga `git pull` + reinicio del backend en el VPS, y después apretar "Configurar callbacks" desde la UI.

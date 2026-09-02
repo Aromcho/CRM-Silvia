@@ -71,6 +71,7 @@ export const getZonaPropSummaryProperties = (filter) => request(`/zonaprop/summa
 export const syncPropertyZonaProp = (id) => request(`/zonaprop/sync/${id}`, { method: 'POST' });
 export const syncAllZonaProp = () => request('/zonaprop/sync-all', { method: 'POST' });
 export const reconcileZonaProp = () => request('/zonaprop/reconcile', { method: 'POST' });
+export const configureZonaPropCallbacks = () => request('/zonaprop/callbacks/configure', { method: 'POST' });
 
 // Leads
 export const getLeads = (params) => request(`/leads?${new URLSearchParams(params).toString()}`);
