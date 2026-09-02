@@ -270,7 +270,11 @@ const propertySchema = new Schema({
         item_id: String,
         category_id: String,
         url: String,
-        status: { type: String, enum: ['active', 'paused', 'closed'], default: 'active' },
+        // Sin enum a propósito: ML usa más valores de los que documentamos (under_review, inactive,
+        // payment_required, not_yet_active) y este campo ahora se llena siempre con lo que devuelve
+        // la API real (ver syncProperty), no con un valor asumido — un enum angosto rechazaría updates válidos.
+        status: { type: String, default: 'active' },
+        sub_status: String, // motivo del estado cuando ML lo informa (ej. moderación de fotos)
         last_error: String,
         updated_at: Date,
         listing_type_id: String, // 'silver' | 'gold' | 'gold_premium' (Plata/Oro-Destacado/Oro Premium-Superdestacado)
