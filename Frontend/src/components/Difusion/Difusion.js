@@ -1,7 +1,10 @@
 'use client';
 import React from 'react';
 import Icons from '../Icons/Icons';
-import { getMercadoLibreSummary, syncAllMercadoLibre, getMercadoLibreSummaryProperties } from '@/services/api';
+import {
+  getMercadoLibreSummary, syncAllMercadoLibre, getMercadoLibreSummaryProperties,
+  getZonaPropSummary, syncAllZonaProp, getZonaPropSummaryProperties, reconcileZonaProp,
+} from '@/services/api';
 import { photoSrc } from '@/lib/data';
 import './Difusion.css';
 
@@ -203,6 +206,217 @@ function MercadoLibreDifusionCard() {
   );
 }
 
+const ZP_PLAN_LABELS = { SIMPLE: 'Simple', DESTACADO: 'Destacado', HOME: 'Home' };
+const ZP_FILTER_TITLES = {
+  simples: 'Publicaciones simples',
+  destacadas: 'Publicaciones destacadas',
+  home: 'Publicaciones Home',
+  errores: 'Errores (no publicadas)',
+};
+
+function formatZpFecha(ms) {
+  if (!ms) return '';
+  try { return new Date(Number(ms)).toLocaleDateString('es-AR'); } catch { return ''; }
+}
+
+// Créditos disponibles/por vencer por plan — viene de /v1/inmobiliarias/{cod}/disponibilidad
+// (ver zonaprop.controller.js getZonaPropSummary). No tiene equivalente en la card de ML: ZonaProp
+// vende cupos por plan (Simple/Destacado/Home), no es "publicá lo que quieras".
+function ZonaPropCreditsPanel({ creditos }) {
+  if (!creditos) {
+    return e('div', { className: 'difusion-portal-warning' },
+      e(Icons.AlertTriangle, { width: 14, height: 14 }),
+      'No se pudieron consultar los créditos de ZonaProp ahora (puede estar fuera del horario de sandbox, Lu-Vi 07:00-20:55 ART).',
+    );
+  }
+  const disponibles = creditos.disponibles || [];
+  const vencimientos = creditos.vencimientos || [];
+  const porPlan = ['SIMPLE', 'DESTACADO', 'HOME'].map((plan) => ({
+    plan,
+    disponible: disponibles.find((d) => d.planDePublicacion === plan)?.cantidadDisponible ?? 0,
+    vence: vencimientos.filter((v) => v.planDePublicacion === plan),
+  }));
+  return e('div', { className: 'difusion-credits' },
+    e('div', { className: 'difusion-credits-title' }, 'Créditos de ZonaProp'),
+    e('div', { className: 'difusion-credits-row' },
+      porPlan.map((p) => e('div', { key: p.plan, className: 'difusion-credit-card' },
+        e('div', { className: 'difusion-credit-plan' }, ZP_PLAN_LABELS[p.plan] || p.plan),
+        e('div', { className: 'difusion-credit-value' }, p.disponible.toLocaleString('es-AR')),
+        e('div', { className: 'difusion-credit-label' }, 'disponibles'),
+        p.vence.length > 0 && e('div', { className: 'difusion-credit-vence' },
+          p.vence.map((v, i) => e('div', { key: i }, `${v.cantidad} vencen el ${formatZpFecha(v.fecha)}`)),
+        ),
+      )),
+    ),
+  );
+}
+
+function ZonaPropPropertyRow({ item }) {
+  const [showWarnings, setShowWarnings] = useState(false);
+  const src = photoSrc(item.photo);
+  const warnings = item.warnings || [];
+  return e(React.Fragment, null,
+    e('tr', { className: 'difusion-list-tr' },
+      e('td', { className: 'difusion-list-td-img' },
+        src
+          ? e('img', { src, alt: '', className: 'difusion-list-thumb' })
+          : e('div', { className: 'difusion-list-thumb difusion-list-thumb-empty' }),
+      ),
+      e('td', null, item.type_name || '—'),
+      e('td', null, item.reference_code || '—'),
+      e('td', null, item.location_name || '—'),
+      e('td', { className: 'difusion-list-td-address' },
+        item.address || item.publication_title || `Propiedad #${item.propertyId}`,
+        e('div', { className: 'difusion-list-row-badges' },
+          item.tipoDePublicacion && e('span', { className: 'difusion-badge' }, item.tipoDePublicacion),
+        ),
+      ),
+      e('td', { className: 'difusion-list-td-quality' },
+        item.last_error
+          ? e('span', { className: 'difusion-list-error' }, item.last_error)
+          : e(React.Fragment, null,
+              e('span', { className: 'difusion-list-quality-pct tone-good' }, item.estado || 'OK'),
+              warnings.length > 0 && e('button', {
+                type: 'button', className: 'btn ghost xs', onClick: () => setShowWarnings((v) => !v),
+              }, `${showWarnings ? 'Ocultar' : 'Ver'} avisos (${warnings.length})`),
+            ),
+      ),
+    ),
+    showWarnings && warnings.length > 0 && e('tr', { className: 'difusion-list-tr-recs' },
+      e('td', { colSpan: 6 },
+        e('div', { className: 'difusion-list-goals' },
+          warnings.map((w, i) => e('div', { key: i, className: 'difusion-list-goal-card' },
+            e('div', { className: 'difusion-list-goal-text' },
+              e('div', { className: 'difusion-list-goal-title' }, w.code),
+              e('div', { className: 'difusion-list-goal-desc' }, w.message),
+            ),
+          )),
+        ),
+      ),
+    ),
+  );
+}
+
+function ZonaPropPropertiesPanel({ filter }) {
+  const [items, setItems] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    setItems(null);
+    getZonaPropSummaryProperties(filter)
+      .then(setItems)
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
+  }, [filter]);
+
+  return e('div', { className: 'difusion-list-panel' },
+    e('div', { className: 'difusion-list-panel-title' }, ZP_FILTER_TITLES[filter] || filter),
+    loading
+      ? e('div', { className: 'difusion-portal-loading' }, 'Cargando…')
+      : !items?.length
+        ? e('div', { className: 'difusion-portal-loading' }, 'No hay propiedades en esta categoría.')
+        : e('div', { className: 'difusion-list-table-wrap' },
+            e('table', { className: 'difusion-list-table' },
+              e('thead', null,
+                e('tr', null,
+                  e('th', null, 'Imagen'),
+                  e('th', null, 'Tipo'),
+                  e('th', null, 'Cód. ref.'),
+                  e('th', null, 'Ubicación'),
+                  e('th', null, 'Dirección'),
+                  e('th', null, 'Estado'),
+                ),
+              ),
+              e('tbody', null,
+                items.map((item, i) => e(ZonaPropPropertyRow, { key: `${item.propertyId}-${i}`, item })),
+              ),
+            ),
+          ),
+  );
+}
+
+function ZonaPropDifusionCard() {
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [reconciling, setReconciling] = useState(false);
+  const [activeFilter, setActiveFilter] = useState(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    getZonaPropSummary().then(setSummary).catch(() => setSummary(null)).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleTileClick(filter) {
+    setActiveFilter((prev) => (prev === filter ? null : filter));
+  }
+
+  async function handleSync() {
+    if (!confirm('Esto va a publicar/actualizar TODAS las propiedades disponibles en ZonaProp. ¿Continuar?')) return;
+    setSyncing(true);
+    try {
+      await syncAllZonaProp();
+      alert('Sync con ZonaProp iniciado. Corre en segundo plano — revisá el feed de actividad para ver el resumen cuando termine.');
+    } catch (err) {
+      alert(err.message || 'No se pudo iniciar el sync con ZonaProp.');
+    } finally {
+      setTimeout(() => setSyncing(false), 3000);
+    }
+  }
+
+  async function handleReconcile() {
+    setReconciling(true);
+    try {
+      const result = await reconcileZonaProp();
+      alert(`Reconciliación completa: ${result.linked} avisos vinculados nuevos, ${result.alreadyLinked} ya estaban vinculados, ${result.unmatched.length} sin match (de ${result.total} avisos online en ZonaProp).`);
+      load();
+    } catch (err) {
+      alert(err.message || 'No se pudo reconciliar con ZonaProp.');
+    } finally {
+      setReconciling(false);
+    }
+  }
+
+  return e('div', { className: 'difusion-portal-card', style: { '--difusion-accent': '#8bc53f' } },
+    e('div', { className: 'difusion-portal-head' },
+      e('div', { className: 'difusion-portal-title' },
+        e('div', { className: 'difusion-portal-name' }, 'ZonaProp'),
+        e('div', { className: 'difusion-portal-sub' }, 'Argentina'),
+      ),
+      e('div', { className: 'difusion-portal-actions' },
+        e('button', {
+          type: 'button', className: 'btn ghost sm', onClick: handleReconcile, disabled: reconciling,
+          title: 'Vincula avisos que ya existen en ZonaProp (ej. sindicados por Tokko) con las propiedades del CRM, sin duplicarlos',
+        }, reconciling ? 'Reconciliando…' : 'Reconciliar existentes'),
+        e('button', {
+          type: 'button', className: 'btn ghost sm', onClick: handleSync, disabled: syncing,
+        }, e(Icons.RefreshCw, { width: 13, height: 13 }), syncing ? 'Sincronizando…' : 'Sincronizar ZonaProp'),
+      ),
+    ),
+    loading
+      ? e('div', { className: 'difusion-portal-loading' }, 'Cargando…')
+      : !summary
+        ? e('div', { className: 'difusion-portal-loading' }, 'No se pudo cargar el resumen.')
+        : e('div', null,
+            e('div', { className: 'difusion-stats-row' },
+              e(StatTile, { label: 'Publicaciones simples', value: summary.publicaciones_simples, filter: 'simples', active: activeFilter === 'simples', onClick: handleTileClick }),
+              e(StatTile, { label: 'Publicaciones destacadas', value: summary.publicaciones_destacadas, filter: 'destacadas', active: activeFilter === 'destacadas', onClick: handleTileClick }),
+              e(StatTile, { label: 'Publicaciones Home', value: summary.publicaciones_home, filter: 'home', active: activeFilter === 'home', onClick: handleTileClick }),
+              e(StatTile, { label: 'Errores (no publicadas)', value: summary.errores, filter: 'errores', active: activeFilter === 'errores', onClick: handleTileClick }),
+            ),
+            e('div', { className: 'difusion-stats-row difusion-stats-row-secondary' },
+              e(StatTile, { label: 'Propiedades publicadas', value: summary.propiedades_publicadas }),
+              e(StatTile, { label: 'Propiedades sin publicar', value: summary.propiedades_sin_publicar }),
+            ),
+            e(ZonaPropCreditsPanel, { creditos: summary.creditos }),
+            activeFilter && e(ZonaPropPropertiesPanel, { filter: activeFilter }),
+          ),
+  );
+}
+
 export default function Difusion() {
   return e('div', { className: 'difusion-page' },
     e('div', { className: 'difusion-page-head' },
@@ -211,6 +425,7 @@ export default function Difusion() {
     ),
     e('div', { className: 'difusion-portals' },
       e(MercadoLibreDifusionCard),
+      e(ZonaPropDifusionCard),
     ),
   );
 }

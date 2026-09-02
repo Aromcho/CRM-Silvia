@@ -24,6 +24,7 @@ const PUBLIC_FIELDS = [
   'tv_rooms', 'type', 'uncovered_parking_lot', 'unroofed_surface', 'videos', 'web_price',
   'zonification', 'createdAt', 'updatedAt', 'distanciaMar', 'aptoMascotas', 'aptoCredito', 'aptoFinanciacion',
   'temporaryRental.bookings.startDate', 'temporaryRental.bookings.endDate', 'temporaryRental.bookings.status',
+  'difusion.mercadolibre.published', 'difusion.mercadolibre.url',
 ].join(' ');
 
 // El status interno del CRM tiene 2 valores que la web no conoce: en_tasacion (nunca se
@@ -57,6 +58,12 @@ function toPublicJson(doc) {
     obj.occupation = [...(obj.occupation || []), ...bookingRanges];
   }
   delete obj.temporaryRental;
+
+  // Solo se expone la URL final de la publicación (no item_id/health/etc, que son
+  // internos de gestión del CRM y no le sirven a la web).
+  const ml = obj.difusion?.mercadolibre;
+  obj.mercadolibre_url = (ml?.published && ml.url) ? ml.url : '';
+  delete obj.difusion;
 
   return obj;
 }

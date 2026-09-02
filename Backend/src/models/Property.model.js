@@ -280,9 +280,21 @@ const propertySchema = new Schema({
       }],
     },
     zonaprop: {
+      // codigoAviso propio en Navent — para los avisos que ya existían antes de esta integración
+      // (sindicados vía Tokko) es el código que YA traían (ej. "PRO8565024"), poblado una sola vez
+      // por la reconciliación (ver zonaprop.service.js reconcileExistingListings). Para avisos
+      // nuevos se usa String(Property.id). Nunca se pisa una vez seteado.
+      codigoAviso: { type: String, index: true },
+      idAvisoNavplat: Number,
       published: { type: Boolean, default: false },
       url: { type: String, default: '' },
+      estado: String, // PROCESADO | PENDIENTE | ERROR (tal cual lo devuelve /status)
+      tipoDePublicacion: String, // SIMPLE | DESTACADO | HOME (+ variantes _COMBO_ZONA_DEMAND)
+      calidad_percentage: Number, // 0-100, de AVISO_CALIDAD / GET .../calidad
+      errors: [{ code: String, message: String }],
+      warnings: [{ code: String, message: String }],
       updated_at: Date,
+      last_error: String,
     },
   },
 }, { timestamps: true });

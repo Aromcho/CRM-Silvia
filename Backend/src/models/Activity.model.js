@@ -9,6 +9,7 @@ const activitySchema = new Schema(
         'property_status_changed', 'property_duplicated', 'lead_created', 'lead_updated',
         'lead_status_changed', 'lead_assigned', 'user_login', 'sync_completed', 'rentals_imported',
         'ml_sync', 'ml_sync_completed', 'ml_token_error',
+        'zp_sync', 'zp_sync_completed', 'zp_reconciled',
       ],
       required: true,
       index: true,

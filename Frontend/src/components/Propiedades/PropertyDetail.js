@@ -10,6 +10,7 @@ import DuplicatePropertyModal from './DuplicatePropertyModal';
 import {
   updateProperty, updatePropertyStatus, syncPropertyMercadoLibre,
   getMercadoLibreListingTypes, upgradeMercadoLibreListingType,
+  syncPropertyZonaProp,
 } from '@/services/api';
 import { photoSrc, formatPrice, STATUS_LABELS, propertyWebUrl } from '@/lib/data';
 import './Propiedades.css';
@@ -466,6 +467,68 @@ function MercadoLibreCard({ property, onSynced }) {
   );
 }
 
+const ZP_PLAN_LABELS_DETAIL = { SIMPLE: 'Simple', DESTACADO: 'Destacado', HOME: 'Home' };
+
+function ZonaPropCard({ property, onSynced }) {
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState('');
+  const [showWarnings, setShowWarnings] = useState(false);
+  const data = property.difusion?.zonaprop || {};
+  const warnings = data.warnings || [];
+
+  async function handleSync() {
+    setSyncing(true);
+    setError('');
+    try {
+      const result = await syncPropertyZonaProp(property.id);
+      onSynced(result.zonaprop || {});
+    } catch (err) {
+      setError(err.message || 'No se pudo sincronizar con ZonaProp.');
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  const thumb = photoSrc(property.photos?.[0]);
+
+  return e('div', { className: 'difusion-card', style: { '--difusion-accent': '#8bc53f' } },
+    e('div', { className: 'difusion-card-head' },
+      e('div', { className: 'difusion-card-title-group' },
+        thumb && e('img', { src: thumb, alt: '', className: 'difusion-card-thumb' }),
+        e('div', { className: 'difusion-card-title' }, 'ZonaProp'),
+      ),
+      e('button', {
+        type: 'button', className: 'btn ghost xs', onClick: handleSync, disabled: syncing,
+      }, e(Icons.RefreshCw, { width: 12, height: 12 }), syncing ? 'Sincronizando…' : 'Sincronizar ahora'),
+    ),
+    !data.codigoAviso
+      ? e('div', { className: 'difusion-card-status' }, e('span', { className: 'difusion-status-dot' }), 'Todavía no se publicó')
+      : e('div', { className: 'ml-listing-row' },
+          e('div', { className: 'ml-listing-row-head' },
+            e('div', { className: `difusion-card-status${data.published ? ' on' : ''}` },
+              e('span', { className: 'difusion-status-dot' }),
+              `${data.published ? 'Publicado' : 'Sin publicar'}${data.tipoDePublicacion ? ` — ${ZP_PLAN_LABELS_DETAIL[data.tipoDePublicacion] || data.tipoDePublicacion}` : ''}`,
+            ),
+          ),
+          warnings.length > 0 && e('button', {
+            type: 'button', className: 'btn ghost xs ml-recs-toggle', onClick: () => setShowWarnings((v) => !v),
+          }, e(Icons.AlertTriangle, { width: 12, height: 12 }), `${showWarnings ? 'Ocultar' : 'Ver'} avisos (${warnings.length})`),
+          showWarnings && e('div', { className: 'ml-goals' },
+            warnings.map((w, i) => e('div', { key: i, className: 'ml-goal-card' },
+              e('div', { className: 'ml-goal-text' },
+                e('div', { className: 'ml-goal-title' }, w.code),
+                w.message && e('div', { className: 'ml-goal-desc' }, w.message),
+              ),
+            )),
+          ),
+          data.last_error && e('div', { className: 'ml-listing-error' }, data.last_error),
+          data.updated_at && e('div', { className: 'difusion-card-updated' },
+            `Actualizado ${new Date(data.updated_at).toLocaleDateString('es-AR')}`),
+        ),
+    error && e('div', { className: 'ml-listing-error' }, error),
+  );
+}
+
 export default function PropertyDetail({ property: initialProperty, onBack, onClose, canClose }) {
   const [property, setProperty] = useState(initialProperty);
   const [activeTab, setActiveTab] = useState('detalles');
@@ -509,6 +572,16 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
       difusion: {
         ...prev.difusion,
         mercadolibre: { ...prev.difusion?.mercadolibre, listings },
+      },
+    }));
+  }
+
+  function onZonapropSynced(zonaprop) {
+    setProperty((prev) => ({
+      ...prev,
+      difusion: {
+        ...prev.difusion,
+        zonaprop: { ...prev.difusion?.zonaprop, ...zonaprop },
       },
     }));
   }
@@ -635,6 +708,7 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
               e('p', { className: 'detail-section-sub' }, 'Marcá manualmente si la propiedad está publicada en cada portal y guardá el link del aviso.'),
               e('div', { className: 'difusion-grid' },
                 e(MercadoLibreCard, { key: 'mercadolibre', property, onSynced: onMercadoLibreSynced }),
+                e(ZonaPropCard, { key: 'zonaprop', property, onSynced: onZonapropSynced }),
               ),
             ),
           )
