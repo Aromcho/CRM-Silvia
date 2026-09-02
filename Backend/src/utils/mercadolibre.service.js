@@ -163,7 +163,11 @@ async function drillToLeafCategory(categoryId, operationType) {
   const detail = await getCategoryDetail(categoryId);
   const children = detail.children_categories || [];
   if (children.length === 0) return categoryId;
-  const opName = operationType === 'venta' ? 'venta' : 'alquiler'; // match exacto: evita que "alquiler" matchee "Alquiler Temporario"
+  // Match exacto: evita que "alquiler" matchee "Alquiler Temporario" (son ramas hermanas distintas
+  // en el árbol de ML) y viceversa.
+  let opName = 'alquiler';
+  if (operationType === 'venta') opName = 'venta';
+  else if (operationType === 'alquiler_temporal') opName = 'alquiler temporario';
   const next =
     children.find((c) => c.name.toLowerCase() === opName) ||
     children.find((c) => c.name.toLowerCase().includes('individual')) || // Emprendimientos vs Propiedades Individuales: nuestras propiedades son individuales
@@ -243,16 +247,21 @@ function matchListValue(attr, textCandidates) {
   return null;
 }
 
-// Solo Venta y Alquiler "estándar" se publican como aviso normal en ML — Alquiler temporal
-// tiene su propio circuito en el CRM (sección Alquileres temporarios) y no corresponde acá.
+// Venta y Alquiler "estándar" se publican siempre como aviso normal en ML. Alquiler temporal tiene
+// su propio circuito en el CRM (sección Alquileres temporarios) con tarifario por quincena, y ML
+// exige un precio único por aviso — no hay forma automática de elegir "la" quincena representativa,
+// así que un temporal con tarifario (más de un precio cargado) sigue sin publicarse. Cuando el
+// temporal tiene un solo precio cargado (ej. cabañas cargadas a mano sin tarifario Tokko) sí se
+// puede publicar tal cual, con ese precio.
 function getPublishableOperations(property) {
   const byType = new Map();
   for (const op of property.operations || []) {
     if (!op.prices?.length) continue;
-    if (/temporal/i.test(op.operation_type)) continue;
     let type = null;
     if (/venta/i.test(op.operation_type)) type = 'venta';
-    else if (/alquiler/i.test(op.operation_type)) type = 'alquiler';
+    else if (/temporal/i.test(op.operation_type)) {
+      if (op.prices.length === 1) type = 'alquiler_temporal';
+    } else if (/alquiler/i.test(op.operation_type)) type = 'alquiler';
     if (!type || byType.has(type)) continue;
     byType.set(type, op);
   }
@@ -331,7 +340,10 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
   const attrPayload = [];
   const opAttr = findAttr(attributes, 'OPERATION');
   if (opAttr) {
-    const valueId = matchListValue(opAttr, operationType === 'venta' ? ['Venta'] : ['Alquiler', 'Alquiler temporal']);
+    let opCandidates = ['Alquiler', 'Alquiler temporal'];
+    if (operationType === 'venta') opCandidates = ['Venta'];
+    else if (operationType === 'alquiler_temporal') opCandidates = ['Alquiler temporal', 'Alquiler'];
+    const valueId = matchListValue(opAttr, opCandidates);
     if (valueId) attrPayload.push({ id: 'OPERATION', value_id: valueId });
   }
   const propertyTypeAttr = findAttr(attributes, 'PROPERTY_TYPE');
@@ -344,6 +356,12 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
   }
   if (findAttr(attributes, 'BEDROOMS') && property.suite_amount) {
     attrPayload.push({ id: 'BEDROOMS', value_name: String(property.suite_amount) });
+  }
+  // Obligatorio en la categoría "Alquiler Temporario" (confirmado por error real de ML: item.attributes
+  // .missing_required → GUESTS). Tokko no lo maneja para operaciones estándar, pero el modelo ya tiene
+  // guests_amount (lo llena a mano el circuito de Alquileres temporarios).
+  if (findAttr(attributes, 'GUESTS') && property.guests_amount) {
+    attrPayload.push({ id: 'GUESTS', value_name: String(property.guests_amount) });
   }
   if (findAttr(attributes, 'FULL_BATHROOMS') && property.bathroom_amount) {
     attrPayload.push({ id: 'FULL_BATHROOMS', value_name: String(property.bathroom_amount) });
