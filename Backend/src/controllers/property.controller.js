@@ -318,6 +318,7 @@ export async function createProperty(req, res, next) {
       id: await nextManualPropertyId(),
       is_manual: true,
       status: 'disponible',
+      created_at: new Date(),
       address,
       publication_title: publication_title || '',
       type: type_name ? { name: type_name } : undefined,
