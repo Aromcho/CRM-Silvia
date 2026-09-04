@@ -178,6 +178,8 @@ function NewPropertyModal({ onClose, onCreated }) {
   async function handleSubmit(ev) {
     ev.preventDefault();
     if (!form.address.trim()) { setError('La dirección es obligatoria.'); return; }
+    if (!form.type_name) { setError('El tipo de propiedad es obligatorio.'); return; }
+    if (!form.operation_type) { setError('La operación es obligatoria.'); return; }
     setSaving(true);
     setError('');
     try {
@@ -209,9 +211,9 @@ function NewPropertyModal({ onClose, onCreated }) {
             e('input', { type: 'text', value: form.publication_title, onChange: set('publication_title'), placeholder: 'Opcional' }),
           ),
           e('div', { className: 'field' },
-            e('label', null, 'Tipo'),
+            e('label', null, 'Tipo *'),
             e('select', { value: form.type_name, onChange: set('type_name') },
-              e('option', { value: '' }, 'Sin especificar'),
+              e('option', { value: '' }, 'Seleccionar...'),
               CREATE_PROPERTY_TYPES.map((t) => e('option', { key: t, value: t }, t)),
             ),
           ),
@@ -220,9 +222,9 @@ function NewPropertyModal({ onClose, onCreated }) {
             e('input', { type: 'text', value: form.location_name, onChange: set('location_name') }),
           ),
           e('div', { className: 'field' },
-            e('label', null, 'Operación'),
+            e('label', null, 'Operación *'),
             e('select', { value: form.operation_type, onChange: set('operation_type') },
-              e('option', { value: '' }, 'Sin especificar'),
+              e('option', { value: '' }, 'Seleccionar...'),
               CREATE_OPERATION_TYPES.map((t) => e('option', { key: t, value: t }, t)),
             ),
           ),

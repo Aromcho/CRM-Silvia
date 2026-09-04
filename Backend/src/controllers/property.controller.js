@@ -311,6 +311,8 @@ export async function createProperty(req, res, next) {
   try {
     const { address, publication_title, type_name, operation_type, currency, price, location_name, room_amount, bathroom_amount, total_surface } = req.body;
     if (!address) return res.status(400).json({ message: 'La dirección es obligatoria' });
+    if (!type_name) return res.status(400).json({ message: 'El tipo de propiedad es obligatorio' });
+    if (!operation_type) return res.status(400).json({ message: 'La operación es obligatoria' });
 
     const property = await Property.create({
       id: await nextManualPropertyId(),
