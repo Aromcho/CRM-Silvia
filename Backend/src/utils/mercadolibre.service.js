@@ -277,6 +277,18 @@ function extractMlError(err) {
   return mlError ? JSON.stringify(mlError) : err.message;
 }
 
+// Un item cerrado (vencido/finalizado por ML o a mano desde ML) o borrado ya no acepta más
+// PUT: cualquier intento de tocar precio/estado devuelve siempre el mismo error para siempre.
+// Hay que detectarlo y tratarlo como "no publicado" para que el próximo sync cree un item nuevo
+// en vez de reintentar contra uno muerto (causa real de los casos 6759127/6754975/8040480).
+function isDeadItemError(err) {
+  const data = err.response?.data;
+  if (!data) return false;
+  if (data.error === 'not_found' || err.response?.status === 404) return true;
+  const causes = data.cause || [];
+  return causes.some((c) => c.code === 'item.price.not_modifiable' || /status:closed/i.test(data.message || ''));
+}
+
 // Property.location.state viene de Tokko como URL de su propio catálogo (ej. "/api/v1/state/150/"),
 // no es un nombre usable por ML. La Classified Locations API de ML no tiene búsqueda por texto:
 // hay que bajar country -> states -> cities y matchear por nombre (confirmado pegándole a la API real,
@@ -354,7 +366,9 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
   if (findAttr(attributes, 'ROOMS') && property.room_amount) {
     attrPayload.push({ id: 'ROOMS', value_name: String(property.room_amount) });
   }
-  if (findAttr(attributes, 'BEDROOMS') && property.suite_amount) {
+  // Igual que PARKING_LOTS/FULL_BATHROOMS: 0 es válido (ej. monoambientes) y hay que mandarlo,
+  // si no ML lo rechaza con item.attributes.missing_required en vez de aceptar "sin dormitorios".
+  if (findAttr(attributes, 'BEDROOMS') && property.suite_amount != null) {
     attrPayload.push({ id: 'BEDROOMS', value_name: String(property.suite_amount) });
   }
   // Obligatorio en la categoría "Alquiler Temporario" (confirmado por error real de ML: item.attributes
@@ -363,7 +377,9 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
   if (findAttr(attributes, 'GUESTS') && property.guests_amount) {
     attrPayload.push({ id: 'GUESTS', value_name: String(property.guests_amount) });
   }
-  if (findAttr(attributes, 'FULL_BATHROOMS') && property.bathroom_amount) {
+  // Igual que PARKING_LOTS: 0 es un valor válido (ej. Terrenos) y hay que mandarlo igual, si no
+  // ML lo rechaza con item.attributes.missing_required en vez de aceptar la ausencia de baños.
+  if (findAttr(attributes, 'FULL_BATHROOMS') && property.bathroom_amount != null) {
     attrPayload.push({ id: 'FULL_BATHROOMS', value_name: String(property.bathroom_amount) });
   }
   // Obligatorio en Inmuebles (confirmado contra /categories/{id}/attributes de ML): cantidad de cocheras.
@@ -614,6 +630,21 @@ export async function syncProperty(propertyDoc) {
         listingsByType.set(type, { ...published, last_error: null, updated_at: new Date() });
       }
     } catch (err) {
+      if (existing?.item_id && isDeadItemError(err)) {
+        // El item viejo ya no sirve (cerrado/borrado en ML): republicar como uno nuevo en la misma
+        // corrida, no dejar el item_id muerto para que el próximo sync repita el mismo error para siempre.
+        try {
+          const published = await publishListing(propertyDoc, type, operation);
+          listingsByType.set(type, { ...published, last_error: null, updated_at: new Date() });
+          continue;
+        } catch (republishErr) {
+          const listing = { operation_type: type, status: 'active' };
+          listing.last_error = extractMlError(republishErr);
+          listing.updated_at = new Date();
+          listingsByType.set(type, listing);
+          continue;
+        }
+      }
       const listing = listingsByType.get(type) || { operation_type: type, status: 'active' };
       listing.last_error = extractMlError(err);
       listing.updated_at = new Date();
@@ -648,7 +679,10 @@ export async function syncProperty(propertyDoc) {
 
   const finalListings = [...listingsByType.values()];
   await saveListingsState(propertyDoc.id, finalListings);
-  const withError = finalListings.find((l) => l.last_error);
+  // Solo falla el sync por errores de esta corrida (targetTypes): un listing que no se tocó
+  // porque la operación ya no aplica (ej. propiedad vendida) puede arrastrar un last_error viejo
+  // de mucho antes, y no hay que reportarlo como si el sync de ahora hubiera fallado.
+  const withError = finalListings.find((l) => l.last_error && targetTypes.has(l.operation_type));
   if (withError) throw new Error(withError.last_error);
   return { listings: finalListings };
 }
