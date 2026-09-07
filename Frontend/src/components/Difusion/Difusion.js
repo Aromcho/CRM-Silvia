@@ -270,6 +270,9 @@ function ZonaPropPropertyRow({ item }) {
         item.address || item.publication_title || `Propiedad #${item.propertyId}`,
         e('div', { className: 'difusion-list-row-badges' },
           item.tipoDePublicacion && e('span', { className: 'difusion-badge' }, item.tipoDePublicacion),
+          item.url && e('a', {
+            href: item.url, target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost xs', title: 'Ver aviso',
+          }, e(Icons.ExternalLink, { width: 12, height: 12 })),
         ),
       ),
       e('td', { className: 'difusion-list-td-quality' },

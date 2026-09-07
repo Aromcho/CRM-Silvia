@@ -16,6 +16,15 @@ export function codigoInmobiliaria() {
   return process.env.ZP_CODIGO_INMOBILIARIA;
 }
 
+// La API de Navent nunca devuelve la URL pública del aviso (relevado a fondo: ni en el aviso
+// completo, ni en /status, ni en /avisos/online/resumen — solo URLs de imágenes). Confirmado en
+// vivo 2026-09-07 contra la web real de ZonaProp: la URL con slug genérico + idAvisoNavplat
+// resuelve igual a la página real (ZonaProp no valida el slug, solo el ID numérico al final).
+export function buildAvisoUrl(idAvisoNavplat) {
+  if (!idAvisoNavplat) return '';
+  return `https://www.zonaprop.com.ar/propiedades/clasificado/propiedad-${idAvisoNavplat}.html`;
+}
+
 async function login() {
   const { data } = await axios.post(`${zpApiBase()}/v1/application/login`, null, {
     params: {
@@ -320,6 +329,7 @@ export async function reconcileExistingListings() {
         $set: {
           'difusion.zonaprop.codigoAviso': aviso.codigoAviso,
           'difusion.zonaprop.idAvisoNavplat': aviso.idAvisoNavplat,
+          'difusion.zonaprop.url': buildAvisoUrl(aviso.idAvisoNavplat),
           'difusion.zonaprop.published': true,
           'difusion.zonaprop.tipoDePublicacion': aviso.tipoDePublicacion || aviso.publicacion,
           'difusion.zonaprop.updated_at': new Date(),
@@ -380,9 +390,11 @@ export async function syncProperty(propertyDoc) {
     const result = await upsertAviso(codigoAviso, payload);
     const errors = extractZpMessages(result.errors);
     const warnings = extractZpMessages(result.warnings);
+    const idAvisoNavplat = result.idAviso || existing.idAvisoNavplat;
     await saveZpState(propertyDoc.id, {
       'difusion.zonaprop.codigoAviso': codigoAviso,
-      'difusion.zonaprop.idAvisoNavplat': result.idAviso || existing.idAvisoNavplat,
+      'difusion.zonaprop.idAvisoNavplat': idAvisoNavplat,
+      'difusion.zonaprop.url': buildAvisoUrl(idAvisoNavplat),
       'difusion.zonaprop.published': errors.length === 0,
       'difusion.zonaprop.estado': result.estado,
       'difusion.zonaprop.tipoDePublicacion': tipoDePublicacion,

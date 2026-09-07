@@ -80,6 +80,7 @@ export async function getZonaPropSummaryProperties(req, res) {
       photo: p.photos?.[0] ? { local_image: p.photos[0].local_image, image_url: p.photos[0].image_url, thumb_url: p.photos[0].thumb_url } : null,
       tipoDePublicacion: p.difusion?.zonaprop?.tipoDePublicacion || '',
       estado: p.difusion?.zonaprop?.estado || '',
+      url: p.difusion?.zonaprop?.url || '',
       calidad_percentage: p.difusion?.zonaprop?.calidad_percentage ?? null,
       last_error: p.difusion?.zonaprop?.last_error || '',
       warnings: p.difusion?.zonaprop?.warnings || [],

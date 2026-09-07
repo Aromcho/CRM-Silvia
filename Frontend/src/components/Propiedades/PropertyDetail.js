@@ -509,6 +509,8 @@ function ZonaPropCard({ property, onSynced }) {
               e('span', { className: 'difusion-status-dot' }),
               `${data.published ? 'Publicado' : 'Sin publicar'}${data.tipoDePublicacion ? ` — ${ZP_PLAN_LABELS_DETAIL[data.tipoDePublicacion] || data.tipoDePublicacion}` : ''}`,
             ),
+            data.url && e('a', { href: data.url, target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost xs' },
+              e(Icons.ExternalLink, { width: 12, height: 12 }), 'Ver aviso'),
           ),
           warnings.length > 0 && e('button', {
             type: 'button', className: 'btn ghost xs ml-recs-toggle', onClick: () => setShowWarnings((v) => !v),
