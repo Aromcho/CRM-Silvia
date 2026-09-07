@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   syncToZonaprop,
+  upgradeZonapropPlan,
   syncAllZonaprop,
   getZonaPropSummary,
   getZonaPropSummaryProperties,
@@ -15,6 +16,7 @@ import isAuth from '../../middlewares/isAuth.mid.js';
 const router = Router();
 
 router.post('/sync/:propertyId', isAuth, syncToZonaprop);
+router.patch('/plan/:propertyId', isAuth, upgradeZonapropPlan);
 router.post('/sync-all', isAuth, syncAllZonaprop);
 router.get('/summary', isAuth, getZonaPropSummary);
 router.get('/summary/properties', isAuth, getZonaPropSummaryProperties);

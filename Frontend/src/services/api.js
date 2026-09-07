@@ -69,6 +69,7 @@ export const linkMlExistingListing = (data) => request('/mercadolibre/link-exist
 export const getZonaPropSummary = () => request('/zonaprop/summary');
 export const getZonaPropSummaryProperties = (filter) => request(`/zonaprop/summary/properties?filter=${filter}`);
 export const syncPropertyZonaProp = (id) => request(`/zonaprop/sync/${id}`, { method: 'POST' });
+export const upgradeZonaPropPlan = (id, tipoDePublicacion) => request(`/zonaprop/plan/${id}`, { method: 'PATCH', body: JSON.stringify({ tipoDePublicacion }) });
 export const syncAllZonaProp = () => request('/zonaprop/sync-all', { method: 'POST' });
 export const reconcileZonaProp = () => request('/zonaprop/reconcile', { method: 'POST' });
 export const configureZonaPropCallbacks = () => request('/zonaprop/callbacks/configure', { method: 'POST' });

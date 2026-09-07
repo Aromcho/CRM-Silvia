@@ -321,6 +321,15 @@ export async function reconcileExistingListings() {
     }
     if (property.difusion?.zonaprop?.codigoAviso) {
       alreadyLinked += 1;
+      // Backfill de campos agregados después de que esta propiedad ya se había vinculado (ej. `url`,
+      // sumado 2026-09-07) — se completa con datos que YA tenemos guardados (idAvisoNavplat), sin
+      // llamar a la API de ZonaProp: cero riesgo, no es un PUT ni consume nada.
+      if (!property.difusion.zonaprop.url && property.difusion.zonaprop.idAvisoNavplat) {
+        await Property.updateOne(
+          { id: tokkoId },
+          { $set: { 'difusion.zonaprop.url': buildAvisoUrl(property.difusion.zonaprop.idAvisoNavplat) } }
+        );
+      }
       continue;
     }
     await Property.updateOne(
@@ -359,7 +368,7 @@ async function saveZpState(propertyId, patch) {
   );
 }
 
-export async function syncProperty(propertyDoc) {
+export async function syncProperty(propertyDoc, { forcePlan } = {}) {
   const existing = propertyDoc.difusion?.zonaprop || {};
   const eligible = ZP_ELIGIBLE_STATUSES.includes(propertyDoc.status);
   const codigoAviso = existing.codigoAviso || String(propertyDoc.id);
@@ -382,8 +391,9 @@ export async function syncProperty(propertyDoc) {
   }
 
   // Para avisos que ya existían (reconciliados) preservamos el plan que ya tenían pagado —
-  // no lo pisamos con un default, evita bajar un DESTACADO a SIMPLE por error.
-  const tipoDePublicacion = existing.tipoDePublicacion || 'SIMPLE';
+  // no lo pisamos con un default, evita bajar un DESTACADO a SIMPLE por error. `forcePlan` es el
+  // cambio explícito del usuario (selector de plan en la UI, ver updatePlan más abajo).
+  const tipoDePublicacion = forcePlan || existing.tipoDePublicacion || 'SIMPLE';
 
   try {
     const payload = await mapPropertyToZpAviso(propertyDoc, tipoDePublicacion);
@@ -429,6 +439,23 @@ export async function syncAllProperties({ delayMs = 1500 } = {}) {
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
   return results;
+}
+
+const ZP_PLANS = ['SIMPLE', 'DESTACADO', 'HOME'];
+
+// Cambia el plan de publicación de un aviso ya existente (Simple/Destacado/Home) — selector de
+// plan en la UI, mismo criterio que upgradeListingType de MercadoLibre. Consume un crédito del
+// plan elegido en ZonaProp; si no hay disponible, el PUT falla con ERR-0502 y syncProperty ya
+// guarda ese error en difusion.zonaprop.last_error — no hace falta chequear crédito antes acá.
+export async function updatePlan(propertyId, tipoDePublicacion) {
+  if (!ZP_PLANS.includes(tipoDePublicacion)) {
+    throw new Error(`Plan de ZonaProp inválido: "${tipoDePublicacion}". Válidos: ${ZP_PLANS.join(', ')}`);
+  }
+  const property = await Property.findOne({ id: propertyId }).lean();
+  if (!property) throw new Error('Propiedad no encontrada');
+  await syncProperty(property, { forcePlan: tipoDePublicacion });
+  const updated = await Property.findOne({ id: propertyId }, { difusion: 1 }).lean();
+  return updated.difusion?.zonaprop || {};
 }
 
 // --- Configuración de callbacks (webhook de leads/estado/calidad/créditos) ---

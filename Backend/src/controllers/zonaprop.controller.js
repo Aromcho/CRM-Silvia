@@ -112,6 +112,26 @@ export async function syncToZonaprop(req, res) {
   }
 }
 
+export async function upgradeZonapropPlan(req, res) {
+  const { propertyId } = req.params;
+  const { tipoDePublicacion } = req.body || {};
+  if (!tipoDePublicacion) return res.status(400).json({ message: 'Falta tipoDePublicacion' });
+  try {
+    const zonaprop = await zp.updatePlan(parseInt(propertyId, 10), tipoDePublicacion);
+    await Activity.create({
+      type: 'zp_sync',
+      description: `Propiedad ${propertyId}: cambio de plan de ZonaProp a ${tipoDePublicacion}`,
+      userId: req.user?.id,
+      userName: req.user?.name,
+      entityId: propertyId,
+      entityType: 'property',
+    });
+    res.json({ ok: true, zonaprop });
+  } catch (err) {
+    res.status(502).json({ message: 'Error cambiando el plan de ZonaProp', detail: err.message });
+  }
+}
+
 export async function syncAllZonaprop(req, res) {
   res.json({ started: true });
   try {

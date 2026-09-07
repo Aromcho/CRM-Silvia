@@ -10,7 +10,7 @@ import DuplicatePropertyModal from './DuplicatePropertyModal';
 import {
   updateProperty, updatePropertyStatus, syncPropertyMercadoLibre,
   getMercadoLibreListingTypes, upgradeMercadoLibreListingType,
-  syncPropertyZonaProp,
+  syncPropertyZonaProp, upgradeZonaPropPlan,
 } from '@/services/api';
 import { photoSrc, formatPrice, STATUS_LABELS, propertyWebUrl } from '@/lib/data';
 import './Propiedades.css';
@@ -468,9 +468,11 @@ function MercadoLibreCard({ property, onSynced }) {
 }
 
 const ZP_PLAN_LABELS_DETAIL = { SIMPLE: 'Simple', DESTACADO: 'Destacado', HOME: 'Home' };
+const ZP_PLAN_OPTIONS = ['SIMPLE', 'DESTACADO', 'HOME'];
 
 function ZonaPropCard({ property, onSynced }) {
   const [syncing, setSyncing] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
   const [error, setError] = useState('');
   const [showWarnings, setShowWarnings] = useState(false);
   const data = property.difusion?.zonaprop || {};
@@ -486,6 +488,23 @@ function ZonaPropCard({ property, onSynced }) {
       setError(err.message || 'No se pudo sincronizar con ZonaProp.');
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handlePlanChange(ev) {
+    const nextPlan = ev.target.value;
+    if (!nextPlan || nextPlan === data.tipoDePublicacion) return;
+    if (!confirm(`Cambiar a "${ZP_PLAN_LABELS_DETAIL[nextPlan]}" consume un crédito de ese plan en ZonaProp (si no hay disponible, va a fallar). ¿Confirmás?`)) return;
+    setUpgrading(true);
+    setError('');
+    try {
+      const zonaprop = await upgradeZonaPropPlan(property.id, nextPlan);
+      onSynced(zonaprop || {});
+      if (zonaprop?.last_error) setError(zonaprop.last_error);
+    } catch (err) {
+      setError(err.message || 'No se pudo cambiar el plan de ZonaProp.');
+    } finally {
+      setUpgrading(false);
     }
   }
 
@@ -511,6 +530,12 @@ function ZonaPropCard({ property, onSynced }) {
             ),
             data.url && e('a', { href: data.url, target: '_blank', rel: 'noopener noreferrer', className: 'btn ghost xs' },
               e(Icons.ExternalLink, { width: 12, height: 12 }), 'Ver aviso'),
+          ),
+          e('div', { className: 'ml-tier-row' },
+            e(Icons.Star, { width: 13, height: 13 }),
+            e('select', {
+              className: 'ml-tier-select', value: data.tipoDePublicacion || 'SIMPLE', disabled: upgrading, onChange: handlePlanChange,
+            }, ZP_PLAN_OPTIONS.map((p) => e('option', { key: p, value: p }, ZP_PLAN_LABELS_DETAIL[p]))),
           ),
           warnings.length > 0 && e('button', {
             type: 'button', className: 'btn ghost xs ml-recs-toggle', onClick: () => setShowWarnings((v) => !v),
