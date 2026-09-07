@@ -72,6 +72,7 @@ export const syncPropertyZonaProp = (id) => request(`/zonaprop/sync/${id}`, { me
 export const syncAllZonaProp = () => request('/zonaprop/sync-all', { method: 'POST' });
 export const reconcileZonaProp = () => request('/zonaprop/reconcile', { method: 'POST' });
 export const configureZonaPropCallbacks = () => request('/zonaprop/callbacks/configure', { method: 'POST' });
+export const pollZonaPropLeads = (sinceDays) => request(`/zonaprop/leads/poll?sinceDays=${sinceDays}`, { method: 'POST' });
 
 // Leads
 export const getLeads = (params) => request(`/leads?${new URLSearchParams(params).toString()}`);

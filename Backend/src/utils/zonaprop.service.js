@@ -446,3 +446,26 @@ export async function getCallbacksConfig() {
   const { data } = await zpRequest('GET', '/v1/configuracion/callbacks');
   return data;
 }
+
+// --- Contactos/leads por consulta (fallback a Callbacks, que la cuenta actual — plan "API Free",
+// confirmado 2026-09-03 vía Sofía/Navent — no incluye). Este endpoint SÍ está disponible en Free:
+// probado en vivo contra producción y trajo contactos reales. `fromDate` en formato yyyyMMdd.
+export async function getMensajesPage(fromDate, page = 0, size = 100) {
+  const { data } = await zpRequest('GET', `/v2/inmobiliarias/${codigoInmobiliaria()}/mensajes`, {
+    params: { fromDate, 'pageable.page': page, 'pageable.size': size },
+  });
+  return data;
+}
+
+export async function getAllMensajes(fromDate) {
+  let all = [];
+  let page = 0;
+  const size = 100;
+  for (;;) {
+    const data = await getMensajesPage(fromDate, page, size);
+    all = all.concat(data.content || []);
+    if (all.length >= data.total || !data.content?.length) break;
+    page += 1;
+  }
+  return all;
+}

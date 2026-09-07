@@ -161,6 +161,14 @@ export async function configureZonapropCallbacks(req, res) {
     const result = await zp.configureCallbacks();
     res.json({ ok: true, ...result });
   } catch (err) {
+    // Confirmado 2026-09-03: la cuenta actual es plan "API Free" de Navent, que no incluye
+    // Callbacks (ni Calidad de aviso) — devuelve este 500 genérico. Hace falta pedir upgrade a
+    // "Rol Premium" para tener esto. No es un bug, es una limitación del plan contratado.
+    if (err.response?.data?.message === 'Access is denied') {
+      return res.status(422).json({
+        message: 'Tu plan actual de ZonaProp ("API Free") no incluye Callbacks. Los leads se obtienen igual por consulta periódica (ver "Sincronizar leads"). Para tener callbacks en tiempo real hay que pedirle a Navent el upgrade a "Rol Premium".',
+      });
+    }
     res.status(502).json({ message: 'Error configurando callbacks de ZonaProp', detail: err.message });
   }
 }
@@ -293,5 +301,79 @@ export async function handleZonapropCallback(req, res) {
     }
   } catch (err) {
     console.error('Error procesando callback de ZonaProp', err.message, JSON.stringify(body));
+  }
+}
+
+function yyyymmdd(date) {
+  return date.toISOString().slice(0, 10).replace(/-/g, '');
+}
+
+// Fallback a Callbacks (ver nota en configureZonapropCallbacks): la cuenta actual no recibe eventos
+// en tiempo real, así que los leads se traen por consulta periódica a /v2/.../mensajes. `sinceDays`
+// chico (cron incremental, notifica por mail) o grande (backfill manual de contactos históricos).
+// `notify` en false a propósito para backfills grandes — son contactos viejos, no leads "nuevos":
+// mandar un mail de "nuevo lead" por cada uno de golpe sería spam sobre algo que ya pasó.
+export async function pollZonapropLeads({ sinceDays = 2, notify = true, userId, userName } = {}) {
+  const fromDate = yyyymmdd(new Date(Date.now() - sinceDays * 86400000));
+  const mensajes = await zp.getAllMensajes(fromDate);
+
+  let created = 0;
+  let skipped = 0;
+  for (const m of mensajes) {
+    const externalId = `zp-${m.id}`;
+    const exists = await Lead.exists({ externalId });
+    if (exists) { skipped += 1; continue; }
+
+    const property = m.codigoAviso
+      ? await Property.findOne({ 'difusion.zonaprop.codigoAviso': m.codigoAviso }).lean()
+      : null;
+
+    const lead = await Lead.create({
+      externalId,
+      name: m.nombre || 'Contacto ZonaProp',
+      email: m.email || '',
+      phone: m.telefono || '',
+      propertyId: property?.id,
+      propertyTitle: property ? (property.publication_title || property.address || '') : '',
+      source: 'zonaprop',
+      message: m.textoMensaje || '',
+    });
+
+    if (notify) {
+      sendLeadEmail(lead, property).catch(console.error);
+      // Delay chico entre mails para no ráfagar el SMTP si hay varios leads nuevos juntos.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+
+    await Activity.create({
+      type: 'lead_created',
+      description: `Nuevo lead de ZonaProp: ${lead.name}${property ? ` — ${property.publication_title || property.address}` : ''}`,
+    });
+    created += 1;
+  }
+
+  const summary = { total: mensajes.length, created, skipped, fromDate, notified: notify };
+  await Activity.create({
+    type: 'zp_sync',
+    description: `Polling de leads de ZonaProp: ${created} nuevos, ${skipped} ya existentes (de ${mensajes.length} contactos desde ${fromDate})${notify ? '' : ' — backfill, sin mails'}`,
+    userId,
+    userName,
+    meta: summary,
+  });
+  return summary;
+}
+
+// Fire-and-forget (mismo criterio que sync-all/reconcile): un backfill grande puede tardar minutos
+// y superar el timeout de Nginx. `notify` es explícito y por defecto SOLO manda mail para ventanas
+// cortas (<=3 días, el caso del cron incremental) — un backfill histórico nunca manda mail salvo
+// que se pida express con `?notify=true`.
+export async function pollZonapropLeadsHandler(req, res) {
+  res.json({ started: true });
+  const sinceDays = Math.min(parseInt(req.query.sinceDays, 10) || 2, 365);
+  const notify = req.query.notify != null ? req.query.notify === 'true' : sinceDays <= 3;
+  try {
+    await pollZonapropLeads({ sinceDays, notify, userId: req.user?.id, userName: req.user?.name });
+  } catch (err) {
+    console.error('Error en el polling de leads de ZonaProp', err.message);
   }
 }

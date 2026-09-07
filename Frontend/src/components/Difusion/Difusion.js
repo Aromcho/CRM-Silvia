@@ -4,7 +4,7 @@ import Icons from '../Icons/Icons';
 import {
   getMercadoLibreSummary, syncAllMercadoLibre, getMercadoLibreSummaryProperties,
   getZonaPropSummary, syncAllZonaProp, getZonaPropSummaryProperties, reconcileZonaProp,
-  configureZonaPropCallbacks,
+  configureZonaPropCallbacks, pollZonaPropLeads,
 } from '@/services/api';
 import { photoSrc } from '@/lib/data';
 import './Difusion.css';
@@ -343,6 +343,7 @@ function ZonaPropDifusionCard() {
   const [syncing, setSyncing] = useState(false);
   const [reconciling, setReconciling] = useState(false);
   const [configuringCallbacks, setConfiguringCallbacks] = useState(false);
+  const [pollingLeads, setPollingLeads] = useState(false);
   const [activeFilter, setActiveFilter] = useState(null);
 
   const load = useCallback(() => {
@@ -394,6 +395,19 @@ function ZonaPropDifusionCard() {
     }
   }
 
+  async function handlePollLeadsBackfill() {
+    if (!confirm('Esto importa al CRM los contactos históricos de ZonaProp de los últimos 90 días (SIN mandar mail — son leads viejos, no nuevos). Correr una sola vez, no hace falta repetirlo: el polling automático de leads recientes ya corre solo cada 15 minutos. ¿Continuar?')) return;
+    setPollingLeads(true);
+    try {
+      await pollZonaPropLeads(90);
+      alert('Importación de leads históricos iniciada en segundo plano. Revisá la sección Leads y el feed de Actividad en unos minutos.');
+    } catch (err) {
+      alert(err.message || 'No se pudo iniciar la importación de leads.');
+    } finally {
+      setTimeout(() => setPollingLeads(false), 3000);
+    }
+  }
+
   return e('div', { className: 'difusion-portal-card', style: { '--difusion-accent': '#8bc53f' } },
     e('div', { className: 'difusion-portal-head' },
       e('div', { className: 'difusion-portal-title' },
@@ -401,6 +415,10 @@ function ZonaPropDifusionCard() {
         e('div', { className: 'difusion-portal-sub' }, 'Argentina'),
       ),
       e('div', { className: 'difusion-portal-actions' },
+        e('button', {
+          type: 'button', className: 'btn ghost sm', onClick: handlePollLeadsBackfill, disabled: pollingLeads,
+          title: 'Importa al CRM los contactos históricos de ZonaProp (90 días) sin mandar mail — correr una sola vez',
+        }, pollingLeads ? 'Importando…' : 'Importar leads históricos'),
         e('button', {
           type: 'button', className: 'btn ghost sm', onClick: handleConfigureCallbacks, disabled: configuringCallbacks,
           title: 'Registra en ZonaProp la URL pública de este servidor para recibir leads y novedades — correr una sola vez por ambiente',

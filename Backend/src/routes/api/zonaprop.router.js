@@ -8,6 +8,7 @@ import {
   configureZonapropCallbacks,
   getZonapropCallbacksConfig,
   handleZonapropCallback,
+  pollZonapropLeadsHandler,
 } from '../../controllers/zonaprop.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
 
@@ -21,5 +22,7 @@ router.post('/reconcile', isAuth, reconcileZonaprop);
 router.get('/callbacks/config', isAuth, getZonapropCallbacksConfig);
 router.post('/callbacks/configure', isAuth, configureZonapropCallbacks);
 router.post('/webhook/callback', handleZonapropCallback); // público: Navent pega acá sin sesión
+// ?sinceDays=N (default 2) — ventanas cortas mandan mail, backfills largos no (ver pollZonapropLeadsHandler)
+router.post('/leads/poll', isAuth, pollZonapropLeadsHandler);
 
 export default router;

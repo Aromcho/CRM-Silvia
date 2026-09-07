@@ -22,6 +22,9 @@ const leadSchema = new Schema(
     },
     notes: String,
     assignedTo: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    // Id del contacto en el sistema de origen (ej. "zp-321431843") — para no duplicar leads cuando
+    // el polling de ZonaProp vuelve a consultar un rango de fechas que ya se procesó antes.
+    externalId: { type: String, index: true, sparse: true },
   },
   { timestamps: true }
 );
