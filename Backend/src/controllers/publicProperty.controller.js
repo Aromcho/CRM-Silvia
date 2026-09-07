@@ -27,14 +27,12 @@ const PUBLIC_FIELDS = [
   'difusion.mercadolibre.published', 'difusion.mercadolibre.url',
 ].join(' ');
 
-// El status interno del CRM tiene 2 valores que la web no conoce: en_tasacion (nunca se
-// expone, es una propiedad sin tasar aún) y no_disponible (se traduce a "vendida", que es
-// como la web ya mostraba el status 4 de Tokko antes de este cambio). "alquilado" sí se
-// expone tal cual: la web lo muestra con el ribbon "ALQUILADO".
-function mapStatus(status) {
-  if (status === 'no_disponible') return 'vendida';
-  return status;
-}
+// El status interno del CRM tiene 2 valores que la web no conoce y nunca se exponen:
+// en_tasacion (propiedad sin tasar aún) y no_disponible (se excluye del feed público
+// por completo, no solo se le cambia el status, para que deje de aparecer en la web
+// en vez de mostrarse como "vendida"). "alquilado" sí se expone tal cual: la web lo
+// muestra con el ribbon "ALQUILADO".
+const HIDDEN_STATUSES = ['en_tasacion', 'no_disponible'];
 
 // Las reservas cargadas a mano en el CRM (temporaryRental.bookings) y el campo `occupation`
 // que ya sincroniza Tokko son dos cosas separadas — el calendario de la web solo lee
@@ -49,7 +47,6 @@ function toDateOnly(value) {
 
 function toPublicJson(doc) {
   const obj = doc.toObject ? doc.toObject() : doc;
-  obj.status = mapStatus(obj.status);
 
   const bookingRanges = (obj.temporaryRental?.bookings || [])
     .map((b) => ({ from: toDateOnly(b.startDate), to: toDateOnly(b.endDate) }))
@@ -72,7 +69,7 @@ export async function getPublicProperties(req, res, next) {
   try {
     const { updatedSince, limit = 500, offset = 0 } = req.query;
 
-    const filter = { status: { $ne: 'en_tasacion' } };
+    const filter = { status: { $nin: HIDDEN_STATUSES } };
     if (updatedSince) {
       const since = new Date(updatedSince);
       if (!isNaN(since.getTime())) filter.updatedAt = { $gt: since };
@@ -97,7 +94,7 @@ export async function getPublicProperties(req, res, next) {
 
 export async function getPublicPropertyIds(req, res, next) {
   try {
-    const ids = await Property.find({ status: { $ne: 'en_tasacion' } }, 'id').distinct('id');
+    const ids = await Property.find({ status: { $nin: HIDDEN_STATUSES } }, 'id').distinct('id');
     res.json({ ids });
   } catch (error) {
     next(error);
