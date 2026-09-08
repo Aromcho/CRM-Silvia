@@ -296,9 +296,30 @@ export async function getAllAvisosOnlineResumen() {
 // Idempotente: no pisa un codigoAviso ya guardado, se puede correr tantas veces como haga falta
 // (por eso también sirve como job periódico de reconciliación, no solo backfill inicial).
 
-function parseTokkoIdFromClave(clave) {
+export function parseTokkoIdFromClave(clave) {
   const m = /(\d+)$/.exec(clave || '');
   return m ? Number(m[1]) : null;
+}
+
+// ZonaProp tiene avisos duplicados preexistentes a esta integración (mismo Tokko id publicado bajo
+// más de un codigoAviso — 21 casos detectados el 2026-09-08, ver PLAN_ZONAPROP.md §12): un lead
+// puede llegar con el codigoAviso del duplicado "viejo", que nunca quedó guardado en la Property
+// (reconcile solo guarda el primero que encuentra, es idempotente a propósito). Por eso el matching
+// no puede confiar solo en `difusion.zonaprop.codigoAviso`: si el match directo falla, se resuelve
+// el aviso puntual contra ZonaProp y se matchea por Tokko id (misma lógica que reconcileExistingListings).
+export async function findPropertyByCodigoAviso(codigoAviso) {
+  if (!codigoAviso) return null;
+  const direct = await Property.findOne({ 'difusion.zonaprop.codigoAviso': codigoAviso }).lean();
+  if (direct) return direct;
+  try {
+    const aviso = await getAviso(codigoAviso);
+    const tokkoId = parseTokkoIdFromClave(aviso.claveInterna || aviso.claveReferencia);
+    if (!tokkoId) return null;
+    return Property.findOne({ id: tokkoId }).lean();
+  } catch {
+    // Aviso borrado/inaccesible del lado de ZonaProp — no hay forma de resolverlo, no es un error.
+    return null;
+  }
 }
 
 export async function reconcileExistingListings() {

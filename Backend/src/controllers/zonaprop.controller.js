@@ -214,7 +214,7 @@ async function findPropertyByCallbackBody(body) {
   // confiar en una sola. Confirmar contra el primer evento real capturado (queda logueado abajo).
   const codigoAviso = body.codigoAviso || body.referencia || body.code;
   if (codigoAviso) {
-    const byCode = await Property.findOne({ 'difusion.zonaprop.codigoAviso': codigoAviso }).lean();
+    const byCode = await zp.findPropertyByCodigoAviso(codigoAviso);
     if (byCode) return byCode;
   }
   const claveInterna = body.claveInterna || body.internalReference;
@@ -345,9 +345,7 @@ export async function pollZonapropLeads({ sinceDays = 2, notify = true, userId, 
     const exists = await Lead.exists({ externalId });
     if (exists) { skipped += 1; continue; }
 
-    const property = m.codigoAviso
-      ? await Property.findOne({ 'difusion.zonaprop.codigoAviso': m.codigoAviso }).lean()
-      : null;
+    const property = await zp.findPropertyByCodigoAviso(m.codigoAviso);
 
     const lead = await Lead.create({
       externalId,
