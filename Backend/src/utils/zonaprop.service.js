@@ -169,13 +169,13 @@ function mapCaracteristicas(property) {
   return out;
 }
 
-// Venta y alquiler "estándar" únicamente — Alquiler temporal tiene su propio circuito
-// (sección Alquileres temporarios) y no corresponde publicarlo acá (mismo criterio que ML).
+// Alquiler temporal se publica acá como ALQUILER estándar cuando tiene precio cargado (decisión
+// 2026-09-09: usar créditos DESTACADO libres en propiedades de temporada que no tenían otro
+// circuito de publicación armado). Distinto del criterio de ML, que sigue sin publicar temporales.
 function mapPrecios(property) {
   const precios = [];
   for (const op of property.operations || []) {
     if (!op.prices?.length) continue;
-    if (/temporal/i.test(op.operation_type)) continue;
     let operacion = null;
     if (/venta/i.test(op.operation_type)) operacion = 'VENTA';
     else if (/alquiler/i.test(op.operation_type)) operacion = 'ALQUILER';
