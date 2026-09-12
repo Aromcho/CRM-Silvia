@@ -83,6 +83,9 @@ export const updateLead = (id, data) => request(`/leads/${id}`, { method: 'PUT',
 export const updateLeadStatus = (id, status) => request(`/leads/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
 export const deleteLead = (id) => request(`/leads/${id}`, { method: 'DELETE' });
 export const getLeadStats = () => request('/leads/stats');
+
+// WhatsApp (rotación de agentes y conteo de consultas, servido por web-silvia-next)
+export const getWhatsAppStats = () => request('/whatsapp/stats');
 export const getLeadEmailSetting = () => request('/leads/email-setting');
 export const updateLeadEmailSetting = (enabled) => request('/leads/email-setting', { method: 'PATCH', body: JSON.stringify({ leadEmailsEnabled: enabled }) });
 

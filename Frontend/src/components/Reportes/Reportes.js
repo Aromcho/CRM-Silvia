@@ -2,7 +2,7 @@
 import React from 'react';
 import Icons from '../Icons/Icons';
 import LineChart from '../UI/LineChart';
-import { getPropertyStats, getLeadStats, getMercadoLibreReports } from '@/services/api';
+import { getPropertyStats, getLeadStats, getMercadoLibreReports, getWhatsAppStats } from '@/services/api';
 import './Reportes.css';
 
 const e = React.createElement;
@@ -45,6 +45,51 @@ function LeadsByTypeBars({ leadsByType }) {
       ),
       e('div', { className: 'rpt-bar-value' }, r.value.toLocaleString('es-AR')),
     )),
+  );
+}
+
+function WhatsAppByContactTable({ rows }) {
+  return e('div', { className: 'rpt-table-card' },
+    e('h4', null, 'Consultas de WhatsApp por vendedor'),
+    (!rows || rows.length === 0)
+      ? e('p', { className: 'rpt-table-empty' }, 'Todavía no hay consultas de WhatsApp registradas.')
+      : e('table', { className: 'rpt-table' },
+          e('thead', null, e('tr', null,
+            e('th', null, '#'), e('th', null, 'Vendedor'), e('th', null, 'Teléfono'), e('th', null, 'Consultas'),
+          )),
+          e('tbody', null,
+            rows.map((r, i) => e('tr', { key: r.phone },
+              e('td', { className: 'rpt-table-rank' }, i + 1),
+              e('td', null, r.name),
+              e('td', null, r.phone),
+              e('td', { className: 'rpt-table-value' }, r.total.toLocaleString('es-AR')),
+            )),
+          ),
+        ),
+  );
+}
+
+// Consultas que llegan desde la web pública: clics en WhatsApp (rotados entre el equipo)
+// + envíos del formulario de contacto (guardados como Lead con source: 'web').
+function ConsultasWebPanel({ whatsappStats, webFormTotal }) {
+  const waTotal = whatsappStats?.totalClicks ?? 0;
+  const combinedTotal = waTotal + webFormTotal;
+
+  return e('div', { className: 'rpt-section' },
+    e('div', { className: 'rpt-section-head' },
+      e('div', null,
+        e('h2', null, 'Consultas de la web'),
+        e('p', null, 'WhatsApp (rotativo entre el equipo) + formulario de contacto.'),
+      ),
+    ),
+
+    e('div', { className: 'rpt-stats-tiles' },
+      e(StatTile, { label: 'Total consultas web', value: combinedTotal }),
+      e(StatTile, { label: 'Por WhatsApp', value: waTotal }),
+      e(StatTile, { label: 'Por formulario', value: webFormTotal }),
+    ),
+
+    e(WhatsAppByContactTable, { rows: whatsappStats?.byContact }),
   );
 }
 
@@ -139,17 +184,22 @@ function MercadoLibreReports() {
 export default function Reportes() {
   const [propStats, setPropStats] = useState(null);
   const [leadStats, setLeadStats] = useState(null);
+  const [whatsappStats, setWhatsappStats] = useState(null);
 
   useEffect(() => {
     Promise.all([getPropertyStats(), getLeadStats()])
       .then(([p, l]) => { setPropStats(p); setLeadStats(l); })
       .catch(console.error);
+    // Aparte: vive en el backend de la web, no debe tumbar el resto de Reportes si falla.
+    getWhatsAppStats().then(setWhatsappStats).catch(() => setWhatsappStats(null));
   }, []);
 
   const propTotal = propStats?.total ?? '—';
   const leadTotal = leadStats?.total ?? '—';
   const disponibles = propStats?.byStatus?.find((s) => s._id === 'disponible')?.count ?? '—';
   const leadNuevos = leadStats?.byStatus?.find((s) => s._id === 'nuevo')?.count ?? '—';
+  const whatsappTotal = whatsappStats?.totalClicks ?? '—';
+  const webFormTotal = leadStats?.bySource?.find((s) => s._id === 'web')?.count ?? 0;
 
   return e('div', { className: 'reportes' },
     e('div', { className: 'reportes-header' },
@@ -162,7 +212,10 @@ export default function Reportes() {
       e('div', { className: 'preview-stat' }, e('div', { className: 'preview-stat-num' }, disponibles), e('div', { className: 'preview-stat-label' }, 'Disponibles')),
       e('div', { className: 'preview-stat' }, e('div', { className: 'preview-stat-num' }, leadTotal), e('div', { className: 'preview-stat-label' }, 'Leads totales')),
       e('div', { className: 'preview-stat' }, e('div', { className: 'preview-stat-num' }, leadNuevos), e('div', { className: 'preview-stat-label' }, 'Leads nuevos')),
+      e('div', { className: 'preview-stat' }, e('div', { className: 'preview-stat-num' }, whatsappTotal), e('div', { className: 'preview-stat-label' }, 'Consultas WhatsApp')),
     ),
+
+    e(ConsultasWebPanel, { whatsappStats, webFormTotal }),
 
     e(MercadoLibreReports),
   );

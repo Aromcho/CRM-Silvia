@@ -8,6 +8,8 @@ import mercadolibreRouter from './api/mercadolibre.router.js';
 import zonapropRouter from './api/zonaprop.router.js';
 import fileRecordRouter from './api/fileRecord.router.js';
 import publicPropertyRouter from './api/publicProperty.router.js';
+import publicLeadRouter from './api/publicLead.router.js';
+import whatsappRouter from './api/whatsapp.router.js';
 
 const router = Router();
 
@@ -15,10 +17,12 @@ router.use('/sessions', sessionRouter);
 router.use('/users', userRouter);
 router.use('/properties', propertyRouter);
 router.use('/public/properties', publicPropertyRouter);
+router.use('/public/leads', publicLeadRouter);
 router.use('/leads', leadRouter);
 router.use('/activities', activityRouter);
 router.use('/mercadolibre', mercadolibreRouter);
 router.use('/zonaprop', zonapropRouter);
 router.use('/files', fileRecordRouter);
+router.use('/whatsapp', whatsappRouter);
 
 export default router;
