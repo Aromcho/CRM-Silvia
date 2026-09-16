@@ -268,6 +268,17 @@ function getPublishableOperations(property) {
   return [...byType.entries()].map(([type, operation]) => ({ type, operation }));
 }
 
+// El selector de moneda en el CRM muestra "USD" por defecto para un precio que todavía no tiene
+// nada guardado, pero si se edita solo el precio (sin tocar el selector) el campo currency nunca
+// se llega a grabar — queda undefined en el documento. Antes cualquier valor que no fuera
+// literalmente 'USD' cala como 'ARS' (correcto para lo que viene de Tokko en otra moneda, mal para
+// lo que nunca se llegó a cargar): un precio cargado a mano en dólares por primera vez terminaba
+// publicado como si fuera en pesos. `undefined`/vacío ahora se interpreta como USD, igual que ya
+// lo muestra el propio selector.
+function resolveCurrency(currency) {
+  return (!currency || currency === 'USD') ? 'USD' : 'ARS';
+}
+
 function stripHtml(html) {
   return String(html || '').replace(/<[^>]+>/g, '').trim();
 }
@@ -419,7 +430,7 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
     title: (property.publication_title || property.address || 'Propiedad').slice(0, 60),
     category_id: categoryId,
     price: price.price,
-    currency_id: price.currency === 'USD' ? 'USD' : 'ARS',
+    currency_id: resolveCurrency(price.currency),
     buying_mode: 'classified', // confirmado por doc de ML para clasificados (inmuebles/vehículos)
     // TODO: "silver" es un ejemplo encontrado por WebSearch, no confirmado específicamente para
     // Inmuebles Argentina. /items/validate (usado en publishListing) va a decir si hay que cambiarlo.
@@ -461,7 +472,7 @@ async function publishListing(propertyDoc, operationType, operation) {
 async function updateListingPrice(itemId, operation) {
   const price = operation.prices[0];
   await mlRequest('put', `/items/${itemId}`, {
-    data: { price: price.price, currency_id: price.currency === 'USD' ? 'USD' : 'ARS' },
+    data: { price: price.price, currency_id: resolveCurrency(price.currency) },
   });
 }
 
@@ -469,8 +480,31 @@ async function setListingStatus(itemId, status) {
   await mlRequest('put', `/items/${itemId}`, { data: { status } });
 }
 
-async function updateListingPictures(itemId, pictures) {
-  await mlRequest('put', `/items/${itemId}`, { data: { pictures } });
+// Reenvía TODO lo editable de un aviso ya publicado: título, precio, fotos, atributos (ambientes,
+// baños, superficie, expensas, etc.) y ubicación — no solo precio/fotos como antes. Se arma con el
+// mismo mapeo que usa la publicación inicial (mapPropertyToMlItem) para que cualquier campo que se
+// edite en el CRM, sea cual sea, quede reflejado en ML en el próximo sync. Deja afuera a propósito
+// category_id/listing_type_id/buying_mode/condition: no son "contenido editable" de la ficha sino
+// metadata de la publicación, y ML no permite cambiar de categoría con un PUT simple.
+async function updateListingFull(itemId, mlItem) {
+  await mlRequest('put', `/items/${itemId}`, {
+    data: {
+      title: mlItem.title,
+      price: mlItem.price,
+      currency_id: mlItem.currency_id,
+      pictures: mlItem.pictures,
+      attributes: mlItem.attributes,
+      location: mlItem.location,
+    },
+  });
+}
+
+// La descripción vive en un endpoint separado del resto del item (así lo pide la API de ML) y,
+// a diferencia de las demás, antes solo se mandaba una vez, al publicar. PUT actualiza la que ya
+// existe (el POST usado en publishListing es exclusivo para setearla la primera vez).
+async function updateListingDescription(itemId, description) {
+  if (!description) return;
+  await mlRequest('put', `/items/${itemId}/description`, { data: { plain_text: description } });
 }
 
 // Verdad de estado: lo único confiable es lo que devuelve ML en este momento. ML puede pausar/poner
@@ -602,21 +636,29 @@ export async function syncProperty(propertyDoc) {
     const existing = listingsByType.get(type);
     try {
       if (existing?.item_id) {
-        await updateListingPrice(existing.item_id, operation);
+        // Se reenvía el aviso completo en cada sync (título, precio, fotos, atributos y ubicación),
+        // no solo precio como antes — cualquier campo que se edite en el CRM tiene que llegar a ML,
+        // no una lista fija elegida a mano. Si por lo que sea no se puede re-armar el payload entero
+        // (ej. la ubicación dejó de resolver contra el catálogo de ML), no perdemos al menos el precio,
+        // que es el dato más crítico de desactualizar.
+        try {
+          const mlItem = await mapPropertyToMlItem(propertyDoc, type, operation);
+          await updateListingFull(existing.item_id, mlItem);
+        } catch (fullErr) {
+          console.error(`No se pudo reenviar el aviso completo del item ${existing.item_id}, actualizando solo precio`, fullErr.response?.data || fullErr.message);
+          await updateListingPrice(existing.item_id, operation);
+        }
+        // La descripción va en un endpoint aparte de ML: se reenvía siempre, ya no solo al publicar.
+        try {
+          await updateListingDescription(existing.item_id, stripHtml(propertyDoc.description || propertyDoc.rich_description));
+        } catch (descErr) {
+          console.error(`No se pudo actualizar la descripción del item ${existing.item_id}`, descErr.response?.data || descErr.message);
+        }
         // Reintentar reactivar solo si el último estado que conocíamos no era 'active' — si ML lo
         // pausó por moderación (ej. fotos), esta llamada puede fallar o no alcanzar por sí sola:
         // no cortamos el sync por eso, el GET de abajo va a reflejar el estado real de todos modos.
         if (existing.status !== 'active') {
           try { await setListingStatus(existing.item_id, 'active'); } catch (statusErr) { /* ver comentario arriba */ }
-        }
-        // Manda las fotos vigentes en cada sync: antes esto nunca se hacía en un update, así que
-        // corregir/reemplazar fotos en el CRM después de publicar no llegaba a ML (causa real del
-        // caso "CRM dice activo, ML dice inactivo por fotos" — ver Activity 2026-09-01).
-        try {
-          const maxPictures = await getCategoryMaxPictures(existing.category_id);
-          await updateListingPictures(existing.item_id, buildPictures(propertyDoc, maxPictures));
-        } catch (picErr) {
-          console.error(`No se pudieron actualizar las fotos del item ${existing.item_id}`, picErr.response?.data || picErr.message);
         }
         // Nunca asumimos el estado: se lee de vuelta de ML después de nuestros cambios, así el CRM
         // no puede quedar diciendo "activo" mientras ML lo tiene pausado/en revisión.

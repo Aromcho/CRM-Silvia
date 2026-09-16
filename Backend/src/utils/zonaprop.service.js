@@ -181,7 +181,12 @@ function mapPrecios(property) {
     else if (/alquiler/i.test(op.operation_type)) operacion = 'ALQUILER';
     if (!operacion) continue;
     const price = op.prices[0];
-    precios.push({ operacion, moneda: price.currency === 'USD' ? 'USD' : 'ARS', monto: String(price.price) });
+    // Un precio recién cargado a mano en el CRM (ej. desde la ficha, editando solo el número sin
+    // tocar el selector de moneda) se guarda sin currency — no significa que sea en pesos, el
+    // selector ya lo muestra en USD por defecto. Solo se cae a ARS cuando currency vino explícito
+    // y es otra moneda (lo que sí manda Tokko para operaciones en pesos).
+    const moneda = (!price.currency || price.currency === 'USD') ? 'USD' : 'ARS';
+    precios.push({ operacion, moneda, monto: String(price.price) });
   }
   return precios;
 }

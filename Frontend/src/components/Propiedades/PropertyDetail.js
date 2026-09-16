@@ -54,7 +54,19 @@ const ML_ERROR_CODE_MESSAGES = {
   'item.pictures.invalid': 'Alguna de las fotos no pudo subirse a MercadoLibre.',
 };
 
+// "item.price.invalid" es el único caso donde el mensaje crudo de ML trae un dato concreto y útil
+// (el precio mínimo exigido por la categoría, ej. "requires a minimum of price 10000") — antes se
+// tapaba con el texto genérico de ML_ERROR_CODE_MESSAGES y esa cifra nunca llegaba a la pantalla.
+function translateMinPriceError(cause) {
+  const match = /minimum of price ([\d.,]+)/i.exec(cause.message || '');
+  if (!match) return null;
+  const min = Number(match[1].replace(/[.,]/g, ''));
+  const formatted = Number.isFinite(min) ? min.toLocaleString('es-AR') : match[1];
+  return `El precio cargado es menor al mínimo que exige MercadoLibre para esta categoría (mínimo: ${formatted}).`;
+}
+
 function translateMlCause(cause) {
+  if (cause.code === 'item.price.invalid') return translateMinPriceError(cause) || ML_ERROR_CODE_MESSAGES[cause.code];
   if (ML_ERROR_CODE_MESSAGES[cause.code]) return ML_ERROR_CODE_MESSAGES[cause.code];
   // "The attributes [LAND_ACCESS] are required for category..." (item.attributes.missing_required):
   // el/los código/s van en el texto del mensaje, no en `references`.
@@ -266,13 +278,23 @@ const OP_CANONICAL = [
   { key: 'temporario', label: 'Alquiler temporario', match: (s) => /temp/i.test(s || '') },
 ];
 
+// Mismos 3 valores que usan las integraciones con MercadoLibre/ZonaProp y OP_CANONICAL de arriba
+// para reconocer el tipo de operación. Antes "Tipo de operación" era texto libre: una tilde,
+// mayúscula o palabra distinta a estas rompía el matcheo y la operación dejaba de sincronizar
+// sin ningún aviso. Con un desplegable fijo eso ya no puede pasar.
+const OPERATION_TYPE_OPTIONS = ['Venta', 'Alquiler', 'Alquiler temporario'];
+
 function OperationTabs({ operations, saveField }) {
   const tabs = OP_CANONICAL.map((c) => ({ ...c, opIndex: operations.findIndex((o) => c.match(o.operation_type)) }));
   const firstEnabled = tabs.find((t) => t.opIndex >= 0) || tabs[0];
   const [activeKey, setActiveKey] = useState(firstEnabled.key);
   const activeTab = tabs.find((t) => t.key === activeKey) || tabs[0];
   const op = activeTab.opIndex >= 0 ? operations[activeTab.opIndex] : null;
-  const price = op?.prices?.[0];
+  // Antes esta fila solo se mostraba si ya había un precio cargado (`price &&`) — si la operación
+  // todavía no tenía ninguno (lo normal recién entrada en tasación), no había forma de cargar el
+  // primero desde acá. Con un valor por defecto la fila siempre se muestra y se puede completar.
+  const price = op?.prices?.[0] || { price: '', currency: 'USD' };
+  const hasPrice = !!price.price;
 
   return e(React.Fragment, null,
     e('div', { className: 'op-tabs' },
@@ -285,8 +307,14 @@ function OperationTabs({ operations, saveField }) {
     ),
     op
       ? e('div', { className: 'prop-info-grid' },
-          e(Row, { label: 'Tipo de operación' }, e(EditableField, { value: op.operation_type, onSave: (v) => saveField(`operations.${activeTab.opIndex}.operation_type`, v) })),
-          price && e(Row, { label: 'Precio' },
+          e(Row, { label: 'Tipo de operación' },
+            e('select', {
+              className: 'op-type-select',
+              value: op.operation_type,
+              onChange: (ev) => saveField(`operations.${activeTab.opIndex}.operation_type`, ev.target.value),
+            }, OPERATION_TYPE_OPTIONS.map((o) => e('option', { key: o, value: o }, o))),
+          ),
+          e(Row, { label: 'Precio' },
             e('div', { className: 'price-currency-field' },
               e('select', {
                 className: 'price-currency-select',
@@ -295,6 +323,7 @@ function OperationTabs({ operations, saveField }) {
               }, e('option', { value: 'USD' }, 'USD'), e('option', { value: 'ARS' }, 'ARS')),
               e(EditableField, { type: 'number', value: price.price, onSave: (v) => saveField(`operations.${activeTab.opIndex}.prices.0.price`, v) }),
             ),
+            !hasPrice && e('span', { className: 'price-missing-hint' }, 'Sin precio no se publica'),
           ),
         )
       : e('div', { className: 'op-disabled-note' }, 'Operación no habilitada para esta propiedad.'),
@@ -406,7 +435,7 @@ function MlListingRow({ listing: l, listingTypes, onUpgrade }) {
       ),
     ),
 
-    l.last_error && e('div', { className: 'ml-listing-error' }, l.last_error),
+    l.last_error && e('div', { className: 'ml-listing-error' }, translateMlError(l.last_error).join(' ')),
     l.updated_at && e('div', { className: 'difusion-card-updated' },
       `Actualizado ${new Date(l.updated_at).toLocaleDateString('es-AR')}`),
   );

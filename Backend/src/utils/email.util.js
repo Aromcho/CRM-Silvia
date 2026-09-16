@@ -41,7 +41,9 @@ function propertyPriceLine(property) {
   const opLabel = OPERATION_TYPE_LABELS[op?.operation_type] || op?.operation_type || '';
   if (!price?.price) return opLabel;
   const formatted = new Intl.NumberFormat('es-AR').format(price.price);
-  const priceLabel = `${price.currency === 'USD' ? 'USD' : '$'} ${formatted}`;
+  // Precio cargado a mano sin tocar el selector de moneda => currency queda sin guardar; se trata
+  // como USD (igual que el selector lo muestra por defecto), no como pesos.
+  const priceLabel = `${(!price.currency || price.currency === 'USD') ? 'USD' : '$'} ${formatted}`;
   return opLabel ? `${opLabel} · ${priceLabel}` : priceLabel;
 }
 

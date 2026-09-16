@@ -9,6 +9,7 @@ import { syncWithTokko } from '../utils/syncWithTokko.js';
 import { importRentalExcelFile, RENTAL_XLSX_PATH } from '../utils/rentalExcelImporter.js';
 import { nextManualPropertyId } from '../models/Counter.model.js';
 import * as ml from '../utils/mercadolibre.service.js';
+import * as zp from '../utils/zonaprop.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,11 +18,72 @@ const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads', 'properties');
 // Re-sincroniza con MercadoLibre en cada edición desde el CRM, para no depender de que alguien
 // se acuerde de tocar "Sincronizar ahora". Solo para propiedades YA publicadas (tienen item_id) —
 // si nunca se publicó a mano, una edición cualquiera no debe crear una publicación nueva sola.
+// syncProperty() manda el aviso completo (título, precio, fotos, atributos, ubicación y
+// descripción) en cada llamada, no solo los campos que cambiaron — así cualquier edición en el
+// CRM, sea cual sea el campo, llega entera a ML.
 async function triggerMlSync(property) {
   const listings = property.difusion?.mercadolibre?.listings || [];
   if (!listings.some((l) => l.item_id)) return;
   if (!(await ml.isConnected())) return;
   await ml.syncProperty(property);
+}
+
+// Mismo criterio que triggerMlSync, para ZonaProp: solo re-sincroniza avisos que ya están
+// vinculados (tienen codigoAviso) — el alta inicial sigue siendo una acción manual (hay que elegir
+// plan). zp.syncProperty() también manda el aviso completo en cada llamada (ver mapPropertyToZpAviso),
+// así que cualquier campo editado en el CRM (no solo precio/descripción) llega a ZonaProp también.
+async function triggerZpSync(property) {
+  if (!property.difusion?.zonaprop?.codigoAviso) return;
+  await zp.syncProperty(property);
+}
+
+// Dispara la resincronización hacia los dos portales en paralelo tras guardar un cambio.
+// Cada uno se loguea con su propio catch: si uno falla no debe tapar ni frenar al otro.
+function triggerPortalsSync(property) {
+  triggerMlSync(property).catch((err) => console.error(`No se pudo re-sincronizar la propiedad ${property.id} con MercadoLibre`, err.message));
+  triggerZpSync(property).catch((err) => console.error(`No se pudo re-sincronizar la propiedad ${property.id} con ZonaProp`, err.message));
+}
+
+// El tarifario de "Alquileres temporarios" (temporaryRental.seasonalRates, por quincena/mes) vive
+// separado de operations[].prices, que es el único campo que leen las integraciones con
+// MercadoLibre y ZonaProp — cargar tarifas ahí nunca alcanzaba para poder sincronizar. Como ML
+// además no publica un alquiler temporario con más de un precio cargado (necesita uno solo), la
+// solución elegida es tomar automáticamente UNA tarifa del tarifario como precio único a publicar.
+// Prioridad: enero (temporada alta) > febrero > marzo > diciembre > invierno — la primera que
+// esté cargada. "invierno" es el único mes con tarifa plana (rate.price) en vez de por quincena.
+const TEMP_RENTAL_RATE_PRIORITY = ['enero', 'febrero', 'marzo', 'diciembre', 'invierno'];
+
+function deriveTemporaryRentalPrice(temporaryRental) {
+  const rates = temporaryRental?.seasonalRates || {};
+  for (const month of TEMP_RENTAL_RATE_PRIORITY) {
+    const rate = rates[month];
+    if (!rate) continue;
+    const amount = month === 'invierno' ? rate.price : rate.quincena;
+    if (amount != null && amount !== '') {
+      return { currency: rate.currency || 'USD', price: Number(amount) };
+    }
+  }
+  return null;
+}
+
+// Si la propiedad tiene una operación de Alquiler temporario sin precio propio, la completa sola
+// con la tarifa de mayor prioridad del tarifario (ver arriba). Si ya tiene un precio cargado —a
+// mano, desde la ficha— nunca se lo pisa: el tarifario solo llena el hueco, no manda por encima
+// de una decisión explícita.
+async function syncTemporaryRentalPrice(property) {
+  const opIndex = (property.operations || []).findIndex((o) => /temp/i.test(o.operation_type || ''));
+  if (opIndex < 0) return property;
+  if (property.operations[opIndex].prices?.length) return property;
+
+  const derived = deriveTemporaryRentalPrice(property.temporaryRental);
+  if (!derived) return property;
+
+  const updated = await Property.findOneAndUpdate(
+    { id: property.id },
+    { $set: { [`operations.${opIndex}.prices`]: [derived] } },
+    { new: true }
+  );
+  return updated || property;
 }
 
 const normalizeText = (v = '') => String(v).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
@@ -364,8 +426,9 @@ export async function updateProperty(req, res, next) {
     if (!oldDoc) return res.status(404).json({ message: 'Propiedad no encontrada' });
     const changes = buildPropertyChanges(oldDoc, updates);
 
-    const property = await Property.findOneAndUpdate({ id: parseInt(id, 10) }, { $set: updates }, { new: true });
+    let property = await Property.findOneAndUpdate({ id: parseInt(id, 10) }, { $set: updates }, { new: true });
     if (!property) return res.status(404).json({ message: 'Propiedad no encontrada' });
+    property = await syncTemporaryRentalPrice(property);
 
     const label = property.address || property.publication_title || `#${property.id}`;
     const description = changes.length === 1
@@ -386,7 +449,7 @@ export async function updateProperty(req, res, next) {
     });
 
     res.json(property);
-    triggerMlSync(property).catch((err) => console.error(`No se pudo re-sincronizar la propiedad ${property.id} con MercadoLibre`, err.message));
+    triggerPortalsSync(property);
   } catch (error) {
     next(error);
   }
@@ -411,7 +474,7 @@ export async function updatePropertyStatus(req, res, next) {
     });
 
     res.json(property);
-    triggerMlSync(property).catch((err) => console.error(`No se pudo re-sincronizar la propiedad ${property.id} con MercadoLibre`, err.message));
+    triggerPortalsSync(property);
   } catch (error) {
     next(error);
   }

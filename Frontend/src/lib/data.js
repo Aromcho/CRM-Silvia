@@ -46,5 +46,7 @@ export function formatPrice(ops) {
   const p = op.prices[0];
   if (!p.price) return null;
   const formatted = new Intl.NumberFormat('es-AR').format(p.price);
-  return `${p.currency === 'USD' ? 'USD' : '$'} ${formatted}`;
+  // Sin currency guardado (precio cargado a mano sin tocar el selector de moneda) se trata como
+  // USD, no como pesos — igual que el selector de la ficha lo muestra por defecto.
+  return `${(!p.currency || p.currency === 'USD') ? 'USD' : '$'} ${formatted}`;
 }

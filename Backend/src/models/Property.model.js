@@ -5,7 +5,7 @@ const operationSchema = new Schema({
   operation_id: Number,
   operation_type: { type: String, index: true },
   prices: [{
-    currency: String,
+    currency: { type: String, default: 'USD' },
     period: Schema.Types.Mixed, // Tokko envía 0 (venta/alquiler) o texto como "1st fortnight january" (temporario)
     period_number: Number, // quincena numérica, clave para matchear temporarios
     price: { type: Number, index: true },
