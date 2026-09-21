@@ -396,3 +396,50 @@ export async function pollZonapropLeadsHandler(req, res) {
     console.error('Error en el polling de leads de ZonaProp', err.message);
   }
 }
+
+function isoDay(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+// Reporte de leads de ZonaProp para la sección Reportes. A diferencia de MercadoLibre, Navent no
+// expone visitas/contactos por aviso en el plan actual ("API Free", ver configureZonapropCallbacks)
+// — el único dato real que tenemos es el lead en sí (por callback o por polling), así que el
+// reporte muestra sólo eso en vez de simular métricas que no existen.
+export async function getZonaPropReports(req, res) {
+  try {
+    const days = Math.min(parseInt(req.query.days, 10) || 30, 150);
+    const since = new Date();
+    since.setUTCHours(0, 0, 0, 0);
+    since.setUTCDate(since.getUTCDate() - days);
+
+    const leads = await Lead.find(
+      { source: 'zonaprop', createdAt: { $gte: since } },
+      { propertyId: 1, propertyTitle: 1, createdAt: 1 }
+    ).lean();
+
+    const byDate = new Map();
+    const byProperty = new Map();
+    for (const l of leads) {
+      const dateKey = isoDay(l.createdAt);
+      byDate.set(dateKey, (byDate.get(dateKey) || 0) + 1);
+      if (l.propertyId) {
+        const p = byProperty.get(l.propertyId) || { propertyId: l.propertyId, propertyTitle: l.propertyTitle || '', leads: 0 };
+        p.leads += 1;
+        byProperty.set(l.propertyId, p);
+      }
+    }
+
+    const series = [...byDate.entries()].map(([date, leads]) => ({ date, leads })).sort((a, b) => (a.date < b.date ? -1 : 1));
+    const topByLeads = [...byProperty.values()].sort((a, b) => b.leads - a.leads).slice(0, 10)
+      .map((p) => ({ propertyId: p.propertyId, publication_title: p.propertyTitle, address: '', leads: p.leads }));
+
+    res.json({
+      range: { from: isoDay(since), to: isoDay(new Date()), days },
+      totals: { leads: leads.length },
+      series,
+      topByLeads,
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error obteniendo el reporte de ZonaProp', detail: err.message });
+  }
+}

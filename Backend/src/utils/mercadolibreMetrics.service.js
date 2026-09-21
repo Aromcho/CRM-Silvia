@@ -97,9 +97,18 @@ function activeListingsFromProperties(properties) {
   return listings;
 }
 
+// Mensaje corto y accionable a partir de un error de axios contra la API de ML — para que quede
+// legible en logs/Activity en vez de un stack trace completo.
+function mlErrorMessage(err) {
+  const status = err.response?.status;
+  const body = err.response?.data?.message || err.response?.data?.error || err.message;
+  return status ? `${status}: ${body}` : String(body);
+}
+
 // Corrida diaria (pensada para node-cron): trae las métricas del día anterior para cada
 // publicación activa y guarda un snapshot. No frena si un endpoint puntual falla — guarda 0/null
-// para ese dato y sigue con el resto.
+// para ese dato, pero registra el motivo (antes se tragaba el error sin loguear nada, y así pasó
+// un mes entero con visits/questions en 0 sin que nadie se enterara del porqué).
 export async function collectDailyMetrics({ delayMs = 400 } = {}) {
   const { date, date_from, date_to } = yesterdayRange();
   const properties = await Property.find(
@@ -110,9 +119,22 @@ export async function collectDailyMetrics({ delayMs = 400 } = {}) {
 
   const visitsByItem = {};
   const questionsByItem = {};
+  const errorSamples = { visits: null, questions: null, phone_views: null, whatsapp: null, leads: null };
   for (const { itemId } of activeListings) {
-    try { visitsByItem[itemId] = await getItemVisits(itemId, date_from, date_to); } catch { visitsByItem[itemId] = 0; }
-    try { questionsByItem[itemId] = await getItemQuestions(itemId, date_from, date_to); } catch { questionsByItem[itemId] = 0; }
+    try { visitsByItem[itemId] = await getItemVisits(itemId, date_from, date_to); }
+    catch (err) {
+      visitsByItem[itemId] = 0;
+      const msg = mlErrorMessage(err);
+      if (!errorSamples.visits) errorSamples.visits = msg;
+      console.error(`[ml-metrics] Error trayendo visits de ${itemId}:`, msg);
+    }
+    try { questionsByItem[itemId] = await getItemQuestions(itemId, date_from, date_to); }
+    catch (err) {
+      questionsByItem[itemId] = 0;
+      const msg = mlErrorMessage(err);
+      if (!errorSamples.questions) errorSamples.questions = msg;
+      console.error(`[ml-metrics] Error trayendo questions de ${itemId}:`, msg);
+    }
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 
@@ -121,15 +143,24 @@ export async function collectDailyMetrics({ delayMs = 400 } = {}) {
   const whatsappByItem = {};
   for (const group of chunk(itemIds, 20)) {
     try { Object.assign(phoneByItem, await getBatchTimeWindow('phone_views', group)); }
-    catch (err) { console.error('Error trayendo phone_views en batch', err.message); }
+    catch (err) {
+      errorSamples.phone_views = errorSamples.phone_views || mlErrorMessage(err);
+      console.error('[ml-metrics] Error trayendo phone_views en batch', mlErrorMessage(err));
+    }
     try { Object.assign(whatsappByItem, await getBatchTimeWindow('whatsapp', group)); }
-    catch (err) { console.error('Error trayendo whatsapp en batch', err.message); }
+    catch (err) {
+      errorSamples.whatsapp = errorSamples.whatsapp || mlErrorMessage(err);
+      console.error('[ml-metrics] Error trayendo whatsapp en batch', mlErrorMessage(err));
+    }
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 
   let leadsByItem = {};
   try { leadsByItem = await getLeadsForDay(date_from, date_to); }
-  catch (err) { console.error('Error trayendo leads del día', err.message); }
+  catch (err) {
+    errorSamples.leads = mlErrorMessage(err);
+    console.error('[ml-metrics] Error trayendo leads del día', mlErrorMessage(err));
+  }
 
   let saved = 0;
   for (const { propertyId, operationType, itemId } of activeListings) {
@@ -150,7 +181,8 @@ export async function collectDailyMetrics({ delayMs = 400 } = {}) {
     );
     saved += 1;
   }
-  return { date: date_from, itemsProcessed: activeListings.length, saved };
+  const errors = Object.fromEntries(Object.entries(errorSamples).filter(([, v]) => v));
+  return { date: date_from, itemsProcessed: activeListings.length, saved, ...(Object.keys(errors).length ? { errors } : {}) };
 }
 
 // Reporte de portfolio (sección Reportes): agrega todos los snapshots del rango, sin filtrar

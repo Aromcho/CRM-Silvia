@@ -2,7 +2,7 @@
 import React from 'react';
 import Icons from '../Icons/Icons';
 import LineChart from '../UI/LineChart';
-import { getPropertyStats, getLeadStats, getMercadoLibreReports, getWhatsAppStats } from '@/services/api';
+import { getPropertyStats, getLeadStats, getMercadoLibreReports, getZonaPropReports, getWhatsAppStats } from '@/services/api';
 import './Reportes.css';
 
 const e = React.createElement;
@@ -181,6 +181,58 @@ function MercadoLibreReports() {
   );
 }
 
+// A diferencia de MercadoLibre, ZonaProp (plan "API Free" actual) no expone visitas/contactos por
+// aviso — el único dato real disponible es el lead en sí, así que este panel muestra sólo eso en
+// vez de tiles vacíos que nunca van a tener datos.
+function ZonaPropReports() {
+  const [days, setDays] = useState(30);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback((d) => {
+    setLoading(true);
+    getZonaPropReports(d)
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(days); }, [load, days]);
+
+  const chartSeries = (data?.series || []).map((d) => ({ date: d.date, value: d.leads || 0 }));
+  const noDataYet = !loading && (data?.series || []).length === 0;
+
+  return e('div', { className: 'rpt-section' },
+    e('div', { className: 'rpt-section-head' },
+      e('div', null,
+        e('h2', null, 'ZonaProp'),
+        e('p', null, 'Leads recibidos por avisos publicados en ZonaProp.'),
+      ),
+      e('div', { className: 'rpt-days' },
+        DAY_OPTIONS.map((o) => e('button', {
+          key: o.key, type: 'button', className: `rpt-day-btn${days === o.key ? ' active' : ''}`, onClick: () => setDays(o.key),
+        }, o.label)),
+      ),
+    ),
+
+    e('div', { className: 'rpt-stats-tiles' },
+      e(StatTile, { label: 'Leads', value: data?.totals?.leads }),
+    ),
+
+    noDataYet
+      ? e('div', { className: 'rpt-empty' },
+          e(Icons.RefreshCw, { width: 24, height: 24 }),
+          e('p', null, 'Todavía no hay leads de ZonaProp para este período.'),
+        )
+      : e('div', { className: 'rpt-chart-card' },
+          e('h4', null, 'Leads por día'),
+          e(LineChart, { data: chartSeries, valueLabel: 'leads' }),
+        ),
+
+    e(TopPropertiesTable, { title: 'Más leads', rows: data?.topByLeads || [], valueKey: 'leads', valueLabel: 'Leads' }),
+  );
+}
+
 export default function Reportes() {
   const [propStats, setPropStats] = useState(null);
   const [leadStats, setLeadStats] = useState(null);
@@ -218,5 +270,7 @@ export default function Reportes() {
     e(ConsultasWebPanel, { whatsappStats, webFormTotal }),
 
     e(MercadoLibreReports),
+
+    e(ZonaPropReports),
   );
 }

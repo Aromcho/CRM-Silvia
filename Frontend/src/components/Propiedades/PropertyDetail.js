@@ -5,6 +5,7 @@ import EditableField from '../UI/EditableField';
 import RichTextField from '../UI/RichTextField';
 import PhotoManager from './PhotoManager';
 import MlStats from './MlStats';
+import ZpStats from './ZpStats';
 import PropertyMap from './PropertyMap';
 import DuplicatePropertyModal from './DuplicatePropertyModal';
 import {
@@ -774,6 +775,11 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
               e('h3', null, 'Estadísticas de MercadoLibre'),
               e('p', { className: 'detail-section-sub' }, 'Visitas, contactos e interesados que generó esta propiedad en MercadoLibre.'),
               e(MlStats, { property }),
+            ),
+            e('div', { className: 'detail-section' },
+              e('h3', null, 'Estadísticas de ZonaProp'),
+              e('p', { className: 'detail-section-sub' }, 'Leads que generó esta propiedad en ZonaProp.'),
+              e(ZpStats, { property }),
             ),
           )
         : e('div', { className: 'detail-main' },

@@ -10,6 +10,7 @@ import {
   getZonapropCallbacksConfig,
   handleZonapropCallback,
   pollZonapropLeadsHandler,
+  getZonaPropReports,
 } from '../../controllers/zonaprop.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
 
@@ -19,6 +20,7 @@ router.post('/sync/:propertyId', isAuth, syncToZonaprop);
 router.patch('/plan/:propertyId', isAuth, upgradeZonapropPlan);
 router.post('/sync-all', isAuth, syncAllZonaprop);
 router.get('/summary', isAuth, getZonaPropSummary);
+router.get('/reports', isAuth, getZonaPropReports);
 router.get('/summary/properties', isAuth, getZonaPropSummaryProperties);
 router.post('/reconcile', isAuth, reconcileZonaprop);
 router.get('/callbacks/config', isAuth, getZonapropCallbacksConfig);

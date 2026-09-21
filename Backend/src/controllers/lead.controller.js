@@ -6,10 +6,11 @@ import { isLeadEmailsEnabled, setLeadEmailsEnabled } from '../utils/settings.uti
 
 export async function getLeads(req, res, next) {
   try {
-    const { status, source, assignedTo, searchQuery, dateFrom, dateTo, limit = 50, offset = 0 } = req.query;
+    const { status, source, assignedTo, searchQuery, dateFrom, dateTo, propertyId, limit = 50, offset = 0 } = req.query;
     const filter = {};
     if (status && status !== 'all') filter.status = status;
     if (source && source !== 'all') filter.source = source;
+    if (propertyId) filter.propertyId = parseInt(propertyId, 10);
     if (assignedTo === 'none') filter.assignedTo = null;
     else if (assignedTo) filter.assignedTo = assignedTo;
     if (dateFrom || dateTo) {

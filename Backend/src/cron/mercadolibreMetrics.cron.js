@@ -7,7 +7,7 @@ export function startMercadoLibreMetricsCron() {
   cron.schedule('0 4 * * *', async () => {
     try {
       const summary = await collectDailyMetrics();
-      console.log(`[ml-metrics] ${summary.date}: ${summary.saved}/${summary.itemsProcessed} publicaciones`);
+      console.log(`[ml-metrics] ${summary.date}: ${summary.saved}/${summary.itemsProcessed} publicaciones`, summary.errors || '');
     } catch (err) {
       console.error('[ml-metrics] Error en la recolección diaria', err.message);
     }

@@ -231,9 +231,10 @@ export async function collectMercadoLibreMetrics(req, res) {
   res.json({ started: true });
   try {
     const summary = await collectDailyMetrics();
+    const errorsNote = summary.errors ? ` — con errores: ${Object.entries(summary.errors).map(([k, v]) => `${k}: ${v}`).join(' | ')}` : '';
     await Activity.create({
       type: 'ml_sync_completed',
-      description: `Recolección de métricas de MercadoLibre: ${summary.saved}/${summary.itemsProcessed} publicaciones (${summary.date})`,
+      description: `Recolección de métricas de MercadoLibre: ${summary.saved}/${summary.itemsProcessed} publicaciones (${summary.date})${errorsNote}`,
       userId: req.user?.id,
       userName: req.user?.name,
       meta: summary,
