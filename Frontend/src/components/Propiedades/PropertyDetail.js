@@ -9,7 +9,7 @@ import ZpStats from './ZpStats';
 import PropertyMap from './PropertyMap';
 import DuplicatePropertyModal from './DuplicatePropertyModal';
 import {
-  updateProperty, updatePropertyStatus, syncPropertyMercadoLibre,
+  updateProperty, updatePropertyStatus, syncPropertyMercadoLibre, checkPropertyMercadoLibre,
   getMercadoLibreListingTypes, upgradeMercadoLibreListingType,
   syncPropertyZonaProp, upgradeZonaPropPlan,
 } from '@/services/api';
@@ -30,8 +30,19 @@ const PAGE_TABS = [
 
 const PROPERTY_TYPES = ['Casa', 'Departamento', 'PH', 'Terreno', 'Local', 'Oficina', 'Complejo'];
 
-const ML_STATUS_LABELS = { active: 'Activo', paused: 'Pausado', closed: 'Cerrado' };
-const ML_OPERATION_LABELS = { venta: 'Venta', alquiler: 'Alquiler' };
+const ML_STATUS_LABELS = {
+  active: 'Activo', paused: 'Pausado', closed: 'Cerrado', not_published: 'No publicado',
+  not_yet_active: 'Pendiente de activación', under_review: 'En revisión de MercadoLibre',
+  payment_required: 'Pendiente de pago', inactive: 'Inactivo',
+};
+// sub_status que ML informa cuando el aviso existe pero no está visible
+const ML_SUB_STATUS_LABELS = {
+  pack_quota_pending: 'Tu plan de MercadoLibre no tiene cupo libre para inmuebles. Pausá o finalizá otro aviso, o ampliá el plan en MercadoLibre: cuando haya lugar se activa solo.',
+  waiting_for_patch: 'MercadoLibre pide corregir algo del aviso antes de activarlo.',
+  held: 'MercadoLibre retuvo el aviso para revisión.',
+  moderation: 'MercadoLibre está moderando el aviso (fotos o datos).',
+};
+const ML_OPERATION_LABELS = { venta: 'Venta', alquiler: 'Alquiler', alquiler_temporal: 'Alquiler temporal' };
 
 // Traduce los errores de validación crudos que devuelve la API de MercadoLibre (JSON con códigos
 // tipo "item.category_id.invalid") a frases en español que entienda alguien que no maneja la API.
@@ -436,15 +447,85 @@ function MlListingRow({ listing: l, listingTypes, onUpgrade }) {
       ),
     ),
 
+    l.status !== 'active' && ML_SUB_STATUS_LABELS[l.sub_status] && e('div', { className: 'ml-listing-warn' }, ML_SUB_STATUS_LABELS[l.sub_status]),
     l.last_error && e('div', { className: 'ml-listing-error' }, translateMlError(l.last_error).join(' ')),
     l.updated_at && e('div', { className: 'difusion-card-updated' },
       `Actualizado ${new Date(l.updated_at).toLocaleDateString('es-AR')}`),
   );
 }
 
+// Chequeo previo contra MercadoLibre (sin publicar): muestra si el aviso pasaría y, por cada dato que
+// ML exija y falte, un campo para completarlo acá mismo. Se guarda en property.ml_attributes, así que
+// sirve también para obligatorios nuevos que ML agregue y que el CRM no tenga como campo propio.
+function MlRequirementInput({ attr, onSave }) {
+  const [value, setValue] = useState(attr.current ?? '');
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    if (String(value).trim() === '') return;
+    setSaving(true);
+    try { await onSave(attr.id, value); } finally { setSaving(false); }
+  }
+  const input = attr.values.length
+    ? e('select', { className: 'ml-tier-select', value, onChange: (ev) => setValue(ev.target.value) },
+        e('option', { value: '' }, 'Elegí una opción…'),
+        attr.values.map((v) => e('option', { key: v.id, value: v.id }, v.name)))
+    : e('input', {
+        className: 'ml-req-input', value, placeholder: attr.unit ? `Ej: 120 (${attr.unit})` : 'Valor',
+        inputMode: /number/.test(attr.value_type) ? 'decimal' : 'text',
+        onChange: (ev) => setValue(ev.target.value), onKeyDown: (ev) => { if (ev.key === 'Enter') save(); },
+      });
+  return e('div', { className: 'ml-req-row' },
+    e('label', { className: 'ml-req-label' }, attr.name),
+    e('div', { className: 'ml-req-control' },
+      input,
+      e('button', { type: 'button', className: 'btn xs', onClick: save, disabled: saving || String(value).trim() === '' },
+        saving ? 'Guardando…' : 'Guardar'),
+    ),
+  );
+}
+
+function MlRequirements({ property, refreshKey, onChanged }) {
+  const [check, setCheck] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState('');
+
+  async function run() {
+    setLoading(true);
+    setFailed('');
+    try { setCheck(await checkPropertyMercadoLibre(property.id)); } catch (err) { setFailed(err.message || 'No se pudo chequear.'); } finally { setLoading(false); }
+  }
+  useEffect(() => { run(); }, [property.id, refreshKey]);
+
+  async function saveAttr(attrId, value) {
+    await updateProperty(property.id, { [`ml_attributes.${attrId}`]: value });
+    await run();
+    onChanged?.();
+  }
+
+  if (loading && !check) return e('div', { className: 'ml-req ml-req-loading' }, 'Chequeando con MercadoLibre…');
+  if (failed) return e('div', { className: 'ml-req ml-req-bad' }, `No se pudo chequear con MercadoLibre: ${failed}`);
+  if (!check) return null;
+  if (check.ok) return e('div', { className: 'ml-req ml-req-ok' }, e(Icons.Check, { width: 13, height: 13 }), 'MercadoLibre acepta el aviso: está lista para publicar.');
+
+  const multi = check.operations.length > 1;
+  return e('div', { className: 'ml-req ml-req-bad' },
+    e('div', { className: 'ml-guidance-title' }, e(Icons.AlertTriangle, { width: 13, height: 13 }), 'Antes de publicar en MercadoLibre:'),
+    check.notes.map((n, i) => e('p', { key: `n${i}`, className: 'ml-req-note' }, n)),
+    check.operations.filter((o) => !o.ok).map((o) => e('div', { key: o.operation_type, className: 'ml-req-op' },
+      multi && e('div', { className: 'ml-req-op-title' }, ML_OPERATION_LABELS[o.operation_type] || o.operation_type),
+      o.missing.length > 0 && e('p', { className: 'ml-req-note' }, 'MercadoLibre exige estos datos. Completalos acá:'),
+      o.missing.map((a) => e(MlRequirementInput, { key: a.id, attr: a, onSave: saveAttr })),
+      o.errors.flatMap(translateMlError).map((msg, i) => e('p', { key: `e${i}`, className: 'ml-req-note' }, `• ${msg}`)),
+    )),
+    e('button', { type: 'button', className: 'btn ghost xs', onClick: run, disabled: loading },
+      e(Icons.RefreshCw, { width: 12, height: 12 }), loading ? 'Chequeando…' : 'Volver a chequear'),
+  );
+}
+
 function MercadoLibreCard({ property, onSynced }) {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
+  const [checkKey, setCheckKey] = useState(0);
   const [listingTypes, setListingTypes] = useState(mlListingTypesCache || []);
   const data = property.difusion?.mercadolibre;
   const listings = data?.listings || [];
@@ -466,6 +547,7 @@ function MercadoLibreCard({ property, onSynced }) {
       setError(err.message || 'No se pudo sincronizar con MercadoLibre.');
     } finally {
       setSyncing(false);
+      setCheckKey((k) => k + 1);
     }
   }
 
@@ -494,6 +576,7 @@ function MercadoLibreCard({ property, onSynced }) {
       ? e('div', { className: 'difusion-card-status' }, e('span', { className: 'difusion-status-dot' }), 'Todavía no se publicó')
       : listings.map((l) => e(MlListingRow, { key: l.operation_type, listing: l, listingTypes, onUpgrade: handleUpgrade })),
     error && e('div', { className: 'ml-listing-error' }, error),
+    e(MlRequirements, { property, refreshKey: `${checkKey}-${property.updatedAt || ''}` }),
   );
 }
 

@@ -52,6 +52,16 @@ export async function syncToMercadoLibre(req, res) {
   }
 }
 
+export async function checkMercadoLibreRequirements(req, res) {
+  try {
+    const property = await Property.findOne({ id: parseInt(req.params.propertyId, 10) }).lean();
+    if (!property) return res.status(404).json({ message: 'Propiedad no encontrada' });
+    res.json(await ml.checkMlRequirements(property));
+  } catch (err) {
+    res.status(502).json({ message: 'Error chequeando los requisitos de MercadoLibre', detail: err.message });
+  }
+}
+
 export async function syncAllMercadoLibre(req, res) {
   res.json({ started: true });
   try {

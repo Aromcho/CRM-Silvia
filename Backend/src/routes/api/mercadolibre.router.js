@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   syncToMercadoLibre,
   syncAllMercadoLibre,
+  checkMercadoLibreRequirements,
   getMercadoLibreStatus,
   handleMercadoLibreLead,
   connectMercadoLibre,
@@ -24,6 +25,7 @@ router.get('/oauth/connect', isAuth, connectMercadoLibre);
 router.get('/oauth/callback', oauthCallback); // público: ML redirige acá sin cookies de sesión
 router.post('/sync/:propertyId', isAuth, syncToMercadoLibre);
 router.post('/sync-all', isAuth, syncAllMercadoLibre);
+router.get('/requirements/:propertyId', isAuth, checkMercadoLibreRequirements);
 router.get('/status', isAuth, getMercadoLibreStatus);
 router.get('/summary', isAuth, getMercadoLibreSummary);
 router.get('/summary/properties', isAuth, getMercadoLibreSummaryProperties);

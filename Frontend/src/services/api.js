@@ -54,6 +54,7 @@ export const updatePropertyPhotoDescription = (id, photoId, description) => requ
 
 // MercadoLibre
 export const syncPropertyMercadoLibre = (id) => request(`/mercadolibre/sync/${id}`, { method: 'POST' });
+export const checkPropertyMercadoLibre = (id) => request(`/mercadolibre/requirements/${id}`);
 export const syncAllMercadoLibre = () => request('/mercadolibre/sync-all', { method: 'POST' });
 export const getMercadoLibreStatus = () => request('/mercadolibre/status');
 export const getMercadoLibreSummary = () => request('/mercadolibre/summary');

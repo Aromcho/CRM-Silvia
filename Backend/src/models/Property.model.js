@@ -193,6 +193,11 @@ const propertySchema = new Schema({
     weight: Number,
     zip_code: String,
   },
+  // Atributos que pide MercadoLibre y que el CRM no tiene como campo propio (ej. GUESTS, o cualquier
+  // obligatorio nuevo que ML agregue a una categoría). Se completan desde la tarjeta de MercadoLibre
+  // en Difusión: { GUESTS: '8', IS_SUITABLE_FOR_PETS: '242085', ... } — value_id para listas, texto
+  // para el resto. Tokko no lo pisa (syncWithTokko hace $set solo de sus propios campos).
+  ml_attributes: { type: Schema.Types.Mixed, default: undefined },
   land_access: String, // acceso al terreno (ej. "Pavimentado"/"Tierra"/"Ripio") — MercadoLibre lo pide obligatorio para Terrenos (LAND_ACCESS), Tokko no lo maneja
   location_level: Schema.Types.Mixed,
   lot_number: String,

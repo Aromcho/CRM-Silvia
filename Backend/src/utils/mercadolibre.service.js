@@ -354,6 +354,75 @@ async function resolveMlLocation(property) {
   };
 }
 
+const REQUIRED_ATTR_HINTS = {
+  GUESTS: 'Capacidad (huéspedes) en Alquileres temporarios',
+  TOTAL_AREA: 'Superficie total',
+  COVERED_AREA: 'Superficie cubierta',
+  ROOMS: 'Ambientes',
+  BEDROOMS: 'Dormitorios',
+  FULL_BATHROOMS: 'Baños',
+  PARKING_LOTS: 'Cocheras',
+  LAND_ACCESS: 'Acceso al terreno',
+  OPERATION: 'Operación',
+  PROPERTY_TYPE: 'Tipo de propiedad',
+};
+
+function firstPositive(...values) {
+  for (const v of values) {
+    const n = parseFloat(v);
+    if (n > 0) return n;
+  }
+  return null;
+}
+
+// "8", "6 personas", "4 a 6" → capacidad máxima (el mayor número que aparezca)
+function parseCapacity(capacity) {
+  const nums = String(capacity || '').match(/\d+/g);
+  return nums ? Math.max(...nums.map(Number)) : null;
+}
+
+// Valores cargados a mano en la tarjeta de MercadoLibre (property.ml_attributes). Pisan lo que
+// haya calculado el mapeo automático: si alguien lo cargó a mano es porque el automático no sirve.
+function applyManualAttributes(attrPayload, attributes, manual) {
+  for (const [id, raw] of Object.entries(manual || {})) {
+    if (raw == null || String(raw).trim() === '') continue;
+    const attr = findAttr(attributes, id);
+    if (!attr) continue;
+    let entry = null;
+    const options = attr.values || [];
+    if (options.length) {
+      const opt = options.find((v) => v.id === String(raw) || v.name?.toLowerCase() === String(raw).trim().toLowerCase());
+      if (opt) entry = { id, value_id: opt.id };
+    } else if (attr.value_type === 'number_unit' && /^[\d.,\s]+$/.test(String(raw))) {
+      const unit = attr.default_unit || attr.allowed_units?.[0]?.id || '';
+      entry = { id, value_name: `${String(raw).trim().replace(',', '.')} ${unit}`.trim() };
+    } else {
+      entry = { id, value_name: String(raw).trim() };
+    }
+    if (!entry) continue;
+    const idx = attrPayload.findIndex((a) => a.id === id);
+    if (idx >= 0) attrPayload.splice(idx, 1);
+    attrPayload.push(entry);
+  }
+}
+
+function findMissingRequired(attrPayload, attributes) {
+  const sent = new Set(attrPayload.map((a) => a.id));
+  return attributes.filter((a) => a.tags?.required && !sent.has(a.id));
+}
+
+// Lo que necesita la UI para mostrar un campo editable por cada atributo que falta
+function describeAttr(attr, property) {
+  return {
+    id: attr.id,
+    name: REQUIRED_ATTR_HINTS[attr.id] || attr.name || attr.id,
+    value_type: attr.value_type,
+    values: (attr.values || []).map((v) => ({ id: v.id, name: v.name })),
+    unit: attr.default_unit || attr.allowed_units?.[0]?.id || null,
+    current: property.ml_attributes?.[attr.id] ?? null,
+  };
+}
+
 export async function mapPropertyToMlItem(property, operationType, operation) {
   const categoryId = await resolveCategoryId(property, operationType);
   const attributes = await getCategoryAttributes(categoryId);
@@ -383,10 +452,12 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
     attrPayload.push({ id: 'BEDROOMS', value_name: String(property.suite_amount) });
   }
   // Obligatorio en la categoría "Alquiler Temporario" (confirmado por error real de ML: item.attributes
-  // .missing_required → GUESTS). Tokko no lo maneja para operaciones estándar, pero el modelo ya tiene
-  // guests_amount (lo llena a mano el circuito de Alquileres temporarios).
-  if (findAttr(attributes, 'GUESTS') && property.guests_amount) {
-    attrPayload.push({ id: 'GUESTS', value_name: String(property.guests_amount) });
+  // .missing_required → GUESTS). La sección Alquileres temporarios guarda la capacidad en
+  // temporaryRental.capacity (texto libre: "8", "6 personas", "4 a 6"), no en guests_amount, que
+  // solo viene de Tokko y casi siempre está en 0 — por eso hay que mirar los dos.
+  const guests = property.guests_amount || parseCapacity(property.temporaryRental?.capacity);
+  if (findAttr(attributes, 'GUESTS') && guests) {
+    attrPayload.push({ id: 'GUESTS', value_name: String(guests) });
   }
   // Igual que PARKING_LOTS: 0 es un valor válido (ej. Terrenos) y hay que mandarlo igual, si no
   // ML lo rechaza con item.attributes.missing_required en vez de aceptar la ausencia de baños.
@@ -398,11 +469,16 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
   if (findAttr(attributes, 'PARKING_LOTS') && property.parking_lot_amount != null) {
     attrPayload.push({ id: 'PARKING_LOTS', value_name: String(property.parking_lot_amount) });
   }
-  if (findAttr(attributes, 'TOTAL_AREA') && property.total_surface) {
-    attrPayload.push({ id: 'TOTAL_AREA', value_name: `${parseFloat(property.total_surface)} m²` });
+  // Obligatorio en todas las categorías de Inmuebles. total_surface llega como "0.00" en la mayoría
+  // de las propiedades (el dato real está en `surface`, superficie del lote), y "0.00" es un string
+  // truthy: antes se mandaba "0 m²". Se usa el primer valor positivo disponible.
+  const totalArea = firstPositive(property.total_surface, property.surface, property.roofed_surface);
+  if (findAttr(attributes, 'TOTAL_AREA') && (totalArea || property.total_surface)) {
+    attrPayload.push({ id: 'TOTAL_AREA', value_name: `${totalArea || parseFloat(property.total_surface)} m²` });
   }
-  if (findAttr(attributes, 'COVERED_AREA') && property.roofed_surface) {
-    attrPayload.push({ id: 'COVERED_AREA', value_name: `${parseFloat(property.roofed_surface)} m²` });
+  const coveredArea = firstPositive(property.roofed_surface, property.total_surface);
+  if (findAttr(attributes, 'COVERED_AREA') && (coveredArea || property.roofed_surface)) {
+    attrPayload.push({ id: 'COVERED_AREA', value_name: `${coveredArea || parseFloat(property.roofed_surface)} m²` });
   }
   // Obligatorio en Inmuebles según la doc de ML (confirmado vía WebSearch): expensas mensuales
   if (findAttr(attributes, 'MAINTENANCE_FEE') && property.expenses) {
@@ -418,6 +494,20 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
   // TODO: IS_SUITABLE_FOR_PETS también es obligatorio para Inmuebles y no hay campo equivalente
   // en Property.model.js (temporaryRental.mascotas es de otro circuito). Si el POST/validate lo pide,
   // hay que agregar el campo al modelo o decidir un valor por defecto (no asumirlo a ciegas).
+
+  applyManualAttributes(attrPayload, attributes, property.ml_attributes);
+
+  // Antes cada obligatorio nuevo se descubría recién cuando ML rechazaba una publicación real. Se
+  // chequea contra /categories/{id}/attributes (tags.required) antes de mandar nada, y se informa
+  // qué falta cargar en vez del error crudo de ML. Todo lo que falte se puede completar desde la
+  // tarjeta de MercadoLibre (ver checkMlRequirements), sin tocar código.
+  const missing = findMissingRequired(attrPayload, attributes);
+  if (missing.length) {
+    const fields = missing.map((a) => REQUIRED_ATTR_HINTS[a.id] || a.name || a.id);
+    const missingErr = new Error(`Falta cargar para publicar en MercadoLibre: ${fields.join(', ')}. Completalo en Difusión → MercadoLibre.`);
+    missingErr.missingAttrs = missing;
+    throw missingErr;
+  }
 
   const pictures = buildPictures(property, maxPictures);
 
@@ -680,14 +770,14 @@ export async function syncProperty(propertyDoc) {
           listingsByType.set(type, { ...published, last_error: null, updated_at: new Date() });
           continue;
         } catch (republishErr) {
-          const listing = { operation_type: type, status: 'active' };
+          const listing = { operation_type: type, status: 'not_published' };
           listing.last_error = extractMlError(republishErr);
           listing.updated_at = new Date();
           listingsByType.set(type, listing);
           continue;
         }
       }
-      const listing = listingsByType.get(type) || { operation_type: type, status: 'active' };
+      const listing = listingsByType.get(type) || { operation_type: type, status: 'not_published' };
       listing.last_error = extractMlError(err);
       listing.updated_at = new Date();
       listingsByType.set(type, listing);
@@ -727,6 +817,57 @@ export async function syncProperty(propertyDoc) {
   const withError = finalListings.find((l) => l.last_error && targetTypes.has(l.operation_type));
   if (withError) throw new Error(withError.last_error);
   return { listings: finalListings };
+}
+
+// Chequeo previo, sin publicar nada: arma el aviso de cada operación y lo pasa por /items/validate
+// de ML. Devuelve qué atributos faltan (con sus opciones, para que la UI muestre un campo por cada
+// uno) y cualquier otro rechazo de ML, así el problema se ve y se resuelve desde el CRM antes de
+// tocar "Sincronizar", aunque ML agregue obligatorios nuevos que el mapeo no conoce.
+export async function checkMlRequirements(property) {
+  const notes = [];
+  const ops = property.status === 'disponible' ? getPublishableOperations(property) : [];
+  if (property.status !== 'disponible') {
+    notes.push('La propiedad no está "Disponible", así que no se publica en MercadoLibre.');
+  } else if (!ops.length) {
+    const temporalMultiPrice = (property.operations || []).some((op) => /temporal/i.test(op.operation_type) && op.prices?.length > 1);
+    notes.push(temporalMultiPrice
+      ? 'Alquiler temporal con varios precios (tarifario): MercadoLibre acepta un solo precio por aviso. Dejá un único precio en la operación para publicarlo.'
+      : 'No tiene ninguna operación con precio cargado (Venta, Alquiler o Alquiler temporal).');
+  }
+
+  const operations = [];
+  for (const { type, operation } of ops) {
+    const entry = { operation_type: type, ok: false, missing: [], errors: [] };
+    let attributes = [];
+    try {
+      const categoryId = await resolveCategoryId(property, type);
+      attributes = await getCategoryAttributes(categoryId);
+      const item = await mapPropertyToMlItem(property, type, operation);
+      await mlRequest('post', '/items/validate', { data: item });
+      entry.ok = true;
+    } catch (err) {
+      const data = err.response?.data;
+      if (err.missingAttrs) {
+        // Lo detectó nuestro propio chequeo de obligatorios, antes de llegar a ML
+        for (const a of err.missingAttrs) entry.missing.push(describeAttr(a, property));
+      } else if (Array.isArray(data?.cause) && data.cause.length) {
+        for (const cause of data.cause) {
+          const m = /attributes \[([A-Z0-9_, ]+)\]/.exec(cause.message || '');
+          const ids = m ? m[1].split(',').map((x) => x.trim()).filter(Boolean) : [];
+          const known = ids.map((id) => findAttr(attributes, id)).filter(Boolean);
+          if (known.length) {
+            for (const a of known) if (!entry.missing.some((x) => x.id === a.id)) entry.missing.push(describeAttr(a, property));
+          } else {
+            entry.errors.push(JSON.stringify({ cause: [cause] }));
+          }
+        }
+      } else {
+        entry.errors.push(data ? JSON.stringify(data) : err.message);
+      }
+    }
+    operations.push(entry);
+  }
+  return { ok: ops.length > 0 && operations.every((o) => o.ok), notes, operations };
 }
 
 // Sync masivo con throttling para no pegarle a la API de ML sin pausa (rate limits).
