@@ -510,6 +510,9 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
   }
 
   const pictures = buildPictures(property, maxPictures);
+  // ML solo admite un video por item (video_id = ID de YouTube, no la URL completa), a nivel raíz
+  // del payload y no dentro de attributes. Es lo que alimenta el goal "video" de /items/{id}/health.
+  const videoId = property.videos?.[0]?.video_id;
 
   const location = await resolveMlLocation(property);
   if (!location) {
@@ -529,6 +532,7 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
     available_quantity: 1,
     official_store_id: null, // obligatorio en null si la cuenta no es Tienda Oficial (confirmado por doc)
     pictures,
+    ...(videoId ? { video_id: videoId } : {}),
     attributes: attrPayload,
     location,
   };
@@ -583,6 +587,7 @@ async function updateListingFull(itemId, mlItem) {
       price: mlItem.price,
       currency_id: mlItem.currency_id,
       pictures: mlItem.pictures,
+      video_id: mlItem.video_id || null, // null = sacarlo si se borró el video en el CRM
       attributes: mlItem.attributes,
       location: mlItem.location,
     },

@@ -1,0 +1,34 @@
+.video-manager { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+.video-add-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.video-add-input {
+  flex: 1; min-width: 260px; font: inherit; font-size: 13px; padding: 9px 12px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: inherit;
+}
+.video-add-input:focus { outline: none; border-color: var(--green-700); }
+
+.video-manager-error {
+  background: #fdecea; color: #c0392f; border: 1px solid #f3c6c2; border-radius: 10px;
+  padding: 10px 14px; font-size: 13px; font-weight: 600; margin-bottom: 16px;
+}
+
+.video-empty {
+  background: var(--surface); border: 1px dashed var(--line); border-radius: 14px;
+  padding: 40px; text-align: center; color: var(--ink-3); font-size: 13.5px; font-weight: 600;
+}
+
+.video-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.video-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  overflow: hidden; box-shadow: var(--shadow-sm);
+}
+
+.video-card-frame { position: relative; padding-top: 56.25%; background: #000; }
+.video-card-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+
+.video-card-actions { display: flex; align-items: center; gap: 6px; padding: 8px; }
+.video-card-actions .btn { flex: 1; display: flex; align-items: center; justify-content: center; }

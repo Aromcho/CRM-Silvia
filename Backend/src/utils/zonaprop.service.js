@@ -203,7 +203,13 @@ function mapMultimedia(property) {
       urlImagenOriginal: p.local_image.startsWith('http') ? p.local_image : `${base}${p.local_image}`,
       titulo: '',
     }));
-  return { imagenes, planos: [], recorridos360: [], videos: [] };
+  // Schema confirmado contra swagger-ui-init.js de la API real (2026-09-21): videos es
+  // [{ codigoVideo, titulo }], donde codigoVideo es el ID de YouTube (mismo video_id que
+  // ya guarda VideoManager.js en el CRM), no la URL completa.
+  const videos = (property.videos || [])
+    .filter((v) => v.video_id)
+    .map((v) => ({ codigoVideo: v.video_id, titulo: v.title || '' }));
+  return { imagenes, planos: [], recorridos360: [], videos };
 }
 
 // Contacto del publicador — fijo por ahora (una sola cuenta/agencia), configurable por env.

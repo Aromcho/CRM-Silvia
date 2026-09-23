@@ -4,6 +4,7 @@ import Icons from '../Icons/Icons';
 import EditableField from '../UI/EditableField';
 import RichTextField from '../UI/RichTextField';
 import PhotoManager from './PhotoManager';
+import VideoManager from './VideoManager';
 import MlStats from './MlStats';
 import ZpStats from './ZpStats';
 import PropertyMap from './PropertyMap';
@@ -23,6 +24,7 @@ const { useState, useEffect, useMemo } = React;
 const PAGE_TABS = [
   { key: 'detalles', label: 'Detalles' },
   { key: 'fotos', label: 'Fotos' },
+  { key: 'videos', label: 'Videos' },
   { key: 'mapa', label: 'Mapa' },
   { key: 'difusion', label: 'Difusión' },
   { key: 'estadisticas', label: 'Estadísticas' },
@@ -727,6 +729,7 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
   }
 
   const photos = property.photos || [];
+  const videos = property.videos || [];
   const priceLabel = formatPrice(property.operations);
   const cover = photoSrc(photos[0]);
 
@@ -821,7 +824,10 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
         key: t.key, type: 'button',
         className: `detail-tab${activeTab === t.key ? ' active' : ''}`,
         onClick: () => setActiveTab(t.key),
-      }, t.label, t.key === 'fotos' && photos.length > 0 && e('span', { className: 'detail-tab-count' }, photos.length))),
+      }, t.label,
+        t.key === 'fotos' && photos.length > 0 && e('span', { className: 'detail-tab-count' }, photos.length),
+        t.key === 'videos' && videos.length > 0 && e('span', { className: 'detail-tab-count' }, videos.length),
+      )),
     ),
 
     e('div', { className: 'detail-hint-bar' },
@@ -834,6 +840,8 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
     e('div', { className: 'detail-layout' },
       activeTab === 'fotos'
         ? e('div', { className: 'detail-main' }, e(PhotoManager, { property, onPropertyChange: setProperty }))
+        : activeTab === 'videos'
+        ? e('div', { className: 'detail-main' }, e(VideoManager, { property, onPropertyChange: setProperty }))
         : activeTab === 'mapa'
         ? e('div', { className: 'detail-main' },
             e('div', { className: 'detail-section' },

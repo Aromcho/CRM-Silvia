@@ -17,7 +17,7 @@ function yesterdayRange() {
   end.setUTCHours(0, 0, 0, 0);
   const start = new Date(end);
   start.setUTCDate(start.getUTCDate() - 1);
-  return { date: start, date_from: isoDate(start), date_to: isoDate(start) };
+  return { date: start, date_from: isoDate(start), date_to: isoDate(end) };
 }
 
 function chunk(arr, size) {
