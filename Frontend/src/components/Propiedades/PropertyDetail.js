@@ -31,6 +31,9 @@ const PAGE_TABS = [
 ];
 
 const PROPERTY_TYPES = ['Casa', 'Departamento', 'PH', 'Terreno', 'Local', 'Oficina', 'Complejo'];
+// Tokko trae los complejos como "Hotel" (y variantes); en el CRM se muestran como "Complejo".
+const COMPLEJO_ALIASES = ['hotel', 'hoteles', 'apart hotel', 'emprendimiento'];
+const displayTypeName = (name) => (COMPLEJO_ALIASES.includes(String(name || '').toLowerCase().trim()) ? 'Complejo' : (name || ''));
 
 const ML_STATUS_LABELS = {
   active: 'Activo', paused: 'Pausado', closed: 'Cerrado', not_published: 'No publicado',
@@ -788,11 +791,14 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
                 e('span', null, property.reference_code || '—'),
                 e('span', null, ' | '),
                 e('select', {
-                  value: property.type?.name || '',
+                  value: displayTypeName(property.type?.name),
                   onChange: (ev) => saveField('type.name', ev.target.value),
                 },
                   e('option', { value: '' }, 'Sin especificar'),
                   PROPERTY_TYPES.map((t) => e('option', { key: t, value: t }, t)),
+                  // Un tipo de Tokko que no está en la lista se muestra tal cual, en vez de "Sin especificar".
+                  !PROPERTY_TYPES.includes(displayTypeName(property.type?.name)) && property.type?.name
+                    && e('option', { key: property.type.name, value: property.type.name }, property.type.name),
                 ),
               ),
             ),

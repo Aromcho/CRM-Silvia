@@ -100,6 +100,12 @@ const TYPE_MAP = {
   departamento: { idTipo: '2', idSubTipo: '38' },
   terreno: { idTipo: '26' },
   hotel: { idTipo: '38' },
+  // En el CRM "Complejo" es el mismo tipo que "Hotel" de Tokko (mismo criterio que
+  // PROPERTY_TYPE_ALIASES en property.controller.js) — todos van como Hotel en ZonaProp.
+  complejo: { idTipo: '38' },
+  hoteles: { idTipo: '38' },
+  'apart hotel': { idTipo: '38' },
+  emprendimiento: { idTipo: '38' },
   local: { idTipo: '5' },
 };
 
