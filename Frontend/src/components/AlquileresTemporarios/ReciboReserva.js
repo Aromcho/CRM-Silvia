@@ -13,8 +13,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
 const PX = 96 / 72; // pt → px
 const FONT_FAMILY = 'Recibo Carlito';
-// Recorte de la foto de la hoja (igual en pantalla y en el PDF): centrada, cerca del borde de arriba
-const PHOTO_POS = { x: 0.5, y: 0.06 };
+// Recorte de la foto de la hoja (igual en pantalla y en el PDF): centrada
+const PHOTO_POS = { x: 0.5, y: 0.5 };
 
 // La fuente del recibo se baja una sola vez: se registra para la vista previa y los mismos bytes se
 // embeben en el PDF.

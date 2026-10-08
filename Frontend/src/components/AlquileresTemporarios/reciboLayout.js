@@ -17,7 +17,7 @@ const HIGHLIGHT = '#ffff00';
 const GREEN = '#1a7f45';
 const MISSING = '__________';
 
-export const RECEIPT_IMAGES = { photo: '/recibo/silvia.jpg', logo: '/recibo/logo.jpg' };
+export const RECEIPT_IMAGES = { photo: '/recibo/silvia-recibo.jpg', logo: '/recibo/logo.jpg' };
 export const RECEIPT_FONTS = { normal: '/recibo/Carlito-Regular.ttf', bold: '/recibo/Carlito-Bold.ttf' };
 
 const FOOTER_LINES = [
