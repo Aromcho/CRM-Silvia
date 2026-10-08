@@ -1,4 +1,5 @@
 import Property from '../models/Property.model.js';
+import { getRentalCapacity } from '../utils/rentalCapacity.js';
 
 // Proyección explícita (allow-list): solo lo que la web pública necesita.
 // Deja afuera a propósito internal_data (dueños), notes, lastEditedBy/At, difusion,
@@ -24,6 +25,7 @@ const PUBLIC_FIELDS = [
   'tv_rooms', 'type', 'uncovered_parking_lot', 'unroofed_surface', 'videos', 'web_price',
   'zonification', 'createdAt', 'updatedAt', 'distanciaMar', 'aptoMascotas', 'aptoCredito', 'aptoFinanciacion',
   'temporaryRental.bookings.startDate', 'temporaryRental.bookings.endDate', 'temporaryRental.bookings.status',
+  'temporaryRental.capacity', 'temporaryRental.capacityGroup',
   'difusion.mercadolibre.published', 'difusion.mercadolibre.url',
 ].join(' ');
 
@@ -54,6 +56,11 @@ function toPublicJson(doc) {
   if (bookingRanges.length) {
     obj.occupation = [...(obj.occupation || []), ...bookingRanges];
   }
+  // Capacidad de personas ya resuelta (ver rentalCapacity.js): la web filtra por guests_capacity
+  // y muestra guests_capacity_label, sin tener que conocer los campos internos del CRM.
+  const capacity = getRentalCapacity(obj.temporaryRental, obj.guests_amount);
+  obj.guests_capacity = capacity.max;
+  obj.guests_capacity_label = capacity.label;
   delete obj.temporaryRental;
 
   // Solo se expone la URL final de la publicación (no item_id/health/etc, que son

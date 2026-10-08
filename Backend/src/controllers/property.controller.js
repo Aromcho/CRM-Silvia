@@ -261,7 +261,8 @@ export async function getProperties(req, res, next) {
 
     if (capacityGroup && capacityGroup !== 'all') {
       const groups = splitValues(capacityGroup);
-      if (groups.length) and.push({ 'temporaryRental.capacityGroup': { $in: groups } });
+      // 'none' = alquileres sin grupo cargado (para encontrarlos y completarles la capacidad)
+      if (groups.length) and.push({ 'temporaryRental.capacityGroup': { $in: groups.map((g) => (g === 'none' ? null : g)) } });
     }
 
     const filter = and.length ? { $and: and } : {};
@@ -371,7 +372,7 @@ export async function duplicateProperty(req, res, next) {
 
 export async function createProperty(req, res, next) {
   try {
-    const { address, publication_title, type_name, operation_type, currency, price, location_name, room_amount, bathroom_amount, total_surface } = req.body;
+    const { address, publication_title, type_name, operation_type, currency, price, full_location, location_name, room_amount, bathroom_amount, total_surface } = req.body;
     if (!address) return res.status(400).json({ message: 'La dirección es obligatoria' });
     if (!type_name) return res.status(400).json({ message: 'El tipo de propiedad es obligatorio' });
     if (!operation_type) return res.status(400).json({ message: 'La operación es obligatoria' });
@@ -384,7 +385,9 @@ export async function createProperty(req, res, next) {
       address,
       publication_title: publication_title || '',
       type: type_name ? { name: type_name } : undefined,
-      location: location_name ? { name: location_name } : undefined,
+      location: (location_name || full_location)
+        ? { ...(location_name && { name: location_name }), ...(full_location && { full_location: full_location.trim() }) }
+        : undefined,
       operations: operation_type ? [{ operation_type, prices: price ? [{ currency: currency || 'USD', price: Number(price) }] : [] }] : [],
       room_amount: room_amount ? Number(room_amount) : undefined,
       bathroom_amount: bathroom_amount ? Number(bathroom_amount) : undefined,

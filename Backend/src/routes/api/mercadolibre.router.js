@@ -9,6 +9,7 @@ import {
   oauthCallback,
   getListingTypes,
   upgradeListingType,
+  getAvailableUpgrades,
   getMercadoLibreSummary,
   getMercadoLibreSummaryProperties,
   getMercadoLibreReports,
@@ -32,6 +33,7 @@ router.get('/summary/properties', isAuth, getMercadoLibreSummaryProperties);
 router.get('/reports', isAuth, getMercadoLibreReports);
 router.get('/listing-types', isAuth, getListingTypes);
 router.patch('/listing-type/:propertyId', isAuth, upgradeListingType);
+router.get('/available-upgrades/:propertyId', isAuth, getAvailableUpgrades);
 router.get('/metrics/property/:propertyId', isAuth, getPropertyMetrics);
 router.post('/metrics/collect', isAuth, collectMercadoLibreMetrics);
 router.get('/discover-existing', isAuth, discoverExistingListings);

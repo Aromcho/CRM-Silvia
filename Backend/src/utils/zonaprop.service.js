@@ -120,6 +120,35 @@ export function resolvePropertyType(property) {
 
 const ubicacionCache = new Map();
 
+// Ciudades (nivel V1-C-) de la zona, relevadas de los avisos online reales de la cuenta
+// (/avisos/online/resumen, 2026-10-07). Respaldo para cuando la propiedad no tiene pin en el mapa
+// o ZonaProp no devuelve ciudad para esas coordenadas (pasa en Colonia Marina): sin idUbicacion
+// el aviso se rechaza con ERR-0207 "El aviso no tiene una ciudad definida".
+const CIUDADES_ZP = [
+  { nombre: 'mar de las pampas', idUbicacion: 'V1-C-1004352', ubicacion: 'Mar de las Pampas, Buenos Aires Costa Atlántica, Argentina' },
+  { nombre: 'las gaviotas', idUbicacion: 'V1-C-2000045', ubicacion: 'Las Gaviotas, Buenos Aires Costa Atlántica, Argentina' },
+  { nombre: 'mar azul', idUbicacion: 'V1-C-1004329', ubicacion: 'Mar Azul, Buenos Aires Costa Atlántica, Argentina' },
+  { nombre: 'colonia marina', idUbicacion: 'V1-C-2000163', ubicacion: 'Colonia Marina, Buenos Aires Costa Atlántica, Argentina' },
+  { nombre: 'costa esmeralda', idUbicacion: 'V1-C-1004327', ubicacion: 'Costa Esmeralda, Buenos Aires Costa Atlántica, Argentina' },
+  { nombre: 'carilo', idUbicacion: 'V1-C-1004349', ubicacion: 'Cariló, Buenos Aires Costa Atlántica, Argentina' },
+  { nombre: 'villa gesell', idUbicacion: 'V1-C-1004361', ubicacion: 'Villa Gesell, Buenos Aires Costa Atlántica, Argentina' },
+];
+
+const normalizeLugar = (v = '') => String(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+// Del más específico al más general: Barrio/zona (location.name) y después los tramos de
+// "Ubicación" (location.full_location, "Argentina | Costa Atlantica | Mar Azul") de atrás para adelante.
+function resolveCiudadPorNombre(property) {
+  const tramos = String(property.location?.full_location || '').split('|').reverse();
+  for (const texto of [property.location?.name, ...tramos]) {
+    const lugar = normalizeLugar(texto);
+    if (!lugar) continue;
+    const ciudad = CIUDADES_ZP.find((c) => lugar.includes(c.nombre));
+    if (ciudad) return { idUbicacion: ciudad.idUbicacion, ubicacion: ciudad.ubicacion };
+  }
+  return null;
+}
+
 // Devuelve un array jerárquico: país (V1-A-) -> provincia/región (V1-B-) -> CIUDAD (V1-C-) -> zona
 // puntual (V1-D-), confirmado en vivo 2026-09-02. El nivel correcto para `idUbicacion` es el de
 // ciudad (V1-C-): usar el de zona (V1-D-) genera el warning "la latitud/longitud hace referencia
@@ -127,15 +156,20 @@ const ubicacionCache = new Map();
 async function resolveUbicacion(property) {
   const lat = property.geo_lat;
   const long = property.geo_long;
-  if (lat == null || long == null) return null;
+  if (lat == null || long == null) return resolveCiudadPorNombre(property);
   const key = `${lat},${long}`;
-  if (ubicacionCache.has(key)) return ubicacionCache.get(key);
-  const { data } = await zpRequest('GET', `/v1/ubicaciones/latitud/${lat}/longitud/${long}/countrycode/AR`);
-  const list = Array.isArray(data) ? data : [data].filter(Boolean);
-  const ciudad = list.find((l) => l?.id?.startsWith('V1-C-')) || list[list.length - 1] || null;
-  const result = ciudad ? { idUbicacion: ciudad.id, ubicacion: ciudad.nombreCompleto || ciudad.nombre } : null;
-  ubicacionCache.set(key, result);
-  return result;
+  let list = ubicacionCache.get(key);
+  if (!list) {
+    const { data } = await zpRequest('GET', `/v1/ubicaciones/latitud/${lat}/longitud/${long}/countrycode/AR`);
+    list = Array.isArray(data) ? data : [data].filter(Boolean);
+    // Una respuesta vacía no se cachea: quedaba guardada como "sin ciudad" hasta reiniciar el backend.
+    if (list.length) ubicacionCache.set(key, list);
+  }
+  const ciudad = list.find((l) => l?.id?.startsWith('V1-C-'));
+  if (ciudad) return { idUbicacion: ciudad.id, ubicacion: ciudad.nombreCompleto || ciudad.nombre };
+  const otroNivel = list[list.length - 1];
+  return resolveCiudadPorNombre(property)
+    || (otroNivel ? { idUbicacion: otroNivel.id, ubicacion: otroNivel.nombreCompleto || otroNivel.nombre } : null);
 }
 
 function parseNumericField(v) {
@@ -463,16 +497,32 @@ export async function syncProperty(propertyDoc, { forcePlan } = {}) {
 }
 
 // Sync masivo con throttling — mismo patrón que mercadolibre.service.js syncAllProperties.
+const ZP_RATE_LIMIT_RE = /cantidad m[aá]xima de peticiones/i;
+const ZP_RATE_LIMIT_WAIT_MS = 60_000;
+
 export async function syncAllProperties({ delayMs = 1500 } = {}) {
-  const properties = await Property.find({}).lean();
-  const results = { total: properties.length, ok: 0, failed: 0, errors: [] };
-  for (const property of properties) {
+  // Solo los ids al arrancar: cada propiedad se relee justo antes de sincronizarla. La corrida tarda
+  // varios minutos y con una foto tomada al inicio se mandaba (y se guardaba como error) el estado
+  // viejo de lo que se hubiera editado mientras tanto.
+  const ids = await Property.distinct('id');
+  const results = { total: ids.length, ok: 0, failed: 0, errors: [] };
+  for (const id of ids) {
+    const property = await Property.findOne({ id }).lean();
+    if (!property) continue;
     try {
-      await syncProperty(property);
+      try {
+        await syncProperty(property);
+      } catch (err) {
+        // Navent corta por cantidad de pedidos en un período: esperar y reintentar una vez en vez
+        // de dejar la propiedad con el error hasta el próximo sync.
+        if (!ZP_RATE_LIMIT_RE.test(err.message)) throw err;
+        await new Promise((resolve) => setTimeout(resolve, ZP_RATE_LIMIT_WAIT_MS));
+        await syncProperty(await Property.findOne({ id }).lean());
+      }
       results.ok += 1;
     } catch (err) {
       results.failed += 1;
-      results.errors.push({ id: property.id, error: err.message });
+      results.errors.push({ id, error: err.message });
     }
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }

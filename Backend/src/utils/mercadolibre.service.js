@@ -216,6 +216,37 @@ export async function getListingTypes() {
   return data;
 }
 
+// Cupos contratados en ML: viven en dos tipos de pack distintos y hay que pedir los dos —
+// `publications` (cupos para publicar, nivel Plata) y `upgrades` (destaques Oro/Oro Premium para
+// subir de nivel un aviso ya publicado). Sin el parámetro, ML solo devuelve `publications`
+// (por eso antes no aparecían los destaques). Solo cuentan los packs activos.
+export async function getQuotas() {
+  const token = await MlToken.findOne({}).lean();
+  if (!token?.ml_user_id) throw new Error('MercadoLibre no está conectado.');
+  const contents = ['publications', 'upgrades'];
+  const results = await Promise.all(contents.map((c) =>
+    mlRequest('get', `/users/${token.ml_user_id}/classifieds_promotion_packs`, { params: { package_content: c, status: 'active' } })
+      .then(({ data }) => data)));
+  const quotas = [];
+  results.forEach((packs, i) => {
+    for (const pack of (packs || []).filter((p) => p.status === 'active')) {
+      for (const d of pack.listing_details || []) {
+        quotas.push({
+          tipo: contents[i] === 'upgrades' ? 'destaques' : 'publicaciones',
+          listing_type_id: d.listing_type_id,
+          total: d.available_listings,
+          usados: d.used_listings,
+          libres: d.remaining_listings,
+          vence: pack.date_expires,
+          se_renueva: pack.package_type === 'rotary',
+          pack: pack.description,
+        });
+      }
+    }
+  });
+  return quotas;
+}
+
 const attributesCache = new Map();
 
 async function getCategoryAttributes(categoryId) {
@@ -619,13 +650,45 @@ function buildPictures(property, maxPictures) {
     .map((p) => ({ source: p.local_image.startsWith('http') ? p.local_image : `${base}${p.local_image}` }));
 }
 
+// Niveles a los que se puede subir cada aviso de la propiedad, con cuántos destaques quedan de cada
+// uno (`remaining`) — lo que ofrece el selector de nivel. Es por item: ML solo lista los upgrades
+// que ese aviso admite y que la cuenta tiene contratados. Devuelve { [operation_type]: [{id, name, remaining}] }.
+export async function getAvailableUpgrades(propertyId) {
+  const property = await Property.findOne({ id: propertyId }, { difusion: 1 }).lean();
+  const listings = (property?.difusion?.mercadolibre?.listings || []).filter((l) => l.item_id && l.status === 'active');
+  const entries = await Promise.all(listings.map(async (l) => {
+    try {
+      const { data } = await mlRequest('get', `/items/${l.item_id}/available_upgrades`);
+      return [l.operation_type, data || []];
+    } catch (err) {
+      return [l.operation_type, []];
+    }
+  }));
+  return Object.fromEntries(entries);
+}
+
 // Sube/baja el nivel de destaque de un aviso ya publicado (Plata/Oro/Oro Premium). Tiene costo real
 // en ML (consume cupo o tiene cargo adicional), por eso es una acción explícita del usuario, no automática.
 export async function upgradeListingType(propertyId, operationType, listingTypeId) {
   const property = await Property.findOne({ id: propertyId }).lean();
   const listing = property?.difusion?.mercadolibre?.listings?.find((l) => l.operation_type === operationType);
   if (!listing?.item_id) throw new Error('Esa operación todavía no tiene un aviso publicado en MercadoLibre');
-  await mlRequest('put', `/items/${listing.item_id}`, { data: { listing_type_id: listingTypeId } });
+  // PUT con listing_type_id confirmado en prod 2026-10-05 (descuenta el destaque del pack de "upgrades").
+  // Si ML lo rechaza, propagar su motivo: antes solo llegaba "Request failed with status code 400".
+  try {
+    try {
+      await mlRequest('put', `/items/${listing.item_id}`, { data: { listing_type_id: listingTypeId } });
+    } catch (putErr) {
+      // En avisos ya activos ML responde "listing_type_id is not modifiable" al PUT (visto 2026-10-07):
+      // para esos el cambio de nivel va por el endpoint propio de upgrades, que también descuenta del pack.
+      if (!/not modifiable/i.test(JSON.stringify(putErr.response?.data || ''))) throw putErr;
+      await mlRequest('post', `/items/${listing.item_id}/listing_type`, { data: { id: listingTypeId } });
+    }
+  } catch (err) {
+    const data = err.response?.data;
+    const causes = (Array.isArray(data?.cause) ? data.cause : []).map((c) => c?.message || c).filter(Boolean);
+    throw new Error([data?.message, ...causes].filter(Boolean).join(' — ') || err.message);
+  }
   await Property.updateOne(
     { id: propertyId, 'difusion.mercadolibre.listings.operation_type': operationType },
     {
@@ -881,15 +944,19 @@ export async function checkMlRequirements(property) {
 export async function syncAllProperties({ delayMs = 1200 } = {}) {
   // `deleted_at` no indica baja real (viene de Tokko en casi cualquier propiedad, ver nota en syncProperty):
   // no hay que filtrar por él acá.
-  const properties = await Property.find({}).lean();
-  const results = { total: properties.length, ok: 0, failed: 0, errors: [] };
-  for (const property of properties) {
+  // Solo los ids al arrancar: cada propiedad se relee justo antes de sincronizarla, así lo que se
+  // edite mientras corre el sync masivo no se pisa con una foto vieja (mismo criterio que ZonaProp).
+  const ids = await Property.distinct('id');
+  const results = { total: ids.length, ok: 0, failed: 0, errors: [] };
+  for (const id of ids) {
+    const property = await Property.findOne({ id }).lean();
+    if (!property) continue;
     try {
       await syncProperty(property);
       results.ok += 1;
     } catch (err) {
       results.failed += 1;
-      results.errors.push({ id: property.id, error: err.message });
+      results.errors.push({ id, error: err.message });
       if (/no está conectado|reconectar/i.test(err.message)) break;
     }
     await new Promise((resolve) => setTimeout(resolve, delayMs));

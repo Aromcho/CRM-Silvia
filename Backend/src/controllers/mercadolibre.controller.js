@@ -87,6 +87,14 @@ export async function getListingTypes(req, res) {
   }
 }
 
+export async function getAvailableUpgrades(req, res) {
+  try {
+    res.json(await ml.getAvailableUpgrades(parseInt(req.params.propertyId, 10)));
+  } catch (err) {
+    res.status(502).json({ message: 'Error obteniendo los destaques disponibles de MercadoLibre', detail: err.message });
+  }
+}
+
 export async function upgradeListingType(req, res) {
   const { propertyId } = req.params;
   const { operation_type, listing_type_id } = req.body || {};
@@ -105,7 +113,8 @@ export async function upgradeListingType(req, res) {
     });
     res.json({ ok: true, listings });
   } catch (err) {
-    res.status(502).json({ message: 'Error actualizando el nivel de publicación en MercadoLibre', detail: err.message });
+    // El front solo muestra `message`: incluir el motivo de ML para que se entienda qué pasó.
+    res.status(502).json({ message: `Error actualizando el nivel de publicación en MercadoLibre: ${err.message}`, detail: err.message });
   }
 }
 
@@ -150,6 +159,17 @@ export async function getMercadoLibreSummary(req, res) {
 
     const counts = tierCounts[0] || { simples: 0, premium: 0, alertas: 0, errores: 0 };
 
+    // Cupos libres/usados de los packs contratados: viven en ML, no en Mongo — si la API falla
+    // no tiene que romper el resto del resumen.
+    let cupos = null;
+    if (connected) {
+      try {
+        cupos = await ml.getQuotas();
+      } catch (err) {
+        cupos = null;
+      }
+    }
+
     res.json({
       connected,
       publicaciones_simples: counts.simples,
@@ -158,6 +178,7 @@ export async function getMercadoLibreSummary(req, res) {
       errores: counts.errores,
       propiedades_publicadas: propertiesPublicadas,
       propiedades_sin_publicar: propertiesTotal - propertiesPublicadas,
+      cupos, // [{tipo: 'publicaciones'|'destaques', listing_type_id, total, usados, libres, vence, se_renueva, pack}] o null si no se pudo consultar
     });
   } catch (err) {
     res.status(500).json({ message: 'Error obteniendo resumen de MercadoLibre', detail: err.message });
