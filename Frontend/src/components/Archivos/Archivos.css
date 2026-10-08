@@ -3,6 +3,9 @@
 .badge-en_revision, .st-chip.on.en_revision { color: #2563eb; background: #eff6ff; }
 .badge-lista, .st-chip.on.lista { color: var(--status-disponible-color); background: var(--status-disponible-bg); }
 
+/* En Archivos los chips de estado van dentro del encabezado */
+.prop-toolbar > .status-chips { margin-top: -2px; }
+
 /* Cards */
 .file-card-body { padding: 14px 16px 16px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
 .file-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }

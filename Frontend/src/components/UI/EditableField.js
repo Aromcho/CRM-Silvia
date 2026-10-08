@@ -1,17 +1,21 @@
 'use client';
 import React from 'react';
 import Icons from '../Icons/Icons';
+import SuggestionChips from './SuggestionChips';
 
 const e = React.createElement;
 const { useState, useRef, useEffect } = React;
 
-export default function EditableField({ value, onSave, type = 'text', placeholder = '—', multiline = false, formatDisplay }) {
+export default function EditableField({ value, onSave, type = 'text', placeholder = '—', multiline = false, formatDisplay, suggestions }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const ref = useRef(null);
+  // Al guardar, el input se deshabilita y pierde el foco: sin este guard, el onBlur disparaba un
+  // segundo commit() con el mismo valor (dos PUT y dos re-sync a los portales por cada Enter).
+  const savingRef = useRef(false);
   const savedTimer = useRef(null);
   const errorTimer = useRef(null);
 
@@ -24,12 +28,16 @@ export default function EditableField({ value, onSave, type = 'text', placeholde
   }, [editing]);
   useEffect(() => () => { clearTimeout(savedTimer.current); clearTimeout(errorTimer.current); }, []);
 
-  async function commit() {
-    if (String(draft) === String(value ?? '')) { setEditing(false); return; }
+  // `next` permite guardar un valor elegido de las sugerencias sin esperar a que el draft se actualice.
+  async function commit(next = draft) {
+    if (savingRef.current) return;
+    if (String(next) === String(value ?? '')) { setEditing(false); return; }
+    setDraft(next);
+    savingRef.current = true;
     setSaving(true);
     setError('');
     try {
-      await onSave(type === 'number' ? (draft === '' ? null : Number(draft)) : draft);
+      await onSave(type === 'number' ? (next === '' ? null : Number(next)) : next);
       setEditing(false);
       setSaved(true);
       clearTimeout(savedTimer.current);
@@ -41,6 +49,7 @@ export default function EditableField({ value, onSave, type = 'text', placeholde
       clearTimeout(errorTimer.current);
       errorTimer.current = setTimeout(() => setError(''), 3000);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -62,13 +71,15 @@ export default function EditableField({ value, onSave, type = 'text', placeholde
         type: multiline ? undefined : type,
         value: draft,
         onChange: (ev) => setDraft(ev.target.value),
-        onBlur: commit,
+        onBlur: () => commit(),
         onKeyDown: handleKeyDown,
         disabled: saving,
         className: 'editable-field-input',
         rows: multiline ? 4 : undefined,
+        placeholder: suggestions?.[0],
       }),
       saving && e('span', { className: 'editable-field-saving' }, e('span', { className: 'editable-field-spinner' })),
+      suggestions?.length > 0 && !saving && e(SuggestionChips, { options: suggestions, value: draft, onPick: (v) => commit(v) }),
       !multiline && e('span', { className: 'editable-field-hint' }, 'Enter para guardar · Esc para cancelar'),
     );
   }

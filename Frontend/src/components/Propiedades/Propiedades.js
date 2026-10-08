@@ -2,7 +2,9 @@
 import React from 'react';
 import Icons from '../Icons/Icons';
 import { getProperties, getPropertyById, updatePropertyStatus, createProperty } from '@/services/api';
-import { propertyWebUrl } from '@/lib/data';
+import { propertyWebUrl, LOCATION_SUGGESTIONS } from '@/lib/data';
+import SuggestionChips from '../UI/SuggestionChips';
+import FiltersButton from '../UI/FiltersButton';
 import './Propiedades.css';
 
 const e = React.createElement;
@@ -108,14 +110,14 @@ function PropModal({ property, onClose, session }) {
     e('div', { className: 'prop-modal', onClick: (ev) => ev.stopPropagation() },
       e('div', { className: 'prop-modal-head' },
         e('h2', null, property.publication_title || property.address || 'Propiedad'),
-        e('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+        e('div', { className: 'modal-head-actions' },
           e(StatusSelect, { value: status, onChange: handleStatusChange, disabled: saving }),
           e('a', {
             className: 'btn ghost sm', href: `/propiedades/${property.id}`, target: '_blank', rel: 'noopener noreferrer',
             title: 'Abrir la ficha completa en una pestaña nueva',
           }, 'Ir a la propiedad', e(Icons.ArrowRight, { width: 13, height: 13 })),
-          e('button', { className: 'btn ghost sm', onClick: onClose }, e(Icons.Close, { width: 14, height: 14 })),
         ),
+        e('button', { className: 'btn ghost sm modal-close', onClick: onClose, 'aria-label': 'Cerrar' }, e(Icons.Close, { width: 14, height: 14 })),
       ),
       e('div', { className: 'prop-modal-body' },
         photos.length > 0 && e('div', { className: 'prop-modal-photos' },
@@ -170,7 +172,7 @@ function PropModal({ property, onClose, session }) {
 function NewPropertyModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
     address: '', publication_title: '', type_name: '', operation_type: '',
-    currency: 'USD', price: '', location_name: '', suite_amount: '', bathroom_amount: '', total_surface: '',
+    currency: 'USD', price: '', full_location: '', location_name: '', suite_amount: '', bathroom_amount: '', total_surface: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -198,7 +200,7 @@ function NewPropertyModal({ onClose, onCreated }) {
     e('form', { className: 'prop-modal', onClick: (ev) => ev.stopPropagation(), onSubmit: handleSubmit },
       e('div', { className: 'prop-modal-head' },
         e('h2', null, 'Agregar propiedad'),
-        e('button', { type: 'button', className: 'btn ghost sm', onClick: onClose }, e(Icons.Close, { width: 14, height: 14 })),
+        e('button', { type: 'button', className: 'btn ghost sm modal-close', onClick: onClose, 'aria-label': 'Cerrar' }, e(Icons.Close, { width: 14, height: 14 })),
       ),
       e('div', { className: 'prop-modal-body' },
         e('p', { className: 'new-prop-hint' }, 'Cargá lo básico ahora — el resto de los datos (fotos, superficies, descripción, etc.) se completan después desde la ficha completa.'),
@@ -211,6 +213,11 @@ function NewPropertyModal({ onClose, onCreated }) {
           e('div', { className: 'field', style: { gridColumn: '1 / -1' } },
             e('label', null, 'Título de publicación'),
             e('input', { type: 'text', value: form.publication_title, onChange: set('publication_title'), placeholder: 'Opcional' }),
+          ),
+          e('div', { className: 'field', style: { gridColumn: '1 / -1' } },
+            e('label', null, 'Ubicación'),
+            e('input', { type: 'text', value: form.full_location, onChange: set('full_location'), placeholder: LOCATION_SUGGESTIONS[0] }),
+            e(SuggestionChips, { options: LOCATION_SUGGESTIONS, value: form.full_location, onPick: (v) => setForm((f) => ({ ...f, full_location: v })) }),
           ),
           e('div', { className: 'field' },
             e('label', null, 'Tipo *'),
@@ -277,6 +284,7 @@ export default function Propiedades({ session }) {
   const [typeFilter, setTypeFilter] = useState('Todos');
   const [selected, setSelected] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const searchRef = useRef(null);
 
   const fetchProperties = useCallback(async (off = 0) => {
@@ -333,7 +341,7 @@ export default function Propiedades({ session }) {
           e('span', { className: 'prop-count-pill' }, `${total} propiedades`),
         ),
         e('div', { className: 'prop-toolbar-right' },
-          e('div', { className: 'search' },
+          e('div', { className: 'search toolbar-search' },
             e(Icons.Search, { width: 15, height: 15 }),
             e('input', {
               ref: searchRef,
@@ -341,16 +349,20 @@ export default function Propiedades({ session }) {
               value: search,
               onChange: (ev) => setSearch(ev.target.value),
               onKeyDown: handleSearchKeyDown,
-              style: { width: 220 },
             }),
-            search ? e('button', { className: 'search-clear', onClick: () => setSearch('') }, e(Icons.Close, { width: 13, height: 13 })) : null,
+            search ? e('button', { className: 'search-clear', onClick: () => setSearch(''), 'aria-label': 'Limpiar búsqueda' }, e(Icons.Close, { width: 13, height: 13 })) : null,
           ),
-          e('button', { className: 'btn primary sm', onClick: () => fetchProperties(0) }, e(Icons.Search, { width: 13, height: 13 }), 'Buscar'),
-          e('button', { className: 'btn primary sm', onClick: () => setShowCreate(true) }, e(Icons.Plus, { width: 13, height: 13 }), 'Agregar propiedad'),
+          e(FiltersButton, {
+            open: filtersOpen, onToggle: () => setFiltersOpen((v) => !v),
+            count: (statusFilter !== 'all') + (opFilter !== 'Todas') + (typeFilter !== 'Todos'),
+          }),
+          e('button', { className: 'btn primary sm hide-below-desktop', onClick: () => fetchProperties(0) }, e(Icons.Search, { width: 13, height: 13 }), 'Buscar'),
+          e('button', { className: 'btn primary sm', onClick: () => setShowCreate(true) }, e(Icons.Plus, { width: 13, height: 13 }),
+            e('span', { className: 'label-long' }, 'Agregar propiedad'), e('span', { className: 'label-short' }, 'Agregar')),
         ),
       ),
 
-      e('div', { className: 'prop-toolbar-filters' },
+      e('div', { className: `prop-toolbar-filters filters-collapsible${filtersOpen ? ' open' : ''}` },
         e('div', { className: 'status-chips' },
           STATUSES.map((s) =>
             e('button', {

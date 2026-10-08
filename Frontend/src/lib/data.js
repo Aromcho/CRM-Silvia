@@ -22,7 +22,16 @@ export const OPERATION_TYPE_LABELS = {
   'Alquiler temporal': 'Temporal',
 };
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:7003';
+// Valores sugeridos para el campo "Ubicación" (location.full_location) al crear o editar una
+// propiedad: mismo formato "País | Región | Localidad" que ya traían las propiedades de Tokko.
+export const LOCATION_SUGGESTIONS = [
+  'Argentina | Costa Atlantica | Mar De Las Pampas',
+  'Argentina | Costa Atlantica | Mar Azul',
+  'Argentina | Costa Atlantica | Las Gaviotas',
+  'Argentina | Costa Atlantica | Villa Gesell',
+];
+
+export const API_BASE =process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:7003';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.silviafernandezpropiedades.com.ar';
 
 // property.public_url viene de Tokko y apunta a su acortador propio (ficha.info), no al sitio real —

@@ -192,6 +192,7 @@ function MercadoLibreDifusionCard() {
               e(Icons.AlertTriangle, { width: 14, height: 14 }),
               'La cuenta de MercadoLibre todavía no está conectada — los números de abajo son sobre datos locales del CRM.',
             ),
+            e(QuotaPanel, mercadoLibreQuotaProps(summary.cupos, summary.connected)),
             e('div', { className: 'difusion-stats-row' },
               e(StatTile, { label: 'Publicaciones simples', value: summary.publicaciones_simples, filter: 'simples', active: activeFilter === 'simples', onClick: handleTileClick }),
               e(StatTile, { label: 'Publicaciones premium', value: summary.publicaciones_premium, filter: 'premium', active: activeFilter === 'premium', onClick: handleTileClick }),
@@ -215,41 +216,118 @@ const ZP_FILTER_TITLES = {
   errores: 'Errores (no publicadas)',
 };
 
-function formatZpFecha(ms) {
-  if (!ms) return '';
-  try { return new Date(Number(ms)).toLocaleDateString('es-AR'); } catch { return ''; }
+function formatFecha(value) {
+  if (!value) return '';
+  const d = new Date(typeof value === 'number' || /^\d+$/.test(value) ? Number(value) : value);
+  if (Number.isNaN(d.getTime())) return '';
+  // ZonaProp informa los créditos sin vencimiento con una fecha absurda (año ~2800): no tiene sentido mostrarla.
+  if (d.getFullYear() - new Date().getFullYear() > 10) return '';
+  return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
 }
 
-// Créditos disponibles/por vencer por plan — viene de /v1/inmobiliarias/{cod}/disponibilidad
-// (ver zonaprop.controller.js getZonaPropSummary). No tiene equivalente en la card de ML: ZonaProp
-// vende cupos por plan (Simple/Destacado/Home), no es "publicá lo que quieras".
-function ZonaPropCreditsPanel({ creditos }) {
+function quotaTone(libres, total) {
+  if (!libres) return 'bad';
+  if (total && libres / total < 0.15) return 'warn';
+  return 'good';
+}
+
+function plural(n, uno, varios) {
+  return `${n.toLocaleString('es-AR')} ${n === 1 ? uno : varios}`;
+}
+
+// Panel de cupos compartido por las dos cards: arriba una frase con lo que se puede hacer hoy,
+// abajo una fila por tipo de cupo con libres en grande + barra de uso. `rows`:
+// [{key, label, sub, libres, total, usados, nota}] — total/usados pueden faltar (ZonaProp no siempre los da).
+function QuotaPanel({ title, summary, rows, error }) {
+  return e('div', { className: 'difusion-quota' },
+    e('div', { className: 'difusion-quota-title' }, title),
+    error
+      ? e('div', { className: 'difusion-portal-warning' }, e(Icons.AlertTriangle, { width: 14, height: 14 }), error)
+      : e(React.Fragment, null,
+          summary && e('div', { className: `difusion-quota-summary tone-${summary.tone}` }, summary.text),
+          e('div', { className: 'difusion-quota-rows' },
+            rows.map((r) => {
+              const tone = quotaTone(r.libres, r.total);
+              const pct = r.total ? Math.min(100, Math.round(((r.usados ?? r.total - r.libres) / r.total) * 100)) : null;
+              return e('div', { key: r.key, className: 'difusion-quota-row' },
+                e('div', { className: 'difusion-quota-head' },
+                  e('div', null,
+                    e('div', { className: 'difusion-quota-label' }, r.label),
+                    r.sub && e('div', { className: 'difusion-quota-sub' }, r.sub),
+                  ),
+                  e('div', { className: `difusion-quota-libres tone-${tone}` },
+                    e('span', { className: 'difusion-quota-num' }, (r.libres ?? 0).toLocaleString('es-AR')),
+                    e('span', { className: 'difusion-quota-num-label' }, r.libres === 1 ? 'libre' : 'libres'),
+                  ),
+                ),
+                pct != null && e('div', { className: 'difusion-list-quality-bar' },
+                  e('div', { className: `difusion-list-quality-fill tone-${tone}`, style: { width: `${pct}%` } }),
+                ),
+                e('div', { className: 'difusion-quota-foot' },
+                  r.total != null && e('span', null, `${(r.usados ?? r.total - r.libres).toLocaleString('es-AR')} de ${r.total.toLocaleString('es-AR')} en uso`),
+                  r.nota && e('span', null, r.nota),
+                ),
+              );
+            }),
+          ),
+        ),
+  );
+}
+
+function mercadoLibreQuotaProps(cupos, connected) {
+  const title = 'Cupos disponibles';
+  if (!connected) return { title, rows: [], error: 'Conectá la cuenta de MercadoLibre para ver los cupos.' };
+  if (!cupos) return { title, rows: [], error: 'No se pudieron consultar los cupos de MercadoLibre ahora. Probá recargar en un rato.' };
+  if (!cupos.length) return { title, rows: [], error: 'No hay ningún pack activo en MercadoLibre: no se puede publicar hasta contratar uno.' };
+
+  const rows = cupos.map((c, i) => ({
+    key: `${c.tipo}-${c.listing_type_id}-${i}`,
+    label: c.tipo === 'destaques'
+      ? `Destaques ${TIER_LABELS[c.listing_type_id] || c.listing_type_id}`
+      : `Publicaciones ${TIER_LABELS[c.listing_type_id] || c.listing_type_id}`,
+    sub: c.tipo === 'destaques' ? 'Para subir de nivel un aviso ya publicado' : 'Para publicar propiedades nuevas',
+    libres: c.libres,
+    total: c.total,
+    usados: c.usados,
+    nota: formatFecha(c.vence) && `${c.se_renueva ? 'Se renueva' : 'Vence'} el ${formatFecha(c.vence)}`,
+  }));
+
+  const pub = cupos.filter((c) => c.tipo === 'publicaciones').reduce((n, c) => n + (c.libres || 0), 0);
+  const parts = [pub
+    ? `Podés publicar ${plural(pub, 'propiedad más', 'propiedades más')}`
+    : 'No quedan cupos para publicar propiedades nuevas'];
+  for (const c of cupos.filter((x) => x.tipo === 'destaques' && x.libres > 0)) {
+    parts.push(`destacar ${c.libres} en ${TIER_LABELS[c.listing_type_id] || c.listing_type_id}`);
+  }
+  return { title, rows, summary: { tone: pub ? 'good' : 'bad', text: `${parts.join(' y ')}.` } };
+}
+
+function zonaPropQuotaProps(creditos, publicadosPorPlan) {
+  const title = 'Cupos disponibles';
   if (!creditos) {
-    return e('div', { className: 'difusion-portal-warning' },
-      e(Icons.AlertTriangle, { width: 14, height: 14 }),
-      'No se pudieron consultar los créditos de ZonaProp ahora (puede estar fuera del horario de sandbox, Lu-Vi 07:00-20:55 ART).',
-    );
+    return { title, rows: [], error: 'No se pudieron consultar los cupos de ZonaProp ahora (puede estar fuera del horario de la API, Lu-Vi 07:00-20:55).' };
   }
   const disponibles = creditos.disponibles || [];
   const vencimientos = creditos.vencimientos || [];
-  const porPlan = ['SIMPLE', 'DESTACADO', 'HOME'].map((plan) => ({
-    plan,
-    disponible: disponibles.find((d) => d.planDePublicacion === plan)?.cantidadDisponible ?? 0,
-    vence: vencimientos.filter((v) => v.planDePublicacion === plan),
-  }));
-  return e('div', { className: 'difusion-credits' },
-    e('div', { className: 'difusion-credits-title' }, 'Créditos de ZonaProp'),
-    e('div', { className: 'difusion-credits-row' },
-      porPlan.map((p) => e('div', { key: p.plan, className: 'difusion-credit-card' },
-        e('div', { className: 'difusion-credit-plan' }, ZP_PLAN_LABELS[p.plan] || p.plan),
-        e('div', { className: 'difusion-credit-value' }, p.disponible.toLocaleString('es-AR')),
-        e('div', { className: 'difusion-credit-label' }, 'disponibles'),
-        p.vence.length > 0 && e('div', { className: 'difusion-credit-vence' },
-          p.vence.map((v, i) => e('div', { key: i }, `${v.cantidad} vencen el ${formatZpFecha(v.fecha)}`)),
-        ),
-      )),
-    ),
-  );
+  const rows = ['SIMPLE', 'DESTACADO', 'HOME'].map((plan) => {
+    const libres = disponibles.find((d) => d.planDePublicacion === plan)?.cantidadDisponible ?? 0;
+    const vence = vencimientos.filter((v) => v.planDePublicacion === plan);
+    const total = vence.length ? vence.reduce((n, v) => n + (v.cantidad || 0), 0) : null;
+    const fechas = vence.map((v) => formatFecha(v.fecha)).filter(Boolean);
+    return {
+      key: plan,
+      label: `Plan ${ZP_PLAN_LABELS[plan]}`,
+      sub: `${plural(publicadosPorPlan[plan] || 0, 'aviso publicado', 'avisos publicados')} desde el CRM`,
+      libres,
+      total: total != null && total >= libres ? total : null,
+      nota: fechas.length ? `Vence el ${fechas.join(', ')}` : null,
+    };
+  });
+  const libresTotal = rows.reduce((n, r) => n + r.libres, 0);
+  const summary = libresTotal
+    ? { tone: 'good', text: `Podés publicar ${rows.filter((r) => r.libres).map((r) => `${r.libres} en ${ZP_PLAN_LABELS[r.key]}`).join(', ')}.` }
+    : { tone: 'bad', text: 'No quedan cupos libres. Para publicar algo nuevo o cambiar de plan hay que dar de baja otro aviso o contratar más cupos.' };
+  return { title, rows, summary };
 }
 
 function ZonaPropPropertyRow({ item }) {
@@ -440,6 +518,9 @@ function ZonaPropDifusionCard() {
       : !summary
         ? e('div', { className: 'difusion-portal-loading' }, 'No se pudo cargar el resumen.')
         : e('div', null,
+            e(QuotaPanel, zonaPropQuotaProps(summary.creditos, {
+              SIMPLE: summary.publicaciones_simples, DESTACADO: summary.publicaciones_destacadas, HOME: summary.publicaciones_home,
+            })),
             e('div', { className: 'difusion-stats-row' },
               e(StatTile, { label: 'Publicaciones simples', value: summary.publicaciones_simples, filter: 'simples', active: activeFilter === 'simples', onClick: handleTileClick }),
               e(StatTile, { label: 'Publicaciones destacadas', value: summary.publicaciones_destacadas, filter: 'destacadas', active: activeFilter === 'destacadas', onClick: handleTileClick }),
@@ -450,7 +531,6 @@ function ZonaPropDifusionCard() {
               e(StatTile, { label: 'Propiedades publicadas', value: summary.propiedades_publicadas }),
               e(StatTile, { label: 'Propiedades sin publicar', value: summary.propiedades_sin_publicar }),
             ),
-            e(ZonaPropCreditsPanel, { creditos: summary.creditos }),
             activeFilter && e(ZonaPropPropertiesPanel, { filter: activeFilter }),
           ),
   );

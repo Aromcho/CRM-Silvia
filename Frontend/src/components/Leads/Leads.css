@@ -6,6 +6,7 @@
   background: var(--surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0;
 }
 .leads-toolbar-left { display: flex; align-items: center; gap: 12px; flex: 1; }
+.leads-toolbar-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .leads-toolbar h1 { font-size: 18px; font-weight: 800; letter-spacing: -.4px; margin: 0; }
 .leads-count-pill { font-size: 12px; font-weight: 700; background: #eff6ff; color: #2563eb; padding: 3px 10px; border-radius: 999px; }
 
@@ -77,8 +78,9 @@
 
 /* Modal */
 .lead-modal-overlay { position: fixed; inset: 0; background: rgba(10,28,20,.5); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); animation: fade .15s; }
-.lead-modal { background: var(--surface); border-radius: 20px; width: 100%; max-width: 560px; box-shadow: var(--shadow-lg); animation: pop .2s; }
-.lead-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--line-2); }
+.lead-modal { background: var(--surface); border-radius: 20px; width: 100%; max-width: 560px; max-height: 90vh; max-height: 90dvh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: pop .2s; }
+.lead-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 18px 22px; border-bottom: 1px solid var(--line-2); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.lead-modal-head h2 { min-width: 0; overflow-wrap: anywhere; }
 .lead-modal-head h2 { font-size: 16px; font-weight: 800; margin: 0; }
 .lead-modal-body { padding: 20px 22px; }
 
@@ -127,7 +129,29 @@
 .lead-empty p { font-size: 14px; font-weight: 600; margin: 8px 0 0; }
 .loading-state { text-align: center; padding: 60px 20px; color: var(--ink-3); font-size: 14px; }
 
+@media (max-width: 1199px) {
+  .leads-toolbar, .lead-status-chips, .leads-body, .lead-filters-bar, .leads-pagination { padding-left: 20px; padding-right: 20px; }
+}
+
 @media (max-width: 640px) {
   .leads-toolbar, .lead-status-chips, .leads-body, .lead-filters-bar, .leads-pagination { padding-left: 16px; padding-right: 16px; }
+  .leads-toolbar { padding-top: 12px; padding-bottom: 12px; }
+  .leads-toolbar-right { display: contents; }
+  .leads-toolbar-left { flex: 1 1 auto; }
+  .leads-toolbar-right > .btn { order: 1; }
+  .leads-toolbar-right > .search { order: 2; flex: 1 1 60%; min-width: 0; }
+  .leads-toolbar-right > .filters-toggle { order: 3; }
+  .leads-toolbar-right > .lead-email-toggle { order: 4; }
+  .lead-filters-bar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .lead-filter-group { flex-wrap: wrap; }
+  .lead-filter-group label { flex-basis: 100%; }
+  .lead-filter-group select { flex: 1; }
+  .lead-filter-dates .lead-date-input { flex: 1 1 120px; min-width: 0; }
+  .leads-body { padding-top: 12px; }
+  .lead-card { padding: 12px; gap: 10px; }
+  .lead-card:hover { transform: none; }
+  .lead-contact-actions { flex-wrap: wrap; }
+  .leads-pagination { flex-wrap: wrap; gap: 8px; }
+  .leads-pagination > span:first-child { flex-basis: 100%; text-align: center; }
   .form-row { grid-template-columns: 1fr; }
 }

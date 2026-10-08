@@ -11,15 +11,15 @@ import PropertyMap from './PropertyMap';
 import DuplicatePropertyModal from './DuplicatePropertyModal';
 import {
   updateProperty, updatePropertyStatus, syncPropertyMercadoLibre, checkPropertyMercadoLibre,
-  getMercadoLibreListingTypes, upgradeMercadoLibreListingType,
+  getMercadoLibreListingTypes, upgradeMercadoLibreListingType, getMercadoLibreAvailableUpgrades,
   syncPropertyZonaProp, upgradeZonaPropPlan,
 } from '@/services/api';
-import { photoSrc, formatPrice, STATUS_LABELS, propertyWebUrl } from '@/lib/data';
+import { photoSrc, formatPrice, STATUS_LABELS, propertyWebUrl, LOCATION_SUGGESTIONS } from '@/lib/data';
 import './Propiedades.css';
 import './PropertyDetail.css';
 
 const e = React.createElement;
-const { useState, useEffect, useMemo } = React;
+const { useState, useEffect, useMemo, useCallback } = React;
 
 const PAGE_TABS = [
   { key: 'detalles', label: 'Detalles' },
@@ -393,7 +393,7 @@ function qualityTone(pct) {
   return 'bad';
 }
 
-function MlListingRow({ listing: l, listingTypes, onUpgrade }) {
+function MlListingRow({ listing: l, listingTypes, upgrades, onUpgrade }) {
   const [showRecs, setShowRecs] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const tone = qualityTone(l.health_percentage);
@@ -402,8 +402,15 @@ function MlListingRow({ listing: l, listingTypes, onUpgrade }) {
   async function handleTierChange(ev) {
     const nextTier = ev.target.value;
     if (!nextTier || nextTier === l.listing_type_id) return;
-    const nextLabel = listingTypes.find((t) => t.id === nextTier)?.name || nextTier;
-    if (!confirm(`Cambiar a "${nextLabel}" puede tener un costo adicional en MercadoLibre. ¿Confirmás?`)) return;
+    const next = (upgrades || []).find((u) => u.id === nextTier);
+    const nextLabel = next?.name || listingTypes.find((t) => t.id === nextTier)?.name || nextTier;
+    const msg = next?.remaining != null
+      ? `Vas a usar 1 de tus ${next.remaining} destaques "${nextLabel}" en este aviso. ¿Confirmás?`
+      : `Cambiar a "${nextLabel}" puede tener un costo adicional en MercadoLibre. ¿Confirmás?`;
+    if (!confirm(msg)) {
+      ev.target.value = l.listing_type_id || '';
+      return;
+    }
     setUpgrading(true);
     try {
       await onUpgrade(l.operation_type, nextTier);
@@ -422,11 +429,20 @@ function MlListingRow({ listing: l, listingTypes, onUpgrade }) {
         e(Icons.ExternalLink, { width: 12, height: 12 }), 'Ver aviso'),
     ),
 
-    l.item_id && listingTypes.length > 0 && e('div', { className: 'ml-tier-row' },
+    // Opciones: el nivel actual + los upgrades que ML admite para este aviso, con cuántos destaques
+    // quedan de cada uno (sin cupo → deshabilitado). `upgrades` null = todavía cargando.
+    l.item_id && e('div', { className: 'ml-tier-row' },
       e(Icons.Star, { width: 13, height: 13 }),
       e('select', {
-        className: 'ml-tier-select', value: l.listing_type_id || '', disabled: upgrading, onChange: handleTierChange,
-      }, listingTypes.map((t) => e('option', { key: t.id, value: t.id }, t.name))),
+        className: 'ml-tier-select', value: l.listing_type_id || '', disabled: upgrading || !upgrades?.length, onChange: handleTierChange,
+      },
+        e('option', { value: l.listing_type_id || '' },
+          `${listingTypes.find((t) => t.id === l.listing_type_id)?.name || l.listing_type_id || 'Nivel actual'} (actual)`),
+        (upgrades || []).filter((u) => u.id !== l.listing_type_id).map((u) => e('option', {
+          key: u.id, value: u.id, disabled: !u.remaining,
+        }, `${u.name} (${u.remaining ? `quedan ${u.remaining}` : 'sin cupo'})`)),
+      ),
+      upgrades && !upgrades.length && e('span', { className: 'ml-tier-hint' }, 'Sin destaques disponibles'),
     ),
 
     l.health_percentage != null && e('div', { className: 'ml-quality' },
@@ -532,6 +548,7 @@ function MercadoLibreCard({ property, onSynced }) {
   const [error, setError] = useState('');
   const [checkKey, setCheckKey] = useState(0);
   const [listingTypes, setListingTypes] = useState(mlListingTypesCache || []);
+  const [upgrades, setUpgrades] = useState(null);
   const data = property.difusion?.mercadolibre;
   const listings = data?.listings || [];
 
@@ -541,6 +558,12 @@ function MercadoLibreCard({ property, onSynced }) {
       .then((types) => { mlListingTypesCache = types || []; setListingTypes(mlListingTypesCache); })
       .catch(() => {});
   }, []);
+
+  const loadUpgrades = useCallback(() => {
+    getMercadoLibreAvailableUpgrades(property.id).then((u) => setUpgrades(u || {})).catch(() => setUpgrades({}));
+  }, [property.id]);
+
+  useEffect(() => { loadUpgrades(); }, [loadUpgrades]);
 
   async function handleSync() {
     setSyncing(true);
@@ -560,8 +583,11 @@ function MercadoLibreCard({ property, onSynced }) {
     try {
       const result = await upgradeMercadoLibreListingType(property.id, { operation_type: operationType, listing_type_id: listingTypeId });
       onSynced(result.listings || []);
+      setError('');
     } catch (err) {
       setError(err.message || 'No se pudo cambiar el nivel de publicación.');
+    } finally {
+      loadUpgrades();
     }
   }
 
@@ -579,7 +605,7 @@ function MercadoLibreCard({ property, onSynced }) {
     ),
     listings.length === 0
       ? e('div', { className: 'difusion-card-status' }, e('span', { className: 'difusion-status-dot' }), 'Todavía no se publicó')
-      : listings.map((l) => e(MlListingRow, { key: l.operation_type, listing: l, listingTypes, onUpgrade: handleUpgrade })),
+      : listings.map((l) => e(MlListingRow, { key: l.operation_type, listing: l, listingTypes, upgrades: upgrades ? (upgrades[l.operation_type] || []) : null, onUpgrade: handleUpgrade })),
     error && e('div', { className: 'ml-listing-error' }, error),
     e(MlRequirements, { property, refreshKey: `${checkKey}-${property.updatedAt || ''}` }),
   );
@@ -808,7 +834,7 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
             ),
             e('div', { className: 'detail-summary-row' },
               e('div', { className: 'prop-info-label' }, e(Icons.Globe, { width: 12, height: 12 }), 'Ubicación'),
-              e(EditableField, { value: property.location?.full_location, onSave: (v) => saveField('location.full_location', v) }),
+              e(EditableField, { value: property.location?.full_location, onSave: (v) => saveField('location.full_location', v), suggestions: LOCATION_SUGGESTIONS }),
             ),
             e('div', { className: 'detail-summary-row' },
               e('div', { className: 'prop-info-label' }, e(Icons.MapPin, { width: 12, height: 12 }), 'Barrio / zona'),

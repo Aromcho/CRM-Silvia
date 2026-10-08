@@ -1,9 +1,9 @@
-.difusion-page { padding: 4px; }
+.difusion-page { padding: 28px 32px 40px; }
 .difusion-page-head { margin-bottom: 20px; }
 .difusion-page-head h1 { margin: 0 0 4px; font-size: 20px; font-weight: 800; color: var(--ink); }
 .difusion-page-sub { font-size: 13px; color: var(--ink-3); }
 
-.difusion-portals { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; }
+.difusion-portals { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 16px; }
 
 .difusion-portal-card {
   border: 1px solid var(--line); border-radius: 14px; padding: 18px;
@@ -91,11 +91,30 @@
 
 .difusion-portal-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-.difusion-credits { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
-.difusion-credits-title { font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 10px; }
-.difusion-credits-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-.difusion-credit-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--surface); }
-.difusion-credit-plan { font-size: 10.5px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px; }
-.difusion-credit-value { font-size: 22px; font-weight: 800; color: var(--ink); line-height: 1; }
-.difusion-credit-label { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
-.difusion-credit-vence { margin-top: 8px; font-size: 11px; color: #b8791b; line-height: 1.5; }
+.difusion-quota {
+  border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; background: var(--surface-2);
+}
+.difusion-quota-title { font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+.difusion-quota-summary { font-size: 13.5px; font-weight: 700; line-height: 1.4; margin-bottom: 12px; }
+.difusion-quota-summary.tone-good { color: var(--status-disponible-color, #1a8f5e); }
+.difusion-quota-summary.tone-bad { color: var(--status-vendida-color, #c0392b); }
+.difusion-quota-rows { display: grid; gap: 10px; }
+.difusion-quota-row { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--surface); }
+.difusion-quota-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.difusion-quota-label { font-size: 13px; font-weight: 800; color: var(--ink); }
+.difusion-quota-sub { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+.difusion-quota-libres { display: flex; align-items: baseline; gap: 5px; flex-shrink: 0; }
+.difusion-quota-num { font-size: 26px; font-weight: 800; line-height: 1; }
+.difusion-quota-num-label { font-size: 12px; font-weight: 700; }
+.difusion-quota-libres.tone-good { color: var(--status-disponible-color, #1a8f5e); }
+.difusion-quota-libres.tone-warn { color: #b8791b; }
+.difusion-quota-libres.tone-bad { color: var(--status-vendida-color, #c0392b); }
+.difusion-quota-foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); margin-top: 6px; }
+
+@media (max-width: 1199px) { .difusion-page { padding: 24px 20px 32px; } }
+@media (max-width: 640px) {
+  .difusion-page { padding: 20px 16px 28px; }
+  .difusion-portal-card { padding: 14px; }
+  .difusion-portal-head .btn { white-space: normal; }
+  .difusion-stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

@@ -200,11 +200,11 @@ export default function Mostrador() {
 
     e('div', { className: 'mostrador-search-panel no-print' },
       e('div', { className: 'mostrador-search-row' },
-        e('div', { className: 'search' },
+        e('div', { className: 'search toolbar-search mostrador-search' },
           e(Icons.Search, { width: 15, height: 15 }),
           e('input', {
             ref: searchRef, placeholder: 'Buscar por dirección, tipo, ref…', value: search,
-            onChange: (ev) => setSearch(ev.target.value), onKeyDown: handleSearchKeyDown, style: { width: 280 },
+            onChange: (ev) => setSearch(ev.target.value), onKeyDown: handleSearchKeyDown,
           }),
           search ? e('button', { className: 'search-clear', onClick: () => { setSearch(''); setResults([]); } }, e(Icons.Close, { width: 13, height: 13 })) : null,
         ),

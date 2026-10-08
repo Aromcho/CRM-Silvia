@@ -3,6 +3,7 @@ import React from 'react';
 import Icons from '../Icons/Icons';
 import { getLeads, createLead, updateLead, updateLeadStatus, deleteLead, getUsers, getLeadEmailSetting, updateLeadEmailSetting, getPropertyById } from '@/services/api';
 import { photoSrc, formatPrice, propertyWebUrl } from '@/lib/data';
+import FiltersButton from '../UI/FiltersButton';
 import './Leads.css';
 
 const e = React.createElement;
@@ -125,7 +126,7 @@ function LeadModal({ lead: initialLead, users, onClose, onUpdated }) {
         e('h2', null, lead.name),
         e('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
           e('span', { className: `status-badge badge-${lead.status}` }, STATUS_LABELS[lead.status] || lead.status),
-          e('button', { className: 'btn ghost sm', onClick: onClose }, e(Icons.Close, { width: 14, height: 14 })),
+          e('button', { className: 'btn ghost sm', onClick: onClose, 'aria-label': 'Cerrar' }, e(Icons.Close, { width: 14, height: 14 })),
         ),
       ),
       e('div', { className: 'lead-modal-body' },
@@ -231,7 +232,7 @@ function NewLeadModal({ onClose, onCreated }) {
     e('form', { className: 'lead-modal', onClick: (ev) => ev.stopPropagation(), onSubmit: handleSubmit },
       e('div', { className: 'lead-modal-head' },
         e('h2', null, 'Nuevo lead'),
-        e('button', { type: 'button', className: 'btn ghost sm', onClick: onClose }, e(Icons.Close, { width: 14, height: 14 })),
+        e('button', { type: 'button', className: 'btn ghost sm', onClick: onClose, 'aria-label': 'Cerrar' }, e(Icons.Close, { width: 14, height: 14 })),
       ),
       e('div', { className: 'lead-modal-body' },
         e('div', { className: 'new-lead-form' },
@@ -314,6 +315,7 @@ export default function Leads({ session }) {
   const [users, setUsers] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showNew, setShowNew] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => { getUsers().then((u) => setUsers(u || [])).catch(() => {}); }, []);
 
@@ -378,25 +380,28 @@ export default function Leads({ session }) {
         e('h1', null, 'Leads'),
         e('span', { className: 'leads-count-pill' }, `${total} leads`),
       ),
-      e('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+      e('div', { className: 'leads-toolbar-right' },
         e(LeadEmailToggle),
-        e('div', { className: 'search' },
+        e('div', { className: 'search toolbar-search' },
           e(Icons.Search, { width: 15, height: 15 }),
           e('input', {
             placeholder: 'Buscar por nombre, email…', value: search,
             onChange: (ev) => setSearch(ev.target.value),
             onKeyDown: (ev) => ev.key === 'Enter' && fetchLeads(0),
-            style: { width: 200 },
           }),
-          search ? e('button', { className: 'search-clear', onClick: () => setSearch('') }, e(Icons.Close, { width: 13, height: 13 })) : null,
+          search ? e('button', { className: 'search-clear', onClick: () => setSearch(''), 'aria-label': 'Limpiar búsqueda' }, e(Icons.Close, { width: 13, height: 13 })) : null,
         ),
+        e(FiltersButton, {
+          open: filtersOpen, onToggle: () => setFiltersOpen((v) => !v),
+          count: (statusFilter !== 'all') + (sourceFilter !== 'all') + (assignedFilter !== 'all') + Boolean(dateFrom || dateTo),
+        }),
         e('button', { className: 'btn primary sm', onClick: () => setShowNew(true) },
           e(Icons.Plus, { width: 14, height: 14 }), 'Nuevo lead',
         ),
       ),
     ),
 
-    e('div', { className: 'lead-status-chips' },
+    e('div', { className: `lead-status-chips filters-collapsible${filtersOpen ? ' open' : ''}` },
       STATUS_OPTS.map((s) =>
         e('button', {
           key: s.key,
@@ -406,8 +411,8 @@ export default function Leads({ session }) {
       ),
     ),
 
-    e('div', { className: 'lead-filters-bar' },
-      e('div', { className: 'lead-filter-group' },
+    e('div', { className: `lead-filters-bar filters-collapsible${filtersOpen ? ' open' : ''}` },
+      e('div', { className: 'lead-filter-group lead-filter-dates' },
         e('label', null, 'Fecha'),
         DATE_PRESETS.map((p) => e('button', {
           key: p.key, type: 'button',

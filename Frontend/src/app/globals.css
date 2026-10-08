@@ -123,6 +123,15 @@ input, select, textarea { font-family: inherit; }
   color: var(--green-700); animation: fade-out-saved 1.4s ease forwards;
 }
 .editable-field-error { font-size: 10.5px; font-weight: 600; color: #d8504a; animation: fade .15s; }
+
+/* Sugerencias debajo de un input (ej. Ubicación) */
+.suggestion-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.suggestion-chip {
+  border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--ink-2);
+  font-size: 11.5px; font-weight: 600; font-family: inherit; padding: 3px 10px; cursor: pointer; transition: .12s;
+}
+.suggestion-chip:hover { border-color: var(--green-500); background: var(--mint-100); color: var(--ink); }
+.suggestion-chip.active { border-color: var(--green-500); background: var(--mint-100); color: var(--green-700); }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fade-out-saved { 0% { opacity: 0; transform: translateY(-2px); } 15% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; } }
 
@@ -164,3 +173,70 @@ input, select, textarea { font-family: inherit; }
 .badge-reservado { color: var(--lead-reservado-color); background: var(--lead-reservado-bg); }
 .badge-cerrado { color: var(--lead-cerrado-color); background: var(--lead-cerrado-bg); }
 .badge-descartado { color: var(--lead-descartado-color); background: var(--lead-descartado-bg); }
+
+/* ── Responsive (tablet y celular) ─────────────────────── */
+/* Tablet: riel angosto. Celular: barra de navegación abajo (ver Sidebar.css) */
+@media (max-width: 1199px) { :root { --sidebar-w: 84px; } }
+@media (max-width: 640px) { :root { --sidebar-w: 0px; --bottom-nav-h: calc(58px + env(safe-area-inset-bottom)); } }
+
+.btn { white-space: nowrap; }
+.label-short { display: none; }
+.search input { min-width: 0; }
+.toolbar-search { width: 250px; }
+
+/* Botón "Filtros": solo en celular, donde los filtros quedan plegados para que la lista se vea entera */
+.filters-toggle {
+  display: none; align-items: center; gap: 6px; flex-shrink: 0; height: 38px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+  font-size: 12.5px; font-weight: 700; color: var(--ink-2);
+}
+.filters-toggle.on { border-color: var(--green-500); color: var(--green-700); background: var(--mint-50); }
+.filters-toggle-n {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--green-700); color: #fff; font-size: 10.5px; font-weight: 800;
+}
+@media (max-width: 640px) {
+  .filters-toggle { display: inline-flex; }
+  .filters-collapsible:not(.open) { display: none !important; }
+  .toolbar-search { width: auto; }
+}
+
+/* Pantallas táctiles: sin hover y con dedos */
+@media (hover: none) {
+  .editable-field-icon { opacity: .45; }
+}
+@media (pointer: coarse) {
+  .btn.sm { min-height: 36px; }
+  .btn.xs { min-height: 30px; }
+  .icon-btn { width: 36px; height: 36px; }
+  .st-chip { padding: 7px 12px; }
+  .capacity-seg-btn { padding: 8px 12px; }
+}
+/* iOS agranda la página al enfocar un campo con letra menor a 16px */
+@media (max-width: 640px) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px !important; }
+}
+
+/* Filas de chips que en celular se deslizan de costado en vez de ocupar varios renglones */
+@media (max-width: 640px) {
+  .scroll-row { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; max-width: calc(100% + 32px); }
+  .scroll-row::-webkit-scrollbar { display: none; }
+  .scroll-row > * { flex-shrink: 0; }
+}
+
+/* Modales: en celular ocupan todo el ancho y se apoyan abajo, con scroll propio.
+   (Con .crm-root adelante para ganarle al CSS de cada sección, que se carga después) */
+.modal-head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .crm-root :is(.prop-modal-overlay, .lead-modal-overlay, .user-modal-overlay, .ml-discover-overlay) { padding: 0; align-items: flex-end; }
+  .crm-root :is(.prop-modal, .lead-modal, .user-modal, .ml-discover-modal) {
+    max-width: none; width: 100%; max-height: calc(100dvh - 10px); border-radius: 18px 18px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .crm-root :is(.prop-modal-head, .lead-modal-head, .user-modal-head) { padding: 14px 16px; gap: 10px; flex-wrap: wrap; }
+  .crm-root .prop-modal-head h2 { font-size: 15px; }
+  .crm-root .prop-modal-head .modal-close { order: 1; }
+  .crm-root .modal-head-actions { order: 2; flex-basis: 100%; }
+  .crm-root :is(.prop-modal-body, .lead-modal-body, .user-modal-body) { padding: 16px; }
+  .crm-root .confirm-overlay { padding: 12px; }
+}
