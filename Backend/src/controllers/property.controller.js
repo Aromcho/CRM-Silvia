@@ -126,6 +126,7 @@ function activityFieldLabel(path) {
   if (/^operations\.\d+\.prices\.0\.price$/.test(path)) return 'Precio';
   if (/^operations\.\d+\.prices\.0\.currency$/.test(path)) return 'Moneda';
   if (/^operations\.\d+\.operation_type$/.test(path)) return 'Tipo de operación';
+  if (/^operations\.\d+\.show_price$/.test(path)) return 'Mostrar precio en la web';
   return path;
 }
 

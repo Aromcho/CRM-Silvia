@@ -312,6 +312,11 @@ function OperationTabs({ operations, saveField }) {
   // primero desde acá. Con un valor por defecto la fila siempre se muestra y se puede completar.
   const price = op?.prices?.[0] || { price: '', currency: 'USD' };
   const hasPrice = !!price.price;
+  // Interruptor "Mostrar precio en la web" (no aplica a temporario, que siempre va como
+  // "Consultar precio"). Sin valor guardado vale el criterio de siempre de la web: venta muestra
+  // el precio y alquiler no.
+  const canTogglePrice = activeTab.key !== 'temporario';
+  const showPrice = typeof op?.show_price === 'boolean' ? op.show_price : activeTab.key === 'venta';
 
   return e(React.Fragment, null,
     e('div', { className: 'op-tabs' },
@@ -339,6 +344,13 @@ function OperationTabs({ operations, saveField }) {
                 onChange: (ev) => saveField(`operations.${activeTab.opIndex}.prices.0.currency`, ev.target.value),
               }, e('option', { value: 'USD' }, 'USD'), e('option', { value: 'ARS' }, 'ARS')),
               e(EditableField, { type: 'number', value: price.price, onSave: (v) => saveField(`operations.${activeTab.opIndex}.prices.0.price`, v) }),
+              canTogglePrice && e('label', { className: 'price-web-toggle', title: 'Mostrar el precio en la web (apagado: "Consultar precio")' },
+                e('button', {
+                  type: 'button', className: `price-web-switch${showPrice ? ' on' : ''}`, role: 'switch', 'aria-checked': showPrice,
+                  onClick: () => saveField(`operations.${activeTab.opIndex}.show_price`, !showPrice),
+                }, e('span', { className: 'price-web-switch-knob' })),
+                e('span', null, showPrice ? 'Precio visible en la web' : 'Web: "Consultar precio"'),
+              ),
             ),
             !hasPrice && e('span', { className: 'price-missing-hint' }, 'Sin precio no se publica'),
           ),

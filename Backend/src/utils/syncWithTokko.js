@@ -85,7 +85,7 @@ export async function processPhotos(photos, propertyId) {
 // Transforma un objeto "property" tal como lo devuelve la API de Tokko y lo upsertea en Mongo.
 // Reutilizado tanto por el sync completo (runSync) como por scripts que traen una sola propiedad.
 export async function upsertPropertyFromTokko(property) {
-  const existingDoc = await Property.findOne({ id: property.id }, { photos: 1, photosEditedAt: 1 }).lean();
+  const existingDoc = await Property.findOne({ id: property.id }, { photos: 1, photosEditedAt: 1, operations: 1 }).lean();
 
   let photos;
   if (existingDoc?.photosEditedAt) {
@@ -100,6 +100,8 @@ export async function upsertPropertyFromTokko(property) {
     ? property.operations.map((op) => ({
         operation_id: op.operation_id ?? null,
         operation_type: op.operation_type || null,
+        // Tokko no conoce este interruptor del CRM: se conserva el que ya estaba cargado
+        show_price: (existingDoc?.operations || []).find((o) => o.operation_type === op.operation_type)?.show_price,
         prices: (op.prices || []).map((p) => ({
           currency: p.currency,
           price: p.price || 0,

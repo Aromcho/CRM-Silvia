@@ -4,6 +4,9 @@ import mongoosePaginate from 'mongoose-paginate-v2';
 const operationSchema = new Schema({
   operation_id: Number,
   operation_type: { type: String, index: true },
+  // Interruptor "Mostrar precio en la web" (no aplica a alquiler temporario). Sin valor = criterio
+  // por defecto de la web: venta muestra el precio, alquiler muestra "Consultar precio".
+  show_price: Boolean,
   prices: [{
     currency: { type: String, default: 'USD' },
     period: Schema.Types.Mixed, // Tokko envía 0 (venta/alquiler) o texto como "1st fortnight january" (temporario)

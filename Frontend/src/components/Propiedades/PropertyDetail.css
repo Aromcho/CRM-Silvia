@@ -168,7 +168,7 @@
 .detail-status-select:disabled { cursor: default; opacity: .75; }
 .detail-status-select option { color: #111; background: #fff; }
 
-.price-currency-field { display: flex; align-items: center; gap: 8px; }
+.price-currency-field { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .price-currency-select {
   border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 6px;
   font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; color: var(--ink-2);
@@ -178,6 +178,19 @@
   border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 6px;
   font-size: 12px; font-family: inherit; cursor: pointer; color: var(--ink-2); background: var(--surface);
 }
+
+/* Interruptor "Mostrar precio en la web" al lado del precio */
+.price-web-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--ink-3); cursor: pointer; white-space: nowrap; }
+.price-web-switch {
+  position: relative; width: 34px; height: 19px; border-radius: 999px; flex-shrink: 0; padding: 0; cursor: pointer;
+  background: var(--line-2); border: 1px solid var(--line); transition: background .15s, border-color .15s;
+}
+.price-web-switch-knob {
+  position: absolute; top: 1.5px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(16, 40, 30, .25); transition: transform .15s;
+}
+.price-web-switch.on { background: var(--green-600); border-color: var(--green-600); }
+.price-web-switch.on .price-web-switch-knob { transform: translateX(15px); }
 
 .price-missing-hint { display: block; margin-top: 4px; font-size: 11px; font-weight: 600; color: #c0392b; }
 
