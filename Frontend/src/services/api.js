@@ -115,4 +115,39 @@ export const updateUser = (id, data) => request(`/users/${id}`, { method: 'PUT',
 export const registerUser = (data) => request('/sessions/register', { method: 'POST', body: JSON.stringify(data) });
 export const changeUserPassword = (id, password) => request(`/users/${id}/password`, { method: 'PUT', body: JSON.stringify({ password }) });
 
+// Instagram DM (solo SUPERADMIN)
+export const getInstagramStatus = () => request('/instagram/status');
+export const getInstagramConnectUrl = () => `${API_BASE}/instagram/oauth/connect`;
+export const disconnectInstagram = () => request('/instagram/disconnect', { method: 'POST' });
+export const refreshInstagramToken = () => request('/instagram/refresh-token', { method: 'POST' });
+export const subscribeInstagramWebhooks = () => request('/instagram/subscribe', { method: 'POST' });
+export const getInstagramConfig = () => request('/instagram/config');
+export const updateInstagramConfig = (data) => request('/instagram/config', { method: 'PUT', body: JSON.stringify(data) });
+export const getInstagramLeads = (params) => request(`/instagram/leads?${new URLSearchParams(params || {}).toString()}`);
+export const retryInstagramLead = (id) => request(`/instagram/leads/${id}/retry`, { method: 'POST' });
+export const deleteInstagramLead = (id) => request(`/instagram/leads/${id}`, { method: 'DELETE' });
+export const getInstagramMedia = (params) => request(`/instagram/media?${new URLSearchParams(params || {}).toString()}`);
+export const setInstagramMediaProperty = (mediaId, data) => request(`/instagram/media/${mediaId}`, { method: 'PUT', body: JSON.stringify(data) });
+export const searchInstagramProperties = (q) => request(`/instagram/properties?q=${encodeURIComponent(q || '')}`);
+
 export { API_BASE };
+
+// Mail Marketing (solo SUPERADMIN)
+export const getMailConfig = () => request('/mail-marketing/config');
+export const updateMailConfig = (data) => request('/mail-marketing/config', { method: 'PUT', body: JSON.stringify(data) });
+export const getMailFilterOptions = () => request('/mail-marketing/filter-options');
+export const previewMailAudience = (data) => request('/mail-marketing/audience', { method: 'POST', body: JSON.stringify(data) });
+export const searchMailProperties = (q) => request(`/mail-marketing/properties?${new URLSearchParams({ q: q || '' }).toString()}`);
+export const getMailCampaigns = () => request('/mail-marketing/campaigns');
+export const getMailCampaign = (id) => request(`/mail-marketing/campaigns/${id}`);
+export const createMailCampaign = (data) => request('/mail-marketing/campaigns', { method: 'POST', body: JSON.stringify(data || {}) });
+export const updateMailCampaign = (id, data) => request(`/mail-marketing/campaigns/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteMailCampaign = (id) => request(`/mail-marketing/campaigns/${id}`, { method: 'DELETE' });
+export const duplicateMailCampaign = (id) => request(`/mail-marketing/campaigns/${id}/duplicate`, { method: 'POST' });
+export const previewMailCampaign = (id, data) => request(`/mail-marketing/campaigns/${id}/preview`, { method: 'POST', body: JSON.stringify(data || {}) });
+export const sendMailTest = (id, data) => request(`/mail-marketing/campaigns/${id}/test`, { method: 'POST', body: JSON.stringify(data || {}) });
+export const startMailCampaign = (id, expectedCount) => request(`/mail-marketing/campaigns/${id}/send`, { method: 'POST', body: JSON.stringify({ expectedCount }) });
+export const pauseMailCampaign = (id) => request(`/mail-marketing/campaigns/${id}/pause`, { method: 'POST' });
+export const resumeMailCampaign = (id) => request(`/mail-marketing/campaigns/${id}/resume`, { method: 'POST' });
+export const cancelMailCampaign = (id) => request(`/mail-marketing/campaigns/${id}/cancel`, { method: 'POST' });
+export const getMailCampaignSends = (id, params) => request(`/mail-marketing/campaigns/${id}/sends?${new URLSearchParams(params || {}).toString()}`);

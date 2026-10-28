@@ -155,3 +155,6 @@
   .leads-pagination > span:first-child { flex-basis: 100%; text-align: center; }
   .form-row { grid-template-columns: 1fr; }
 }
+
+/* Lead dado de baja del Mail Marketing (solo frena mails masivos) */
+.status-badge.badge-optout { color: #9c2e2a; background: #fce9e8; }

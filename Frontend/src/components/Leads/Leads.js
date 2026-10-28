@@ -125,6 +125,10 @@ function LeadModal({ lead: initialLead, users, onClose, onUpdated }) {
       e('div', { className: 'lead-modal-head' },
         e('h2', null, lead.name),
         e('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+          lead.emailOptOut && e('span', {
+            className: 'status-badge badge-optout',
+            title: `Se dio de baja del Mail Marketing el ${new Date(lead.emailOptOut).toLocaleDateString('es-AR')}. Solo frena los mails masivos: WhatsApp, llamados y mails manuales siguen igual.`,
+          }, 'Sin mails masivos'),
           e('span', { className: `status-badge badge-${lead.status}` }, STATUS_LABELS[lead.status] || lead.status),
           e('button', { className: 'btn ghost sm', onClick: onClose, 'aria-label': 'Cerrar' }, e(Icons.Close, { width: 14, height: 14 })),
         ),
@@ -469,6 +473,7 @@ export default function Leads({ session }) {
                     ),
                   ),
                   e('div', { className: 'lead-card-right' },
+                    lead.emailOptOut && e('span', { className: 'status-badge badge-optout', title: 'Dado de baja del Mail Marketing' }, 'Sin mails'),
                     e('span', { className: `status-badge badge-${lead.status}` }, STATUS_LABELS[lead.status] || lead.status),
                     e('span', { className: 'lead-card-date' }, timeAgo(lead.createdAt)),
                   ),

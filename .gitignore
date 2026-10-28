@@ -16,3 +16,7 @@ Backend/uploads/
 # Logs
 npm-debug.log*
 *.log
+
+# Builds sin downtime (NEXT_DIST_DIR) y backups del build anterior
+.next-*/
+Frontend/.next-*/

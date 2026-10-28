@@ -11,6 +11,8 @@ import errorHandler from './src/middlewares/errorHandler.mid.js';
 import { startMercadoLibreMetricsCron } from './src/cron/mercadolibreMetrics.cron.js';
 import { startZonapropReconcileCron } from './src/cron/zonapropReconcile.cron.js';
 import { startZonapropLeadsCron } from './src/cron/zonapropLeads.cron.js';
+import { startInstagramCron } from './src/cron/instagram.cron.js';
+import { startMailMarketingWorker } from './src/cron/mailMarketing.cron.js';
 // import { startTokkoSyncCron } from './src/cron/tokkoSync.cron.js'; // Deshabilitado: la sincronización con Tokko ahora es solo manual (botón "Sincronizar Tokko")
 
 dotenv.config();
@@ -23,6 +25,8 @@ const PORT = process.env.PORT || 7003;
 const ALLOWED_ORIGINS = (process.env.FRONTEND_URL || 'http://localhost:7004')
   .split(',')
   .map((url) => url.trim());
+// Mismo origen: la página pública de baja de Mail Marketing hace POST a su propio dominio
+if (process.env.BACKEND_PUBLIC_URL) ALLOWED_ORIGINS.push(process.env.BACKEND_PUBLIC_URL.replace(/\/$/, ''));
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -31,6 +35,8 @@ app.use(cors({
   },
   credentials: true,
 }));
+// Webhook de Instagram: body crudo para validar X-Hub-Signature-256 (tiene que ir antes de express.json)
+app.use('/api/instagram/webhook', express.raw({ type: '*/*', limit: '1mb' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 app.use(morgan('dev'));
@@ -50,6 +56,8 @@ async function start() {
   startMercadoLibreMetricsCron();
   startZonapropReconcileCron();
   startZonapropLeadsCron();
+  startInstagramCron();
+  startMailMarketingWorker();
   // startTokkoSyncCron(); // Deshabilitado: sincronización con Tokko ahora solo manual
   app.listen(PORT, () => console.log(`CRM Backend corriendo en puerto ${PORT}`));
 }

@@ -10,6 +10,8 @@ import Mostrador from '../Mostrador/Mostrador';
 import Reportes from '../Reportes/Reportes';
 import Difusion from '../Difusion/Difusion';
 import Users from '../Users/Users';
+import InstagramDM from '../InstagramDM/InstagramDM';
+import MailMarketing from '../MailMarketing/MailMarketing';
 import './CRM.css';
 
 const e = React.createElement;
@@ -17,7 +19,8 @@ const { useState } = React;
 
 export default function CRM({ session, onLogout, initialTab }) {
   const [tab, setTab] = useState(initialTab || 'dashboard');
-  const effectiveTab = tab === 'usuarios' && session?.role !== 'SUPERADMIN' ? 'dashboard' : tab;
+  const SUPERADMIN_TABS = ['usuarios', 'mailmarketing'];
+  const effectiveTab = SUPERADMIN_TABS.includes(tab) && session?.role !== 'SUPERADMIN' ? 'dashboard' : tab;
 
   const section = {
     dashboard: e(Dashboard, { session }),
@@ -29,6 +32,8 @@ export default function CRM({ session, onLogout, initialTab }) {
     reportes: e(Reportes, { session }),
     difusion: e(Difusion, { session }),
     usuarios: e(Users, { session }),
+    instagram: e(InstagramDM, { session }),
+    mailmarketing: e(MailMarketing, { session }),
   }[effectiveTab] || e(Dashboard, { session });
 
   return e('div', { className: 'crm-root' },

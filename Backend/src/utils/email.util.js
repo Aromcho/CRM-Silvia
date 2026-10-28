@@ -23,11 +23,11 @@ function getTransporter() {
 
 // Mismo dominio que usa el frontend del CRM (Frontend/src/lib/data.js) para armar el link
 // público de la ficha — no hay env propia en el backend, así que se replica el default acá.
-const SITE_URL = (process.env.SITE_URL || 'https://www.silviafernandezpropiedades.com.ar').replace(/\/$/, '');
+export const SITE_URL = (process.env.SITE_URL || 'https://www.silviafernandezpropiedades.com.ar').replace(/\/$/, '');
 
 const OPERATION_TYPE_LABELS = { Venta: 'Venta', Alquiler: 'Alquiler', 'Alquiler temporal': 'Alquiler temporal' };
 
-function propertyImageUrl(property) {
+export function propertyImageUrl(property) {
   const photo = property?.photos?.[0];
   if (!photo) return '';
   const raw = photo.local_image || photo.image_url || photo.thumb_url || '';
@@ -35,7 +35,7 @@ function propertyImageUrl(property) {
   return raw.startsWith('http') ? raw : `${getBackendPublicUrl()}${raw}`;
 }
 
-function propertyPriceLine(property) {
+export function propertyPriceLine(property) {
   const op = property?.operations?.[0];
   const price = op?.prices?.[0];
   const opLabel = OPERATION_TYPE_LABELS[op?.operation_type] || op?.operation_type || '';

@@ -25,6 +25,9 @@ const leadSchema = new Schema(
     // Id del contacto en el sistema de origen (ej. "zp-321431843") — para no duplicar leads cuando
     // el polling de ZonaProp vuelve a consultar un rango de fechas que ya se procesó antes.
     externalId: { type: String, index: true, sparse: true },
+    // Fecha en que se dio de baja del Mail Marketing (link del mail). Solo frena los mails masivos:
+    // WhatsApp, llamados y mails manuales siguen igual. El registro de bajas vive en MailSuppression.
+    emailOptOut: Date,
   },
   { timestamps: true }
 );

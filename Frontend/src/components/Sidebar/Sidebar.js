@@ -20,6 +20,8 @@ const NAV_ITEMS = [
   { key: 'reportes', label: 'Reportes', short: 'Reportes', icon: Icons.BarChart },
   { key: 'difusion', label: 'Difusión', short: 'Difusión', icon: Icons.Globe },
   { key: 'usuarios', label: 'Usuarios', short: 'Usuarios', icon: Icons.Users, superAdminOnly: true },
+  { key: 'instagram', label: 'Instagram DM', short: 'Instagram', icon: Icons.Instagram },
+  { key: 'mailmarketing', label: 'Mail Marketing', short: 'Mailing', icon: Icons.Send, superAdminOnly: true },
 ];
 
 const AGENDA_URL = 'https://agenda.silviafernandezpropiedades.com.ar/';

@@ -10,6 +10,7 @@ const activitySchema = new Schema(
         'lead_status_changed', 'lead_assigned', 'user_login', 'sync_completed', 'rentals_imported',
         'ml_sync', 'ml_sync_completed', 'ml_token_error',
         'zp_sync', 'zp_sync_completed', 'zp_reconciled',
+        'instagram_connect', 'instagram_toggle',
       ],
       required: true,
       index: true,
@@ -19,7 +20,7 @@ const activitySchema = new Schema(
     userName: String,
     userEmail: String,
     entityId: String,
-    entityType: { type: String, enum: ['property', 'lead', 'user', 'system'], index: true },
+    entityType: { type: String, enum: ['property', 'lead', 'user', 'system', 'instagram'], index: true },
     meta: Schema.Types.Mixed,
   },
   { timestamps: true }
