@@ -121,7 +121,7 @@ function ConfigCard({ status, reload, flash }) {
       const saved = await updateInstagramConfig({
         rules: config.rules.map((r) => ({ key: r.key, label: r.label, keywords: r.keywordsText.split(','), message: r.message, active: r.active !== false })),
         propertyLinkTemplate: config.propertyLinkTemplate,
-        saleContactLine: config.saleContactLine ?? 'Silvia: +54 9 225550-9408',
+        ...(config.saleContacts !== undefined ? { saleContacts: config.saleContacts } : {}),
         publicReplyEnabled: config.publicReplyEnabled,
         publicReplies: config.publicReplies,
       });
@@ -164,8 +164,8 @@ function ConfigCard({ status, reload, flash }) {
       )),
       e('div', { className: 'field' }, e('label', null, 'Texto agregado cuando el post está asociado a una propiedad ({link} = ficha en la web)'),
         e('textarea', { rows: 2, value: config.propertyLinkTemplate || '', onChange: (ev) => update({ propertyLinkTemplate: ev.target.value }) })),
-      e('div', { className: 'field' }, e('label', null, 'Contacto que va primero en posts de VENTA (solo regla de información, no alquiler). Vacío = desactivado.'),
-        e('input', { value: config.saleContactLine ?? 'Silvia: +54 9 225550-9408', onChange: (ev) => update({ saleContactLine: ev.target.value }), placeholder: 'Silvia: +54 9 225550-9408' })),
+      e('div', { className: 'field' }, e('label', null, 'Contactos para posts de propiedades en VENTA (uno por línea, "Nombre: +54 9 ..."). En alquiler se usan los contactos de la regla de alquileres.'),
+        e('textarea', { rows: 5, value: config.saleContacts ?? 'Silvia: +54 9 225550-9408\nPaul: +54 9 225460-2453\nPablo: +54 9 225560-9992\nValentín: +54 9 225562-2841\nCecilia: +54 9 221600-6474', onChange: (ev) => update({ saleContacts: ev.target.value }) })),
     ),
 
     e('section', { className: 'ig-card' },
