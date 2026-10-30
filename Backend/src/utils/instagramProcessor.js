@@ -1,6 +1,7 @@
 import IgConfig from '../models/IgConfig.model.js';
 import IgLead from '../models/IgLead.model.js';
 import IgMediaMap from '../models/IgMediaMap.model.js';
+import Property from '../models/Property.model.js';
 import { matchRule } from './instagramMatcher.js';
 import { getAccount, sendPrivateReply, replyToComment, metaError, isRetryable } from './instagram.service.js';
 
@@ -12,6 +13,33 @@ const CLAIM_MS = 10 * 60e3; // mientras un envío está en curso, el cron no lo 
 
 export function propertyUrl(propertyId) {
   return `${SITE_URL}/propiedad/${propertyId}`;
+}
+
+// En posts asociados a una propiedad en VENTA se agrega este contacto primero en la lista.
+export const DEFAULT_SALE_CONTACT_LINE = 'Silvia: +54 9 225550-9408';
+
+export function addSaleContact(message, line) {
+  const text = String(message || '');
+  const contact = String(line || '').trim();
+  if (!contact || text.includes(contact)) return text;
+  // Primera línea con formato "Nombre: +54..." = inicio de la lista de asesores
+  const m = text.match(/^[^\n:]{1,40}:\s*\+?\d/m);
+  if (!m) return `${text}\n\n${contact}`;
+  return `${text.slice(0, m.index)}${contact}\n${text.slice(m.index)}`;
+}
+
+// Mensaje que recibiría un comentario INFO en un post (base para editarlo por post)
+export function defaultPostMessage(config, isSale) {
+  const rules = config?.rules || [];
+  const rule = rules.find((r) => r.key === 'info') || rules.find((r) => r.key !== 'alquiler') || rules[0];
+  const msg = rule?.message || '';
+  return isSale ? addSaleContact(msg, config?.saleContactLine ?? DEFAULT_SALE_CONTACT_LINE) : msg;
+}
+
+export async function isSaleProperty(propertyId) {
+  if (!propertyId) return false;
+  const p = await Property.findOne({ id: propertyId }, { 'operations.operation_type': 1 }).lean();
+  return (p?.operations || []).some((o) => /venta/i.test(o.operation_type || ''));
 }
 
 export async function getConfig() {
@@ -68,6 +96,13 @@ export async function processCommentEvent(entry, value) {
   const mediaId = value.media?.id ? String(value.media.id) : undefined;
   const mapping = mediaId ? await IgMediaMap.findOne({ media_id: mediaId }).lean() : null;
   const propertyId = mapping?.property_id;
+  // Solo en la regla general (INFO) y si el post es de una propiedad en venta: Silvia primero
+  let ruleMessage = match.rule.message;
+  if (mapping?.custom_message?.trim()) {
+    ruleMessage = mapping.custom_message; // mensaje editado a mano para este post
+  } else if (match.rule.key !== 'alquiler' && await isSaleProperty(propertyId)) {
+    ruleMessage = addSaleContact(ruleMessage, config.saleContactLine ?? DEFAULT_SALE_CONTACT_LINE);
+  }
 
   let skipReason = null;
   if (!config.enabled) skipReason = 'Automatización apagada';
@@ -89,7 +124,7 @@ export async function processCommentEvent(entry, value) {
       property_id: propertyId,
       status: skipReason ? 'skipped' : 'pending',
       skip_reason: skipReason,
-      dm_text: buildDmText(match.rule.message, propertyId, config.propertyLinkTemplate),
+      dm_text: buildDmText(ruleMessage, propertyId, config.propertyLinkTemplate),
       next_attempt_at: skipReason ? undefined : new Date(Date.now() + CLAIM_MS),
       comment_created_at: entry.time ? new Date(entry.time * (entry.time > 1e12 ? 1 : 1000)) : new Date(),
     });

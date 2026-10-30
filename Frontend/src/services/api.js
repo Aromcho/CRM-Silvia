@@ -128,6 +128,7 @@ export const retryInstagramLead = (id) => request(`/instagram/leads/${id}/retry`
 export const deleteInstagramLead = (id) => request(`/instagram/leads/${id}`, { method: 'DELETE' });
 export const getInstagramMedia = (params) => request(`/instagram/media?${new URLSearchParams(params || {}).toString()}`);
 export const setInstagramMediaProperty = (mediaId, data) => request(`/instagram/media/${mediaId}`, { method: 'PUT', body: JSON.stringify(data) });
+export const setInstagramMediaMessage = (mediaId, data) => request(`/instagram/media/${mediaId}/message`, { method: 'PUT', body: JSON.stringify(data) });
 export const searchInstagramProperties = (q) => request(`/instagram/properties?q=${encodeURIComponent(q || '')}`);
 
 export { API_BASE };

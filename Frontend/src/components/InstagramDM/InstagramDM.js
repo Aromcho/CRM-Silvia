@@ -4,7 +4,7 @@ import Icons from '../Icons/Icons';
 import {
   getInstagramStatus, getInstagramConnectUrl, disconnectInstagram, refreshInstagramToken, subscribeInstagramWebhooks,
   getInstagramConfig, updateInstagramConfig, getInstagramLeads, retryInstagramLead, deleteInstagramLead,
-  getInstagramMedia, setInstagramMediaProperty, searchInstagramProperties,
+  getInstagramMedia, setInstagramMediaProperty, searchInstagramProperties, setInstagramMediaMessage,
 } from '@/services/api';
 import './InstagramDM.css';
 
@@ -121,6 +121,7 @@ function ConfigCard({ status, reload, flash }) {
       const saved = await updateInstagramConfig({
         rules: config.rules.map((r) => ({ key: r.key, label: r.label, keywords: r.keywordsText.split(','), message: r.message, active: r.active !== false })),
         propertyLinkTemplate: config.propertyLinkTemplate,
+        saleContactLine: config.saleContactLine ?? 'Silvia: +54 9 225550-9408',
         publicReplyEnabled: config.publicReplyEnabled,
         publicReplies: config.publicReplies,
       });
@@ -163,6 +164,8 @@ function ConfigCard({ status, reload, flash }) {
       )),
       e('div', { className: 'field' }, e('label', null, 'Texto agregado cuando el post está asociado a una propiedad ({link} = ficha en la web)'),
         e('textarea', { rows: 2, value: config.propertyLinkTemplate || '', onChange: (ev) => update({ propertyLinkTemplate: ev.target.value }) })),
+      e('div', { className: 'field' }, e('label', null, 'Contacto que va primero en posts de VENTA (solo regla de información, no alquiler). Vacío = desactivado.'),
+        e('input', { value: config.saleContactLine ?? 'Silvia: +54 9 225550-9408', onChange: (ev) => update({ saleContactLine: ev.target.value }), placeholder: 'Silvia: +54 9 225550-9408' })),
     ),
 
     e('section', { className: 'ig-card' },
@@ -274,7 +277,7 @@ function PropertyPicker({ media, onSaved, flash }) {
       const res = await setInstagramMediaProperty(media.id, {
         propertyId, permalink: media.permalink, caption: media.caption, thumbnail_url: media.thumbnail_url || media.media_url, media_product_type: media.media_product_type,
       });
-      onSaved(res.property);
+      onSaved(res.property, res.default_message);
       setOpen(false);
       setQ('');
     } catch (err) { flash(err.message, true); }
@@ -294,6 +297,44 @@ function PropertyPicker({ media, onSaved, flash }) {
           e('strong', null, `#${p.id}`), ` ${p.title}`, p.operation && e('span', { className: 'ig-muted' }, ` · ${p.operation}`)))
           : e('p', { className: 'ig-muted ig-small' }, 'Sin resultados')),
     ),
+  );
+}
+
+// Mensaje propio de cada post: si está cargado, es el DM que reciben los que comentan una keyword en ese post.
+function MessageEditor({ media, onSaved, flash }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const hasCustom = !!media.custom_message;
+
+  function start() {
+    setText(media.custom_message || media.default_message || '');
+    setOpen(true);
+  }
+
+  async function save(value) {
+    setSaving(true);
+    try {
+      const res = await setInstagramMediaMessage(media.id, {
+        message: value, permalink: media.permalink, caption: media.caption, thumbnail_url: media.thumbnail_url || media.media_url, media_product_type: media.media_product_type,
+      });
+      onSaved(res.custom_message || '');
+      setOpen(false);
+      flash(value ? 'Mensaje del post guardado' : 'El post vuelve al mensaje general');
+    } catch (err) { flash(err.message, true); } finally { setSaving(false); }
+  }
+
+  return e('div', { className: 'ig-msg-editor' },
+    !open && e('div', { className: 'ig-picker-current' },
+      hasCustom && e('span', { className: 'ig-chip' }, 'Mensaje propio'),
+      e('button', { type: 'button', className: 'btn ghost xs', onClick: start }, 'Editar mensaje'),
+      hasCustom && e('button', { type: 'button', className: 'btn ghost xs', disabled: saving, onClick: () => save('') }, 'Restablecer')),
+    open && e('div', { className: 'field' },
+      e('label', null, 'DM para este post (el link a la ficha se agrega solo)'),
+      e('textarea', { rows: 8, value: text, onChange: (ev) => setText(ev.target.value) }),
+      e('div', { className: 'ig-actions' },
+        e('button', { type: 'button', className: 'btn primary xs', disabled: saving || !text.trim(), onClick: () => save(text) }, saving ? 'Guardando…' : 'Guardar'),
+        e('button', { type: 'button', className: 'btn ghost xs', disabled: saving, onClick: () => setOpen(false) }, 'Cancelar'))),
   );
 }
 
@@ -330,7 +371,8 @@ function PostsSection({ status, flash }) {
       e('div', { className: 'ig-media-body' },
         e('p', { className: 'ig-media-caption' }, (m.caption || 'Sin texto').slice(0, 140)),
         e('span', { className: 'ig-muted ig-small' }, fmtDate(m.timestamp)),
-        e(PropertyPicker, { media: m, flash, onSaved: (property) => setMedia((list) => list.map((x) => (x.id === m.id ? { ...x, property } : x))) }),
+        e(PropertyPicker, { media: m, flash, onSaved: (property, defaultMessage) => setMedia((list) => list.map((x) => (x.id === m.id ? { ...x, property, default_message: defaultMessage ?? x.default_message } : x))) }),
+        e(MessageEditor, { media: m, flash, onSaved: (customMessage) => setMedia((list) => list.map((x) => (x.id === m.id ? { ...x, custom_message: customMessage } : x))) }),
       ),
     ))),
     paging?.cursors?.after && paging?.next && e('div', { className: 'ig-pager' },

@@ -7,7 +7,7 @@ import IgDeletionRequest from '../models/IgDeletionRequest.model.js';
 import Property from '../models/Property.model.js';
 import Activity from '../models/Activity.model.js';
 import * as ig from '../utils/instagram.service.js';
-import { handleWebhookPayload, getConfig, attemptSend, propertyUrl } from '../utils/instagramProcessor.js';
+import { handleWebhookPayload, getConfig, attemptSend, propertyUrl, defaultPostMessage } from '../utils/instagramProcessor.js';
 
 const OAUTH_STATE_TTL = 10 * 60 * 1000;
 const oauthStates = new Map(); // state → { validUntil, userName }
@@ -233,6 +233,7 @@ export async function updateConfig(req, res, next) {
     if (enabled !== undefined) set.enabled = !!enabled;
     if (publicReplyEnabled !== undefined) set.publicReplyEnabled = !!publicReplyEnabled;
     if (propertyLinkTemplate !== undefined) set.propertyLinkTemplate = String(propertyLinkTemplate);
+    if (req.body?.saleContactLine !== undefined) set.saleContactLine = String(req.body.saleContactLine);
     if (Array.isArray(publicReplies)) set.publicReplies = publicReplies.slice(0, 3).map((t) => String(t || ''));
     if (Array.isArray(rules)) {
       set.rules = rules.map((r, i) => ({
@@ -308,13 +309,21 @@ export async function listMedia(req, res) {
     const media = data.data || [];
     const maps = await IgMediaMap.find({ media_id: { $in: media.map((m) => m.id) } }).lean();
     const byMedia = Object.fromEntries(maps.map((m) => [m.media_id, m]));
-    const ids = [...new Set(maps.map((m) => m.property_id))];
-    const props = ids.length ? await Property.find({ id: { $in: ids } }, { id: 1, publication_title: 1, address: 1 }).lean() : [];
+    const ids = [...new Set(maps.map((m) => m.property_id).filter(Boolean))];
+    const props = ids.length ? await Property.find({ id: { $in: ids } }, { id: 1, publication_title: 1, address: 1, 'operations.operation_type': 1 }).lean() : [];
+    const config = await getConfig();
     const byId = Object.fromEntries(props.map((p) => [p.id, p]));
     res.json({
       data: media.map((m) => {
-        const pid = byMedia[m.id]?.property_id;
-        return { ...m, property: pid ? { id: pid, title: byId[pid]?.publication_title || byId[pid]?.address || '' } : null };
+        const map = byMedia[m.id];
+        const pid = map?.property_id;
+        const isSale = !!pid && (byId[pid]?.operations || []).some((o) => /venta/i.test(o.operation_type || ''));
+        return {
+          ...m,
+          property: pid ? { id: pid, title: byId[pid]?.publication_title || byId[pid]?.address || '', sale: isSale } : null,
+          custom_message: map?.custom_message || '',
+          default_message: defaultPostMessage(config, isSale),
+        };
       }),
       paging: data.paging,
     });
@@ -328,11 +337,14 @@ export async function setMediaProperty(req, res, next) {
     const { mediaId } = req.params;
     const { propertyId, permalink, caption, thumbnail_url: thumbnailUrl, media_product_type: productType } = req.body || {};
     if (propertyId === null || propertyId === '' || propertyId === undefined) {
-      await IgMediaMap.deleteOne({ media_id: mediaId });
-      return res.json({ ok: true, property: null });
+      // Si el post tiene mensaje propio, se conserva y solo se quita la propiedad
+      const existing = await IgMediaMap.findOne({ media_id: mediaId }).lean();
+      if (existing?.custom_message) await IgMediaMap.updateOne({ media_id: mediaId }, { $unset: { property_id: 1 } });
+      else await IgMediaMap.deleteOne({ media_id: mediaId });
+      return res.json({ ok: true, property: null, default_message: defaultPostMessage(await getConfig(), false) });
     }
     const pid = parseInt(propertyId, 10);
-    const property = await Property.findOne({ id: pid }, { id: 1, publication_title: 1, address: 1 }).lean();
+    const property = await Property.findOne({ id: pid }, { id: 1, publication_title: 1, address: 1, 'operations.operation_type': 1 }).lean();
     if (!property) return res.status(404).json({ message: `No existe la propiedad #${propertyId}` });
     await IgMediaMap.findOneAndUpdate(
       { media_id: mediaId },
@@ -341,7 +353,29 @@ export async function setMediaProperty(req, res, next) {
     );
     // Los leads ya recibidos de ese post quedan vinculados también
     await IgLead.updateMany({ media_id: mediaId }, { $set: { property_id: pid, permalink } });
-    return res.json({ ok: true, property: { id: pid, title: property.publication_title || property.address || '' } });
+    const isSale = (property.operations || []).some((o) => /venta/i.test(o.operation_type || ''));
+    return res.json({ ok: true, property: { id: pid, title: property.publication_title || property.address || '', sale: isSale }, default_message: defaultPostMessage(await getConfig(), isSale) });
+  } catch (err) { return next(err); }
+}
+
+// Mensaje propio de un post. Vacío = vuelve al mensaje de la regla.
+export async function setMediaMessage(req, res, next) {
+  try {
+    const { mediaId } = req.params;
+    const { message, permalink, caption, thumbnail_url: thumbnailUrl, media_product_type: productType } = req.body || {};
+    const text = String(message || '').trim();
+    const existing = await IgMediaMap.findOne({ media_id: mediaId }).lean();
+    if (!text) {
+      if (existing && !existing.property_id) await IgMediaMap.deleteOne({ media_id: mediaId });
+      else if (existing) await IgMediaMap.updateOne({ media_id: mediaId }, { $unset: { custom_message: 1 } });
+      return res.json({ ok: true, custom_message: '' });
+    }
+    await IgMediaMap.findOneAndUpdate(
+      { media_id: mediaId },
+      { $set: { custom_message: text, ...(existing ? {} : { permalink, caption: caption ? String(caption).slice(0, 500) : undefined, thumbnail_url: thumbnailUrl, media_product_type: productType }) } },
+      { upsert: true },
+    );
+    return res.json({ ok: true, custom_message: text });
   } catch (err) { return next(err); }
 }
 

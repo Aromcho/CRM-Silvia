@@ -17,6 +17,7 @@ import {
   deleteLead,
   listMedia,
   setMediaProperty,
+  setMediaMessage,
   searchProperties,
 } from '../../controllers/instagram.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
@@ -44,6 +45,7 @@ router.post('/leads/:id/retry', retryLead);
 router.delete('/leads/:id', deleteLead);
 router.get('/media', listMedia);
 router.put('/media/:mediaId', setMediaProperty);
+router.put('/media/:mediaId/message', setMediaMessage);
 router.get('/properties', searchProperties);
 
 export default router;
