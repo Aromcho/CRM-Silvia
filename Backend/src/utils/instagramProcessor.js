@@ -51,11 +51,17 @@ export async function getConfig() {
 // Texto del DM: mensaje de la regla + link a la ficha si el post está asociado a una propiedad.
 // Si el mensaje ya trae {link}, se reemplaza ahí; si no, se agrega propertyLinkTemplate al final.
 export function buildDmText(message, propertyId, linkTemplate) {
-  const base = String(message || '').trim();
+  let base = String(message || '').trim();
   if (!propertyId) return base.replace(/\{link\}/g, '').trim();
   const url = propertyUrl(propertyId);
   if (base.includes('{link}')) return base.replace(/\{link\}/g, url);
-  return `${base}${String(linkTemplate || '\n\n{link}').replace(/\{link\}/g, url)}`;
+  // Con ficha de propiedad, se saca la línea con el link a la home: Instagram arma la vista previa
+  // con el PRIMER link del mensaje, y así muestra la portada de la propiedad.
+  const home = SITE_URL.replace(/^https?:\/\/(www\.)?/, '');
+  base = base.split('\n').filter((line) => !new RegExp(`^\\s*https?://(www\\.)?${home.replace(/\./g, '\\.')}/?\\s*$`, 'i').test(line)).join('\n').trim();
+  // El texto del link siempre va en un párrafo aparte (si no, se pega al link anterior y lo rompe)
+  const tpl = String(linkTemplate || '{link}').trim() || '{link}';
+  return `${base}\n\n${tpl.replace(/\{link\}/g, url)}`;
 }
 
 // Punto de entrada del webhook (ya validada la firma). Nunca tira: loguea.
