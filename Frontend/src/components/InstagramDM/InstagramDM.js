@@ -164,8 +164,8 @@ function ConfigCard({ status, reload, flash }) {
       )),
       e('div', { className: 'field' }, e('label', null, 'Texto agregado cuando el post está asociado a una propiedad ({link} = ficha en la web)'),
         e('textarea', { rows: 2, value: config.propertyLinkTemplate || '', onChange: (ev) => update({ propertyLinkTemplate: ev.target.value }) })),
-      e('div', { className: 'field' }, e('label', null, 'Contactos para posts de propiedades en VENTA (uno por línea, "Nombre: +54 9 ..."). En alquiler se usan los contactos de la regla de alquileres.'),
-        e('textarea', { rows: 5, value: config.saleContacts ?? 'Silvia: +54 9 225550-9408\nPaul: +54 9 225460-2453\nPablo: +54 9 225560-9992\nValentín: +54 9 225562-2841\nCecilia: +54 9 221600-6474', onChange: (ev) => update({ saleContacts: ev.target.value }) })),
+      e('div', { className: 'field' }, e('label', null, 'Contactos del mensaje de posts de propiedades en VENTA (uno por línea, "Nombre: +54 9 ..."). En alquiler se usa el mensaje de la regla de alquileres.'),
+        e('textarea', { rows: 5, value: config.saleContacts ?? 'Silvia: +54 9 225550-9408\nFabiana: +54 9 2255 62-6092\nPablo: +54 9 2255 60-9992\nCecilia: +54 9 2216 00-6474\nPaul: +54 9 2254 60-2453\nValentin: +54 9 2255 62-2841', onChange: (ev) => update({ saleContacts: ev.target.value }) })),
     ),
 
     e('section', { className: 'ig-card' },

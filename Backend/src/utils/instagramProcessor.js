@@ -31,10 +31,11 @@ export function addSaleContact(message, line) {
 // ── Mensaje armado con los datos de la propiedad del post ─────────────────────────────────────
 export const DEFAULT_SALE_CONTACTS = [
   'Silvia: +54 9 225550-9408',
-  'Paul: +54 9 225460-2453',
-  'Pablo: +54 9 225560-9992',
-  'Valentín: +54 9 225562-2841',
-  'Cecilia: +54 9 221600-6474',
+  'Fabiana: +54 9 2255 62-6092',
+  'Pablo: +54 9 2255 60-9992',
+  'Cecilia: +54 9 2216 00-6474',
+  'Paul: +54 9 2254 60-2453',
+  'Valentin: +54 9 2255 62-2841',
 ].join('\n');
 
 export const PROPERTY_DM_FIELDS = {
@@ -75,49 +76,32 @@ function seaDistance(p) {
   return /mar/i.test(d) ? d : `a ${d} del mar`;
 }
 
-// Texto del DM para un post vinculado a una propiedad. Usa {link} para la ficha.
+// Texto del DM para un post vinculado a una propiedad en VENTA (plantilla de la inmobiliaria). Usa {link}.
+// En alquiler devuelve null: se manda el mensaje de la regla como siempre (+ link a la ficha).
 export function propertyDmMessage(p, config) {
-  const kind = opKind(p);
-  const rules = config?.rules || [];
-  const rentRule = rules.find((r) => r.key === 'alquiler');
-  const infoRule = rules.find((r) => r.key === 'info') || rules.find((r) => r.key !== 'alquiler');
-  const isRent = kind === 'temporario' || kind === 'alquiler';
-
-  const title = String(p.publication_title || '').trim()
-    || `${p.type?.name || 'Propiedad'}${p.location?.name ? ` en ${p.location.name}` : ''}`;
-  const where = [p.address, p.location?.name].map((s) => String(s || '').trim()).filter(Boolean)
+  if (opKind(p) !== 'venta') return null;
+  const where = [p.location?.name, p.address].map((s) => String(s || '').trim()).filter(Boolean)
     .filter((s, i, arr) => arr.indexOf(s) === i).join(', ');
-  const sea = seaDistance(p);
+  const price = salePrice(p);
+  const contacts = contactLines(config?.saleContacts ?? DEFAULT_SALE_CONTACTS);
 
-  const bullets = [];
-  if (p.suite_amount || p.bathroom_amount) {
-    bullets.push([p.suite_amount && plural(p.suite_amount, 'dormitorio', 'dormitorios'), p.bathroom_amount && plural(p.bathroom_amount, 'baño', 'baños')].filter(Boolean).join(' y '));
-  }
-  const lot = parseFloat(String(p.surface || '').replace(',', '.'));
-  if (lot > 0) bullets.push(`Lote de ${fmtNum(lot)} m²`);
-  if (kind === 'temporario' && p.guests_amount) bullets.push(`Capacidad: hasta ${plural(p.guests_amount, 'persona', 'personas')}`);
-  const price = kind === 'venta' ? salePrice(p) : '';
-  if (price) bullets.push(`Valor: ${price}`);
-
-  const contacts = kind === 'venta'
-    ? contactLines(config?.saleContacts ?? DEFAULT_SALE_CONTACTS)
-    : contactLines((isRent ? rentRule : infoRule)?.message);
-
-  const out = ['¡Hola! ¿Cómo estás?', '', title];
-  if (where || sea) out.push(`📍 ${[where, sea].filter(Boolean).join(' · ')}`);
-  if (bullets.length) out.push('', ...bullets.map((b) => `✔️ ${b}`));
-  out.push('', 'Te dejo la ficha de la propiedad:', '{link}');
-  if (contacts.length) {
-    out.push('', isRent ? 'Para consultar disponibilidad y precio, escribinos por WhatsApp:' : 'Para más información o coordinar una visita, escribinos por WhatsApp:', ...contacts);
-  }
-  out.push('', 'Silvia Fernández Propiedades');
+  const out = ['Hola ¿Como estas?', ''];
+  if (where) out.push(`La propiedad se encuentra en ${where}`, '');
+  if (price) out.push(`El precio es de ${price}`, '');
+  out.push('Aca te dejo la ficha de la propiedad: {link}', '', 'Para mas informacion escribinos por whatsapp.');
+  if (contacts.length) out.push('', ...contacts);
   return out.join('\n');
 }
 
 // Mensaje que se manda en un post (base para el botón "Editar mensaje")
 export function defaultPostMessage(config, property) {
-  if (property) return propertyDmMessage(property, config).replace(/\{link\}/g, propertyUrl(property.id));
   const rules = config?.rules || [];
+  if (property) {
+    const msg = propertyDmMessage(property, config);
+    if (msg) return msg.replace(/\{link\}/g, propertyUrl(property.id));
+    const rentRule = rules.find((r) => r.key === 'alquiler');
+    return buildDmText(rentRule?.message || '', property.id, config?.propertyLinkTemplate);
+  }
   const rule = rules.find((r) => r.key === 'info') || rules.find((r) => r.key !== 'alquiler') || rules[0];
   return rule?.message || '';
 }
@@ -189,7 +173,8 @@ export async function processCommentEvent(entry, value) {
     ruleMessage = mapping.custom_message;
   } else if (propertyId) {
     const prop = await Property.findOne({ id: propertyId }, PROPERTY_DM_FIELDS).lean();
-    if (prop) ruleMessage = propertyDmMessage(prop, config);
+    const saleMsg = prop ? propertyDmMessage(prop, config) : null;
+    if (saleMsg) ruleMessage = saleMsg;
   }
 
   let skipReason = null;
