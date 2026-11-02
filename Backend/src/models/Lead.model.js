@@ -3,7 +3,9 @@ import { Schema, model } from 'mongoose';
 const leadSchema = new Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true },
+    // No es obligatorio: MercadoLibre y ZonaProp muchas veces mandan el contacto sin email (solo
+    // teléfono o usuario del portal). Con `required` esas consultas fallaban al guardarse y se perdían.
+    email: { type: String, default: '' },
     phone: String,
     message: String,
     propertyId: { type: Number, index: true },

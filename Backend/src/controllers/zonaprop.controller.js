@@ -334,47 +334,68 @@ function yyyymmdd(date) {
 // chico (cron incremental, notifica por mail) o grande (backfill manual de contactos históricos).
 // `notify` en false a propósito para backfills grandes — son contactos viejos, no leads "nuevos":
 // mandar un mail de "nuevo lead" por cada uno de golpe sería spam sobre algo que ya pasó.
+// El nombre del campo de fecha no está documentado: se prueba con las variantes conocidas de Navent.
+function zpMessageDate(m) {
+  const raw = m.fechaCreacion || m.fechaMensaje || m.fechaAlta || m.fechaEnvio || m.fecha || m.createdAt || m.date;
+  if (!raw) return null;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) || d > new Date() ? null : d;
+}
+
 export async function pollZonapropLeads({ sinceDays = 2, notify = true, userId, userName } = {}) {
   const fromDate = yyyymmdd(new Date(Date.now() - sinceDays * 86400000));
   const mensajes = await zp.getAllMensajes(fromDate);
 
   let created = 0;
   let skipped = 0;
+  let failed = 0;
   for (const m of mensajes) {
-    const externalId = `zp-${m.id}`;
-    const exists = await Lead.exists({ externalId });
-    if (exists) { skipped += 1; continue; }
+    // Cada mensaje por separado: antes un solo error (ej. contacto sin email) cortaba el for y
+    // todos los mensajes siguientes se perdían en cada corrida.
+    try {
+      const externalId = `zp-${m.id}`;
+      const exists = await Lead.exists({ externalId });
+      if (exists) { skipped += 1; continue; }
 
-    const property = await zp.findPropertyByCodigoAviso(m.codigoAviso);
+      const property = await zp.findPropertyByCodigoAviso(m.codigoAviso);
 
-    const lead = await Lead.create({
-      externalId,
-      name: m.nombre || 'Contacto ZonaProp',
-      email: m.email || '',
-      phone: m.telefono || '',
-      propertyId: property?.id,
-      propertyTitle: property ? (property.publication_title || property.address || '') : '',
-      source: 'zonaprop',
-      message: m.textoMensaje || '',
-    });
+      const lead = await Lead.create({
+        externalId,
+        name: m.nombre || 'Contacto ZonaProp',
+        email: m.email || '',
+        phone: m.telefono || '',
+        propertyId: property?.id,
+        propertyTitle: property ? (property.publication_title || property.address || '') : '',
+        source: 'zonaprop',
+        message: m.textoMensaje || '',
+      });
 
-    if (notify) {
-      sendLeadEmail(lead, property).catch(console.error);
-      // Delay chico entre mails para no ráfagar el SMTP si hay varios leads nuevos juntos.
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      // Fecha real del mensaje: si no, las consultas importadas quedaban con la fecha de importación
+      // y los filtros "Hoy" / "7 días" las mostraban como nuevas.
+      const sentAt = zpMessageDate(m);
+      if (sentAt) await Lead.collection.updateOne({ _id: lead._id }, { $set: { createdAt: sentAt } });
+
+      if (notify) {
+        sendLeadEmail(lead, property).catch(console.error);
+        // Delay chico entre mails para no ráfagar el SMTP si hay varios leads nuevos juntos.
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+
+      await Activity.create({
+        type: 'lead_created',
+        description: `Nuevo lead de ZonaProp: ${lead.name}${property ? ` — ${property.publication_title || property.address}` : ''}`,
+      });
+      created += 1;
+    } catch (err) {
+      failed += 1;
+      console.error('No se pudo guardar el mensaje de ZonaProp', m?.id, err.message);
     }
-
-    await Activity.create({
-      type: 'lead_created',
-      description: `Nuevo lead de ZonaProp: ${lead.name}${property ? ` — ${property.publication_title || property.address}` : ''}`,
-    });
-    created += 1;
   }
 
-  const summary = { total: mensajes.length, created, skipped, fromDate, notified: notify };
+  const summary = { total: mensajes.length, created, skipped, failed, fromDate, notified: notify };
   await Activity.create({
     type: 'zp_sync',
-    description: `Polling de leads de ZonaProp: ${created} nuevos, ${skipped} ya existentes (de ${mensajes.length} contactos desde ${fromDate})${notify ? '' : ' — backfill, sin mails'}`,
+    description: `Polling de leads de ZonaProp: ${created} nuevos, ${skipped} ya existentes${failed ? `, ${failed} con error` : ''} (de ${mensajes.length} contactos desde ${fromDate})${notify ? '' : ' — backfill, sin mails'}`,
     userId,
     userName,
     meta: summary,

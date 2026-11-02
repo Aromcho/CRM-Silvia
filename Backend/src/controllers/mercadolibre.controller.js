@@ -312,6 +312,9 @@ export async function handleMercadoLibreLead(req, res) {
     // GET /vis/leads/$LEAD_ID → { id, item_id, created_at, contact_type, external_id, status, buyer_id, name, email, phone }
     // (confirmado 2026-07-21 contra la doc real de Leads que pegó el usuario)
     const data = await ml.fetchNotificationResource(resource);
+    // ML reintenta la notificación si no le llega el 200 a tiempo: sin esto el mismo lead se duplicaba.
+    const externalId = data.id ? `ml-${data.id}` : undefined;
+    if (externalId && await Lead.exists({ externalId })) return;
     const name = data.name || 'Contacto MercadoLibre';
     const email = data.email || '';
     const phone = data.phone || '';
@@ -336,6 +339,7 @@ export async function handleMercadoLibreLead(req, res) {
     }
 
     const lead = await Lead.create({
+      externalId,
       name,
       email,
       phone,
@@ -344,6 +348,11 @@ export async function handleMercadoLibreLead(req, res) {
       source: 'mercadolibre',
       message,
     });
+    // Fecha real del contacto en ML (si llegó tarde, el listado no lo muestra como "de hoy").
+    const sentAt = data.created_at ? new Date(data.created_at) : null;
+    if (sentAt && !Number.isNaN(sentAt.getTime())) {
+      await Lead.collection.updateOne({ _id: lead._id }, { $set: { createdAt: sentAt } });
+    }
 
     sendLeadEmail(lead, property).catch(console.error);
 
