@@ -289,12 +289,12 @@ async function handleZonapropAvisoCalidad(body) {
 export async function handleZonapropCallback(req, res) {
   res.sendStatus(200);
 
-  if (process.env.ZP_CALLBACK_AUTH_TOKEN) {
-    const auth = req.headers['authorization'];
-    if (auth !== `Bearer ${process.env.ZP_CALLBACK_AUTH_TOKEN}`) {
-      console.error('Callback de ZonaProp con Authorization inválido, ignorado');
-      return;
-    }
+  // Sin token configurado no se acepta nada: antes, sin ZP_CALLBACK_AUTH_TOKEN, cualquiera podía
+  // crear consultas o cambiar el estado de los avisos mandando un POST a esta URL pública.
+  const auth = req.headers['authorization'];
+  if (!process.env.ZP_CALLBACK_AUTH_TOKEN || auth !== `Bearer ${process.env.ZP_CALLBACK_AUTH_TOKEN}`) {
+    console.error('Callback de ZonaProp sin token configurado o con Authorization inválido, ignorado');
+    return;
   }
 
   const body = req.body || {};

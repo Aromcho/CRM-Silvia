@@ -13,7 +13,6 @@ import { startZonapropReconcileCron } from './src/cron/zonapropReconcile.cron.js
 import { startZonapropLeadsCron } from './src/cron/zonapropLeads.cron.js';
 import { startInstagramCron } from './src/cron/instagram.cron.js';
 import { startMailMarketingWorker } from './src/cron/mailMarketing.cron.js';
-// import { startTokkoSyncCron } from './src/cron/tokkoSync.cron.js'; // Deshabilitado: la sincronización con Tokko ahora es solo manual (botón "Sincronizar Tokko")
 
 dotenv.config();
 
@@ -41,8 +40,17 @@ app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-// Serve uploaded property images directly via Express (no Nginx needed)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve uploaded property images directly via Express (no Nginx needed).
+// Las subidas comparten dominio con la API (y su cookie de sesión): nosniff + CSP sandbox para que
+// un archivo subido nunca se ejecute como página, y todo lo que no sea imagen se descarga.
+const UPLOAD_INLINE_EXT = /\.(jpe?g|png|webp|gif|avif)$/i;
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, filePath) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; media-src 'self'; sandbox");
+    if (!UPLOAD_INLINE_EXT.test(filePath)) res.setHeader('Content-Disposition', 'attachment');
+  },
+}));
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'crm-inmobiliaria-backend' });
@@ -58,7 +66,6 @@ async function start() {
   startZonapropLeadsCron();
   startInstagramCron();
   startMailMarketingWorker();
-  // startTokkoSyncCron(); // Deshabilitado: sincronización con Tokko ahora solo manual
   app.listen(PORT, () => console.log(`CRM Backend corriendo en puerto ${PORT}`));
 }
 

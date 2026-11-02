@@ -29,7 +29,10 @@ const storage = multer.diskStorage({
 export const uploadPhotos = multer({
   storage,
   limits: { fileSize: 25 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => cb(null, /^image\//.test(file.mimetype)),
+  // El mimetype lo declara el navegador: se exige además una extensión de imagen, porque el archivo
+  // se guarda con su extensión original y se sirve desde el mismo dominio que la sesión (un .svg o
+  // .html con mimetype "image/..." se habría servido como página).
+  fileFilter: (_req, file, cb) => cb(null, /^image\//.test(file.mimetype) && /\.(jpe?g|png|webp|gif|avif|heic)$/i.test(file.originalname)),
 });
 
 export async function addPhotos(req, res, next) {

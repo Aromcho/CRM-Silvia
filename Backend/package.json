@@ -7,9 +7,7 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "sync": "node -e \"import('./src/utils/syncWithTokko.js').then(m => m.syncWithTokko())\"",
     "import:rentals": "node src/scripts/importRentalExcel.js",
-    "import:tokko-property": "node src/scripts/importSingleTokkoProperty.js",
     "test:instagram": "node --test test/",
     "simulate:instagram": "node scripts/simulate-instagram-webhook.js"
   },

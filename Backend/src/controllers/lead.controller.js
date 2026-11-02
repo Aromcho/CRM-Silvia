@@ -19,7 +19,8 @@ export async function getLeads(req, res, next) {
       if (dateTo) filter.createdAt.$lte = new Date(`${dateTo}T23:59:59.999Z`);
     }
     if (searchQuery) {
-      const q = searchQuery.trim();
+      // Escapado: un "(" o "+" en el buscador rompía la consulta (y abría la puerta a regex lentas a propósito)
+      const q = searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
         { name: { $regex: q, $options: 'i' } },
         { email: { $regex: q, $options: 'i' } },

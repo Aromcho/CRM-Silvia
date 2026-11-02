@@ -5,7 +5,7 @@ import Property from '../models/Property.model.js';
 import Activity from '../models/Activity.model.js';
 import { nextManualPropertyId } from '../models/Counter.model.js';
 import { mlRequest } from '../utils/mercadolibre.service.js';
-import { processPhotos } from '../utils/syncWithTokko.js';
+import { processPhotos } from '../utils/photoDownload.js';
 
 dotenv.config();
 

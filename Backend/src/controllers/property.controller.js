@@ -5,11 +5,13 @@ import sanitizeHtml from 'sanitize-html';
 import Property from '../models/Property.model.js';
 import PropertyManager from '../manager/property.manager.js';
 import Activity from '../models/Activity.model.js';
-import { syncWithTokko } from '../utils/syncWithTokko.js';
 import { importRentalExcelFile, RENTAL_XLSX_PATH } from '../utils/rentalExcelImporter.js';
 import { nextManualPropertyId } from '../models/Counter.model.js';
 import * as ml from '../utils/mercadolibre.service.js';
 import * as zp from '../utils/zonaprop.service.js';
+
+// Texto del buscador como literal: un "(" rompía la consulta y permitía regex lentas a propósito.
+const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -235,7 +237,7 @@ export async function getProperties(req, res, next) {
       and.push({ 'operations.prices.price': f });
     }
 
-    if (barrio) and.push({ 'location.name': { $regex: barrio, $options: 'i' } });
+    if (barrio) and.push({ 'location.name': { $regex: escapeRegex(barrio), $options: 'i' } });
 
     if (status && status !== 'all') {
       const statuses = splitValues(status);
@@ -245,7 +247,7 @@ export async function getProperties(req, res, next) {
     if (searchQuery) {
       const q = searchQuery.trim();
       const fields = ['address', 'location.full_location', 'location.name', 'publication_title', 'real_address', 'description', 'producer.name', 'type.name', 'reference_code'];
-      const searchOr = [{ $or: fields.map((f) => ({ [f]: { $regex: q, $options: 'i' } })) }];
+      const searchOr = [{ $or: fields.map((f) => ({ [f]: { $regex: escapeRegex(q), $options: 'i' } })) }];
       const num = parseInt(q, 10);
       if (!isNaN(num)) searchOr.push({ id: num });
       and.push({ $or: searchOr });
@@ -511,21 +513,6 @@ export async function updatePropertyDifusion(req, res, next) {
     });
 
     res.json(property);
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function triggerSync(req, res, next) {
-  try {
-    res.json({ message: 'Sincronización iniciada en segundo plano' });
-    syncWithTokko().then(() => {
-      Activity.create({
-        type: 'sync_completed',
-        description: `Sincronización con Tokko completada (iniciada por ${req.user.name})`,
-        userId: req.user.id, userName: req.user.name, entityType: 'system',
-      }).catch(console.error);
-    }).catch(console.error);
   } catch (error) {
     next(error);
   }

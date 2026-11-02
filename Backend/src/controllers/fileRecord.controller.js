@@ -31,7 +31,7 @@ export async function getFileRecords(req, res, next) {
     const filter = {};
     if (status && status !== 'all') filter.status = status;
     if (searchQuery) {
-      const q = searchQuery.trim();
+      const q = searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
         { title: { $regex: q, $options: 'i' } },
         { address: { $regex: q, $options: 'i' } },

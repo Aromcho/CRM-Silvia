@@ -308,6 +308,12 @@ export async function handleMercadoLibreLead(req, res) {
   res.sendStatus(200);
   const { resource } = req.body || {};
   if (!resource) return;
+  // El webhook es público: sin esta validación cualquiera podía hacer que el backend le pegue a
+  // cualquier ruta de la API de ML con nuestro token (el resource se concatena a la URL).
+  if (typeof resource !== 'string' || !/^\/vis\/leads\/[\w-]+$/.test(resource)) {
+    console.error('Webhook de leads de ML con resource inválido, ignorado:', String(resource).slice(0, 120));
+    return;
+  }
   try {
     // GET /vis/leads/$LEAD_ID → { id, item_id, created_at, contact_type, external_id, status, buyer_id, name, email, phone }
     // (confirmado 2026-07-21 contra la doc real de Leads que pegó el usuario)
