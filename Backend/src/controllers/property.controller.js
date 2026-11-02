@@ -10,9 +10,6 @@ import { nextManualPropertyId } from '../models/Counter.model.js';
 import * as ml from '../utils/mercadolibre.service.js';
 import * as zp from '../utils/zonaprop.service.js';
 
-// Texto del buscador como literal: un "(" rompía la consulta y permitía regex lentas a propósito.
-const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads', 'properties');
