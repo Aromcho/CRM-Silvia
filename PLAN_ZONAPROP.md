@@ -11,7 +11,7 @@
 
 ## Credenciales sandbox
 
-- `client_id` = `braices_fernandez`, `client_secret` = `2873190580`
+- `client_id` y `client_secret`: en el `.env` (`ZP_CLIENT_ID` / `ZP_CLIENT_SECRET`). No se escriben en el repo.
 - Código inmobiliaria: `30023986` ("Silvia A. Fernández")
 - Login: `POST https://api-zp-sandbox-open.navent.com/v1/application/login?grant_type=client_credentials&client_id=...&client_secret=...` → `{ access_token, token_type, expires_in, scope }`
 - Horario sandbox: Lunes a Viernes 07:00–20:55 ART (fuera de esa ventana puede no responder)

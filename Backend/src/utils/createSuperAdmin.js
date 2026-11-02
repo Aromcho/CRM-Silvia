@@ -13,9 +13,14 @@ dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 async function createSuperAdmin() {
   await connectDB();
 
-  const email = 'barriosarom@gmail.com';
-  const password = '26398322';
-  const name = 'Aromcho';
+  // Credenciales solo desde el .env: antes estaban escritas acá y quedaron en el historial de git.
+  const email = process.env.SUPERADMIN_EMAIL;
+  const password = process.env.SUPERADMIN_PASSWORD;
+  const name = process.env.SUPERADMIN_NAME || 'Superadmin';
+  if (!email || !password) {
+    console.error('Faltan SUPERADMIN_EMAIL y SUPERADMIN_PASSWORD en el .env');
+    process.exit(1);
+  }
 
   const exists = await User.findOne({ email });
   if (exists) {
