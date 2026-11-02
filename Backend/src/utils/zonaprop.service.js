@@ -446,7 +446,17 @@ export async function syncProperty(propertyDoc, { forcePlan } = {}) {
   const codigoAviso = existing.codigoAviso || String(propertyDoc.id);
 
   if (!eligible) {
-    if (existing.published) {
+    // `published` puede quedar en false con el aviso igual ONLINE (ej. un upsert que volvió con
+    // errores): si el último estado conocido es ONLINE se confirma contra Navent antes de saltearlo.
+    let mustTakeOffline = existing.published;
+    if (!mustTakeOffline && existing.estado === 'ONLINE') {
+      try {
+        mustTakeOffline = (await getAvisoStatus(codigoAviso)).publicacion === 'ONLINE';
+      } catch (err) {
+        if (err.response?.status !== 404) throw err;
+      }
+    }
+    if (mustTakeOffline) {
       try {
         await deleteAviso(codigoAviso);
       } catch (err) {
@@ -457,6 +467,7 @@ export async function syncProperty(propertyDoc, { forcePlan } = {}) {
     await saveZpState(propertyDoc.id, {
       'difusion.zonaprop.codigoAviso': codigoAviso,
       'difusion.zonaprop.published': false,
+      'difusion.zonaprop.estado': 'OFFLINE',
       'difusion.zonaprop.last_error': null,
     });
     return { published: false };

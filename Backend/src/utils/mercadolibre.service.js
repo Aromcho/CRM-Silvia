@@ -852,12 +852,20 @@ export async function syncProperty(propertyDoc) {
     }
   }
 
-  // Propiedad no disponible (vendida/reservada/no_disponible), u operación que ya no está vigente: pausar, no cerrar
+  // Propiedad no disponible (vendida/reservada/no_disponible), u operación que ya no está vigente: pausar, no cerrar.
+  // El estado guardado puede estar viejo (ej. quedó 'not_yet_active' y ML lo activó minutos después),
+  // así que se lee el real de ML antes de decidir — si no, un aviso activo se salteaba y seguía
+  // recibiendo consultas (pasó con 996352810, 2026-10-31).
   for (const [type, listing] of listingsByType) {
-    if (!targetTypes.has(type) && listing.item_id && listing.status === 'active') {
+    if (!targetTypes.has(type) && listing.item_id && !['paused', 'closed'].includes(listing.status)) {
       try {
-        await setListingStatus(listing.item_id, 'paused');
-        listing.status = 'paused';
+        const real = await fetchListingStatus(listing.item_id);
+        listing.status = real.status;
+        listing.sub_status = real.sub_status;
+        if (real.status === 'active') {
+          await setListingStatus(listing.item_id, 'paused');
+          listing.status = 'paused';
+        }
         listing.last_error = null;
       } catch (err) {
         listing.last_error = extractMlError(err);
