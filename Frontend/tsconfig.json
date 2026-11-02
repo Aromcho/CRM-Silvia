@@ -1,0 +1,14 @@
+{
+  "//": "Solo para el editor y para el paso de deploy del VPS. Next no lo usa (ver next.config.mjs).",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "exclude": ["node_modules", ".next", ".next-*"]
+}
