@@ -41,6 +41,7 @@ export const updatePropertyStatus = (id, status) => request(`/properties/${id}/s
 export const updatePropertyDifusion = (id, data) => request(`/properties/${id}/difusion`, { method: 'PATCH', body: JSON.stringify(data) });
 export const duplicateProperty = (id, operationType) => request(`/properties/${id}/duplicate`, { method: 'POST', body: JSON.stringify({ operation_type: operationType }) });
 export const getPropertyStats = () => request('/properties/stats');
+export const getPropertyTabCounts = () => request('/properties/tab-counts');
 export const importRentals = () => request('/properties/import-rentals', { method: 'POST' });
 export const uploadPropertyPhotos = (id, files) => {
   const form = new FormData();

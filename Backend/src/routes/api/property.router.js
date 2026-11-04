@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   getProperties, getPropertyById, createProperty, updateProperty, updatePropertyStatus, updatePropertyDifusion,
-  getPropertyStats, getPropertyLocations, importRentals, duplicateProperty,
+  getPropertyStats, getPropertyLocations, importRentals, duplicateProperty, getPropertyTabCounts,
 } from '../../controllers/property.controller.js';
 import { uploadPhotos, addPhotos, deletePhoto, reorderPhotos, updatePhotoDescription } from '../../controllers/propertyPhoto.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
@@ -11,6 +11,7 @@ const router = Router();
 
 router.get('/', isAuth, getProperties);
 router.get('/stats', isAuth, getPropertyStats);
+router.get('/tab-counts', isAuth, getPropertyTabCounts);
 router.get('/locations', isAuth, getPropertyLocations);
 router.get('/:id', isAuth, getPropertyById);
 router.post('/', isAuth, createProperty);

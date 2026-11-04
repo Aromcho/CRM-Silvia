@@ -9,6 +9,7 @@ import { importRentalExcelFile, RENTAL_XLSX_PATH } from '../utils/rentalExcelImp
 import { nextManualPropertyId } from '../models/Counter.model.js';
 import * as ml from '../utils/mercadolibre.service.js';
 import * as zp from '../utils/zonaprop.service.js';
+import { summarize } from '../utils/propertyHealth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -192,15 +193,51 @@ function buildRegexList(values, aliases) {
   return Array.from(patterns);
 }
 
+const TAB_FILTERS = {
+  venta: { 'operations.operation_type': { $regex: /venta|sale/i } },
+  alquiler: { operations: { $elemMatch: { operation_type: { $regex: /^(?!.*tempor)(?=.*(alquiler|rent)).*/i } } } },
+  temporario: { 'operations.operation_type': { $regex: /tempor/i } },
+};
+const MISSING_FILTERS = {
+  video: { $or: [{ videos: { $exists: false } }, { videos: { $size: 0 } }] },
+  ml: { 'difusion.mercadolibre.published': { $ne: true }, status: { $in: ['disponible', 'reservada'] } },
+  zp: { 'difusion.zonaprop.published': { $ne: true }, status: { $in: ['disponible', 'reservada'] } },
+  map: { $or: [{ geo_lat: { $in: [null, 0] } }, { geo_long: { $in: [null, 0] } }] },
+};
+
+// Totales reales de las pestañas de Propiedades (antes el inicio decía 265 y la lista 214
+// porque la lista escondía los temporarios).
+export async function getPropertyTabCounts(req, res, next) {
+  try {
+    const [all, venta, alquiler, temporario, sinVideo, sinMl, sinZp] = await Promise.all([
+      Property.countDocuments({}),
+      Property.countDocuments(TAB_FILTERS.venta),
+      Property.countDocuments(TAB_FILTERS.alquiler),
+      Property.countDocuments(TAB_FILTERS.temporario),
+      Property.countDocuments({ ...MISSING_FILTERS.video, status: { $in: ['disponible', 'reservada'] } }),
+      Property.countDocuments(MISSING_FILTERS.ml),
+      Property.countDocuments(MISSING_FILTERS.zp),
+    ]);
+    res.json({ all, venta, alquiler, temporario, missing: { video: sinVideo, ml: sinMl, zp: sinZp } });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getProperties(req, res, next) {
   try {
     const {
       operation_type, excludeOperationType, property_type, minRooms, maxRooms, minPrice, maxPrice,
       barrio, searchQuery, minGarages, maxGarages, status, capacityGroup,
-      limit = 20, offset = 0, order = 'DESC', is_starred,
+      limit = 20, offset = 0, order = 'DESC', is_starred, tab, missing, summary,
     } = req.query;
 
     const and = [];
+
+    // Pestañas de Propiedades (C3): Venta / Alquiler (anual) / Temporario, sin esconder las que
+    // tienen dos operaciones (venta + temporario aparecen en las dos pestañas).
+    if (tab && TAB_FILTERS[tab]) and.push(TAB_FILTERS[tab]);
+    splitValues(missing).forEach((m) => { if (MISSING_FILTERS[m]) and.push(MISSING_FILTERS[m]); });
 
     const ops = splitValues(operation_type);
     if (ops.length) {
@@ -268,14 +305,28 @@ export async function getProperties(req, res, next) {
     const filter = and.length ? { $and: and } : {};
     const sortObj = order === 'price_asc' ? { 'operations.prices.price': 1 } : order === 'price_desc' ? { 'operations.prices.price': -1 } : { created_at: -1 };
 
+    const withSummary = summary === '1' || summary === 'true';
+    const baseProjection = 'id address suite_amount room_amount bathroom_amount operations location photos status type roofed_surface surface total_surface parking_lot_amount is_starred_on_web reference_code created_at guests_amount temporaryRental';
     const result = await PropertyManager.paginate({
       filter,
       opts: { sort: sortObj, limit: parseInt(limit, 10), offset: parseInt(offset, 10) },
-      projection: 'id address suite_amount room_amount bathroom_amount operations location photos status type roofed_surface surface total_surface parking_lot_amount is_starred_on_web reference_code created_at guests_amount temporaryRental',
+      projection: withSummary
+        ? `${baseProjection} publication_title videos geo_lat geo_long distanciaMar difusion description updatedAt lastEditedAt lastEditedBy`
+        : baseProjection,
       lean: true,
+      ...(withSummary ? { populate: { path: 'lastEditedBy', select: 'name' } } : {}),
     });
 
-    res.json({ meta: { limit: parseInt(limit, 10), offset: parseInt(offset, 10), total_count: result.totalDocs }, objects: result.docs });
+    // Con summary=1 cada fila trae canales (web/ML/ZonaProp) y lo que le falta, sin mandar la
+    // descripción completa ni el detalle de difusión.
+    const docs = withSummary
+      ? result.docs.map((d) => {
+          const { description, difusion, ...rest } = d;
+          return { ...rest, summary: summarize(d), lastEditedByName: d.lastEditedBy?.name || '' };
+        })
+      : result.docs;
+
+    res.json({ meta: { limit: parseInt(limit, 10), offset: parseInt(offset, 10), total_count: result.totalDocs }, objects: docs });
   } catch (error) {
     next(error);
   }

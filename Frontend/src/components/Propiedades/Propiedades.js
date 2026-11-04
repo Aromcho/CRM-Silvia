@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import Icons from '../Icons/Icons';
-import { getProperties, getPropertyById, updatePropertyStatus, createProperty } from '@/services/api';
+import { getProperties, getPropertyById, updatePropertyStatus, createProperty, getPropertyTabCounts } from '@/services/api';
 import { propertyWebUrl, LOCATION_SUGGESTIONS } from '@/lib/data';
 import SuggestionChips from '../UI/SuggestionChips';
 import FiltersButton from '../UI/FiltersButton';
@@ -33,7 +33,8 @@ function formatPrice(ops) {
   const op = ops[0];
   if (!op.prices || !op.prices.length) return null;
   const p = op.prices[0];
-  if (!p.price) return null;
+  // 1, 10, 11, 100: montos de relleno para poder publicar, no precios reales
+  if (!p.price || p.price <= 100) return null;
   const formatted = new Intl.NumberFormat('es-AR').format(p.price);
   // Sin currency guardado (precio cargado a mano sin tocar el selector de moneda) se trata como
   // USD, no como pesos — igual que el selector de la ficha lo muestra por defecto.
@@ -48,13 +49,58 @@ function photoSrc(photo) {
   return null;
 }
 
+// «Mar De Las Pampas » -> «Mar de las Pampas»
+const LOWER_WORDS = new Set(['de', 'del', 'la', 'las', 'los', 'el', 'y']);
+function tidyPlace(raw) {
+  return String(raw || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean)
+    .map((w, i) => { const l = w.toLocaleLowerCase('es'); return i > 0 && LOWER_WORDS.has(l) ? l : l.charAt(0).toLocaleUpperCase('es') + l.slice(1); })
+    .join(' ');
+}
+
+// «132m2» o «132 m2» -> «132 m²» (antes salía «132m2 m²»)
+function surfaceLabel(raw) {
+  const n = parseFloat(String(raw || '').replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? `${Math.round(n)} m²` : null;
+}
+
+function coverPhoto(property) {
+  const photos = (property.photos || []).filter((p) => !p.is_blueprint);
+  return photos.find((p) => p.is_front_cover) || photos[0] || property.photos?.[0];
+}
+
+const OP_SHORT = { venta: 'Venta', alquiler: 'Alquiler', temporario: 'Temporario' };
+
+// Web · ML · ZonaProp en chips, con el plan o el problema
+function Channels({ summary, compact }) {
+  const ch = summary?.channels;
+  if (!ch) return null;
+  const chip = (key, label, state, title) => e('span', { key, className: `ch-chip ${state}`, title }, label);
+  return e('span', { className: `ch-row${compact ? ' compact' : ''}` },
+    chip('web', 'Web', ch.web.on ? 'on' : 'off', ch.web.on ? 'Se ve en la web' : 'No se muestra en la web'),
+    chip('ml', compact ? 'ML' : `ML ${ch.ml.state === 'on' ? ch.ml.label : ch.ml.state === 'off' ? '—' : ch.ml.label}`, ch.ml.state, `MercadoLibre: ${ch.ml.label}${ch.ml.detail ? ` — ${ch.ml.detail}` : ''}`),
+    chip('zp', compact ? 'ZP' : `ZP ${ch.zp.state === 'on' ? ch.zp.label : ch.zp.state === 'off' ? '—' : ch.zp.label}`, ch.zp.state, `ZonaProp: ${ch.zp.label}${ch.zp.detail ? ` — ${ch.zp.detail}` : ''}`),
+  );
+}
+
+function Missing({ summary }) {
+  const h = summary?.health;
+  if (!h) return null;
+  if (!h.missing.length) return e('span', { className: 'miss-ok' }, e(Icons.Check, { width: 12, height: 12 }), 'Completa');
+  const first = h.missing[0].label;
+  return e('span', { className: 'miss', title: h.missing.map((m) => m.label).join(' · ') },
+    first, h.missing.length > 1 ? e('span', { className: 'miss-more' }, `+${h.missing.length - 1}`) : null,
+  );
+}
+
 function PropCard({ property, onClick }) {
-  const photo = property.photos?.[0];
+  const photo = coverPhoto(property);
   const src = photoSrc(photo);
   const price = formatPrice(property.operations);
-  const opType = property.operations?.[0]?.operation_type;
+  const kinds = property.summary?.kinds || [];
+  const opLabel = kinds.length ? kinds.map((k) => OP_SHORT[k]).join(' y ') : property.operations?.[0]?.operation_type;
+  const roofed = surfaceLabel(property.roofed_surface);
 
-  return e('div', { className: 'prop-card', onClick: () => onClick(property) },
+  return e('div', { className: 'prop-card', onClick: () => onClick(property), role: 'button', tabIndex: 0, onKeyDown: (ev) => ev.key === 'Enter' && onClick(property) },
     e('div', { className: 'prop-card-img' },
       src ? e('img', { src, alt: property.publication_title || property.address, loading: 'lazy' })
            : e('div', { className: 'prop-card-no-img' }, e(Icons.Building, { width: 32, height: 32 })),
@@ -66,14 +112,59 @@ function PropCard({ property, onClick }) {
       e('div', { className: 'prop-card-title' }, property.publication_title || property.address || 'Sin título'),
       e('div', { className: 'prop-card-location' },
         e(Icons.MapPin, { width: 11, height: 11 }),
-        property.location?.name || property.address || '—',
+        [tidyPlace(property.location?.name), `#${property.id}`].filter(Boolean).join(' · '),
       ),
-      price && e('div', { className: 'prop-card-price' }, `${opType ? `${opType} · ` : ''}${price}`),
+      e('div', { className: 'prop-card-price' }, `${opLabel ? `${opLabel} · ` : ''}${price || 'A consultar'}`),
       e('div', { className: 'prop-card-meta' },
         property.room_amount > 0 && e('span', { className: 'prop-meta-item' }, e(Icons.Layers, { width: 12, height: 12 }), `${property.room_amount} amb`),
-        property.bathroom_amount > 0 && e('span', { className: 'prop-meta-item' }, '🚿 ', property.bathroom_amount),
-        property.roofed_surface && e('span', { className: 'prop-meta-item' }, `${property.roofed_surface} m²`),
+        property.bathroom_amount > 0 && e('span', { className: 'prop-meta-item' }, e(Icons.Bath, { width: 12, height: 12 }), property.bathroom_amount),
+        roofed && e('span', { className: 'prop-meta-item' }, roofed),
       ),
+      property.summary ? e('div', { className: 'prop-card-foot' }, e(Channels, { summary: property.summary, compact: true }), e(Missing, { summary: property.summary })) : null,
+    ),
+  );
+}
+
+function timeAgoShort(d) {
+  if (!d) return '—';
+  const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+  if (days <= 0) return 'hoy';
+  if (days === 1) return 'ayer';
+  if (days < 30) return `hace ${days} d`;
+  return new Date(d).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: '2-digit' });
+}
+
+// Vista de tabla (C3): canales, estado, completitud y última edición en una fila
+function PropTable({ properties, onOpen }) {
+  return e('div', { className: 'prop-table-wrap' },
+    e('table', { className: 'prop-table' },
+      e('thead', null, e('tr', null,
+        e('th', { scope: 'col' }, 'Propiedad'),
+        e('th', { scope: 'col' }, 'Precio'),
+        e('th', { scope: 'col' }, 'Estado'),
+        e('th', { scope: 'col' }, 'Canales'),
+        e('th', { scope: 'col' }, 'Completa'),
+        e('th', { scope: 'col' }, 'Editada'),
+      )),
+      e('tbody', null, properties.map((p) => {
+        const src = photoSrc(coverPhoto(p));
+        const kinds = p.summary?.kinds || [];
+        return e('tr', { key: p.id, onClick: () => onOpen(p), tabIndex: 0, onKeyDown: (ev) => ev.key === 'Enter' && onOpen(p) },
+          e('td', null, e('span', { className: 'pt-prop' },
+            src ? e('img', { src, alt: '', loading: 'lazy' }) : e('span', { className: 'pt-noimg' }, e(Icons.Building, { width: 16, height: 16 })),
+            e('span', { className: 'pt-prop-text' },
+              e('span', { className: 'pt-title' }, p.publication_title || p.address || 'Sin título'),
+              e('span', { className: 'pt-sub' }, [tidyPlace(p.location?.name), kinds.map((k) => OP_SHORT[k]).join(' y ').toLowerCase(), `ID ${p.id}`].filter(Boolean).join(', ')),
+            ),
+          )),
+          e('td', { className: 'pt-price' }, formatPrice(p.operations) || 'A consultar'),
+          e('td', null, e('span', { className: `status-badge badge-${p.status}` }, STATUS_LABELS[p.status] || p.status)),
+          e('td', null, e(Channels, { summary: p.summary })),
+          e('td', null, e(Missing, { summary: p.summary })),
+          e('td', { className: 'pt-edited', title: p.lastEditedByName ? `Por ${p.lastEditedByName}` : undefined },
+            timeAgoShort(p.lastEditedAt || p.updatedAt), p.lastEditedByName ? e('span', { className: 'pt-by' }, p.lastEditedByName.split(' ')[0]) : null),
+        );
+      })),
     ),
   );
 }
@@ -285,11 +376,23 @@ export default function Propiedades({ session }) {
   const [selected, setSelected] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [tab, setTab] = useState('all');
+  const [missing, setMissing] = useState('');
+  const [counts, setCounts] = useState(null);
+  const [view, setView] = useState(() => {
+    try { return window.localStorage.getItem('crm-prop-view') || 'grid'; } catch { return 'grid'; }
+  });
   const searchRef = useRef(null);
 
+  useEffect(() => { getPropertyTabCounts().then((c) => c && setCounts(c)).catch(() => {}); }, []);
+  const changeView = (v) => { setView(v); try { window.localStorage.setItem('crm-prop-view', v); } catch { /* sin storage */ } };
+
+  // Los temporarios ya no se esconden: «Todas» muestra el total real y cada pestaña filtra
   const fetchProperties = useCallback(async (off = 0) => {
     setLoading(true);
-    const params = { limit: LIMIT, offset: off, order: 'DESC', excludeOperationType: 'alquiler temporal' };
+    const params = { limit: LIMIT, offset: off, order: 'DESC', summary: 1 };
+    if (tab !== 'all') params.tab = tab;
+    if (missing) params.missing = missing;
     if (search) params.searchQuery = search;
     if (statusFilter !== 'all') params.status = statusFilter;
     if (opFilter !== 'Todas') params.operation_type = opFilter;
@@ -305,7 +408,7 @@ export default function Propiedades({ session }) {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, opFilter, typeFilter]);
+  }, [search, statusFilter, opFilter, typeFilter, tab, missing]);
 
   useEffect(() => { fetchProperties(0); }, [fetchProperties]);
 
@@ -338,27 +441,46 @@ export default function Propiedades({ session }) {
       e('div', { className: 'prop-toolbar-top' },
         e('div', { className: 'prop-toolbar-left' },
           e('h1', null, 'Propiedades'),
-          e('span', { className: 'prop-count-pill' }, `${total} propiedades`),
+          e('span', { className: 'prop-count-pill' }, `${total} ${total === 1 ? 'propiedad' : 'propiedades'}`),
         ),
         e('div', { className: 'prop-toolbar-right' },
           e('div', { className: 'search toolbar-search' },
             e(Icons.Search, { width: 15, height: 15 }),
             e('input', {
               ref: searchRef,
-              placeholder: 'Buscar por dirección, tipo, ref…',
+              placeholder: 'ID, dirección o título',
               value: search,
               onChange: (ev) => setSearch(ev.target.value),
               onKeyDown: handleSearchKeyDown,
             }),
             search ? e('button', { className: 'search-clear', onClick: () => setSearch(''), 'aria-label': 'Limpiar búsqueda' }, e(Icons.Close, { width: 13, height: 13 })) : null,
           ),
+          e('div', { className: 'view-toggle', role: 'group', 'aria-label': 'Vista' },
+            e('button', { type: 'button', className: view === 'grid' ? 'on' : '', 'aria-pressed': view === 'grid', onClick: () => changeView('grid'), title: 'Grilla con fotos' }, e(Icons.Home, { width: 14, height: 14 }), e('span', { className: 'hide-phone' }, 'Grilla')),
+            e('button', { type: 'button', className: view === 'table' ? 'on' : '', 'aria-pressed': view === 'table', onClick: () => changeView('table'), title: 'Tabla con canales' }, e(Icons.List, { width: 14, height: 14 }), e('span', { className: 'hide-phone' }, 'Tabla')),
+          ),
           e(FiltersButton, {
             open: filtersOpen, onToggle: () => setFiltersOpen((v) => !v),
-            count: (statusFilter !== 'all') + (opFilter !== 'Todas') + (typeFilter !== 'Todos'),
+            count: (statusFilter !== 'all') + (typeFilter !== 'Todos'),
           }),
           e('button', { className: 'btn primary sm hide-below-desktop', onClick: () => fetchProperties(0) }, e(Icons.Search, { width: 13, height: 13 }), 'Buscar'),
           e('button', { className: 'btn primary sm', onClick: () => setShowCreate(true) }, e(Icons.Plus, { width: 13, height: 13 }),
             e('span', { className: 'label-long' }, 'Agregar propiedad'), e('span', { className: 'label-short' }, 'Agregar')),
+        ),
+      ),
+
+      // Pestañas con el total real (los temporarios ya no quedan afuera) + atajos de lo que falta
+      e('div', { className: 'prop-tabs-row' },
+        e('div', { className: 'prop-tabs', role: 'tablist', 'aria-label': 'Operación' },
+          [['all', 'Todas'], ['venta', 'Venta'], ['alquiler', 'Alquiler'], ['temporario', 'Temporario']].map(([k, label]) => e('button', {
+            key: k, type: 'button', role: 'tab', 'aria-selected': tab === k, className: tab === k ? 'on' : '', onClick: () => setTab(k),
+          }, label, counts ? e('span', { className: 'prop-tab-n' }, k === 'all' ? counts.all : counts[k]) : null)),
+        ),
+        e('div', { className: 'prop-quick', role: 'group', 'aria-label': 'Lo que falta' },
+          [['video', 'Sin video'], ['ml', 'Sin publicar en ML'], ['zp', 'Sin publicar en ZP']].map(([k, label]) => e('button', {
+            key: k, type: 'button', 'aria-pressed': missing === k, className: `prop-quick-chip${missing === k ? ' on' : ''}`,
+            onClick: () => setMissing((m) => (m === k ? '' : k)),
+          }, label, counts?.missing?.[k] != null ? e('span', { className: 'prop-tab-n' }, counts.missing[k]) : null)),
         ),
       ),
 
@@ -377,10 +499,7 @@ export default function Propiedades({ session }) {
         ),
         e('div', { className: 'filters-bar' },
           e(Icons.Filter, { width: 13, height: 13, className: 'filters-bar-icon' }),
-          e('select', { className: 'filter-select', value: opFilter, onChange: (ev) => setOpFilter(ev.target.value) },
-            OPERATION_TYPES.map((t) => e('option', { key: t, value: t }, t)),
-          ),
-          e('select', { className: 'filter-select', value: typeFilter, onChange: (ev) => setTypeFilter(ev.target.value) },
+          e('select', { className: 'filter-select', value: typeFilter, 'aria-label': 'Tipo de propiedad', onChange: (ev) => setTypeFilter(ev.target.value) },
             PROPERTY_TYPES.map((t) => e('option', { key: t, value: t }, t)),
           ),
         ),
@@ -393,9 +512,11 @@ export default function Propiedades({ session }) {
         ? e('div', { className: 'loading-state' }, 'Cargando propiedades…')
         : properties.length === 0
           ? e('div', { className: 'prop-empty' }, e(Icons.Building, { width: 48, height: 48 }), e('p', null, 'No se encontraron propiedades'))
-          : e('div', { className: 'prop-grid' },
-              properties.map((p) => e(PropCard, { key: p.id, property: p, onClick: handleCardClick })),
-            ),
+          : view === 'table'
+            ? e(PropTable, { properties, onOpen: handleCardClick })
+            : e('div', { className: 'prop-grid' },
+                properties.map((p) => e(PropCard, { key: p.id, property: p, onClick: handleCardClick })),
+              ),
     ),
 
     // Pagination
