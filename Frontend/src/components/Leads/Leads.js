@@ -218,7 +218,7 @@ function NewLeadModal({ onClose, onCreated }) {
 
   async function handleSubmit(ev) {
     ev.preventDefault();
-    if (!form.name || !form.email) { setError('Nombre y email son requeridos'); return; }
+    if (!form.name || (!form.email && !form.phone)) { setError('Poné el nombre y un email o teléfono'); return; }
     setSaving(true);
     setError('');
     try {
@@ -235,7 +235,7 @@ function NewLeadModal({ onClose, onCreated }) {
   return e('div', { className: 'lead-modal-overlay', onClick: onClose },
     e('form', { className: 'lead-modal', onClick: (ev) => ev.stopPropagation(), onSubmit: handleSubmit },
       e('div', { className: 'lead-modal-head' },
-        e('h2', null, 'Nuevo lead'),
+        e('h2', null, 'Nueva consulta'),
         e('button', { type: 'button', className: 'btn ghost sm', onClick: onClose, 'aria-label': 'Cerrar' }, e(Icons.Close, { width: 14, height: 14 })),
       ),
       e('div', { className: 'lead-modal-body' },
@@ -243,7 +243,7 @@ function NewLeadModal({ onClose, onCreated }) {
           error && e('div', { style: { fontSize: 12, color: '#9c2e2a', background: '#fce9e8', padding: '8px 12px', borderRadius: 8 } }, error),
           e('div', { className: 'form-row' },
             e('div', { className: 'field' }, e('label', null, 'Nombre *'), e('input', { value: form.name, onChange: set('name'), placeholder: 'Juan Pérez', required: true })),
-            e('div', { className: 'field' }, e('label', null, 'Email *'), e('input', { type: 'email', value: form.email, onChange: set('email'), placeholder: 'juan@email.com', required: true })),
+            e('div', { className: 'field' }, e('label', null, 'Email'), e('input', { type: 'email', value: form.email, onChange: set('email'), placeholder: 'juan@email.com' })),
           ),
           e('div', { className: 'form-row' },
             e('div', { className: 'field' }, e('label', null, 'Teléfono'), e('input', { value: form.phone, onChange: set('phone'), placeholder: '+54 9 11...' })),
@@ -251,12 +251,12 @@ function NewLeadModal({ onClose, onCreated }) {
           ),
           e('div', { className: 'field' },
             e('label', null, 'Fuente'),
-            e('select', { value: form.source, onChange: set('source') }, SOURCE_OPTS.map((s) => e('option', { key: s, value: s }, s))),
+            e('select', { value: form.source, onChange: set('source') }, SOURCE_OPTS.map((s) => e('option', { key: s, value: s }, SOURCE_LABELS[s] || s))),
           ),
           e('div', { className: 'field' }, e('label', null, 'Mensaje'), e('textarea', { value: form.message, onChange: set('message'), placeholder: 'Mensaje del lead…', style: { minHeight: 70 } })),
           e('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 } },
             e('button', { type: 'button', className: 'btn ghost sm', onClick: onClose }, 'Cancelar'),
-            e('button', { type: 'submit', className: 'btn primary sm', disabled: saving }, saving ? 'Creando…' : 'Crear lead'),
+            e('button', { type: 'submit', className: 'btn primary sm', disabled: saving }, saving ? 'Guardando…' : 'Guardar consulta'),
           ),
         ),
       ),
@@ -303,6 +303,9 @@ function LeadEmailToggle() {
     e('span', { className: 'lead-email-toggle-label' }, enabled ? 'Mails de leads: ON' : 'Mails de leads: OFF'),
   );
 }
+
+// La bandeja nueva (Consultas.js) reutiliza el alta manual y el interruptor de mails
+export { NewLeadModal, LeadEmailToggle };
 
 export default function Leads({ session }) {
   const [leads, setLeads] = useState([]);

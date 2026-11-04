@@ -13,6 +13,7 @@ import { startZonapropReconcileCron } from './src/cron/zonapropReconcile.cron.js
 import { startZonapropLeadsCron } from './src/cron/zonapropLeads.cron.js';
 import { startInstagramCron } from './src/cron/instagram.cron.js';
 import { startMailMarketingWorker } from './src/cron/mailMarketing.cron.js';
+import { ensureContactKeys } from './src/controllers/leadInbox.controller.js';
 
 dotenv.config();
 
@@ -61,6 +62,7 @@ app.use(errorHandler);
 
 async function start() {
   await connectDB();
+  ensureContactKeys();
   startMercadoLibreMetricsCron();
   startZonapropReconcileCron();
   startZonapropLeadsCron();

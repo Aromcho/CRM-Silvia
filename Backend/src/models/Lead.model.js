@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose';
+import { contactKey } from '../utils/contactKey.js';
 
 const leadSchema = new Schema(
   {
@@ -16,13 +17,26 @@ const leadSchema = new Schema(
       default: 'manual',
       index: true,
     },
+    // 'historico': consultas viejas que nadie movió, pasadas de una vez desde Consultas para que
+    // la bandeja muestre lo que hay que atender hoy. No se borran y se pueden reabrir.
     status: {
       type: String,
-      enum: ['nuevo', 'en_progreso', 'contactado', 'reservado', 'cerrado', 'descartado'],
+      enum: ['nuevo', 'en_progreso', 'contactado', 'reservado', 'cerrado', 'descartado', 'historico'],
       default: 'nuevo',
       index: true,
     },
     notes: String,
+    // Clave de la persona (utils/contactKey.js) para agrupar todas sus consultas en una fila
+    contactKey: { type: String, index: true },
+    // Cada toque de WhatsApp / Llamar / Email desde el CRM: quién y cuándo
+    contactLog: [{
+      channel: { type: String, enum: ['whatsapp', 'llamada', 'email', 'portal', 'nota'] },
+      userId: { type: Schema.Types.ObjectId, ref: 'User' },
+      userName: String,
+      text: String,
+      at: { type: Date, default: Date.now },
+    }],
+    lastContactAt: Date,
     assignedTo: { type: Schema.Types.ObjectId, ref: 'User', index: true },
     // Id del contacto en el sistema de origen (ej. "zp-321431843") — para no duplicar leads cuando
     // el polling de ZonaProp vuelve a consultar un rango de fechas que ya se procesó antes.
@@ -35,5 +49,13 @@ const leadSchema = new Schema(
 );
 
 leadSchema.index({ name: 'text', email: 'text', propertyTitle: 'text', message: 'text' });
+
+// La clave de persona se calcula sola al crear o editar (incluye ML, ZonaProp, web e Instagram)
+leadSchema.pre('save', function setContactKey(next) {
+  if (this.isNew || this.isModified('phone') || this.isModified('email') || this.isModified('name')) {
+    this.contactKey = contactKey(this);
+  }
+  next();
+});
 
 export default model('Lead', leadSchema);

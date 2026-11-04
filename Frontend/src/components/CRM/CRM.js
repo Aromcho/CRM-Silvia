@@ -4,7 +4,7 @@ import Sidebar from '../Sidebar/Sidebar';
 import Hoy from '../Dashboard/Hoy';
 import Propiedades from '../Propiedades/Propiedades';
 import AlquileresTemporarios from '../AlquileresTemporarios/AlquileresTemporarios';
-import Leads from '../Leads/Leads';
+import Consultas from '../Leads/Consultas';
 import Archivos from '../Archivos/Archivos';
 import Mostrador from '../Mostrador/Mostrador';
 import Reportes from '../Reportes/Reportes';
@@ -26,7 +26,7 @@ export default function CRM({ session, onLogout, initialTab }) {
     dashboard: e(Hoy, { session, setTab }),
     propiedades: e(Propiedades, { session }),
     alquileres: e(AlquileresTemporarios, { session }),
-    leads: e(Leads, { session }),
+    leads: e(Consultas, { session }),
     archivos: e(Archivos, { session }),
     mostrador: e(Mostrador, { session }),
     reportes: e(Reportes, { session }),

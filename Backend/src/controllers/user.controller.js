@@ -10,6 +10,17 @@ export async function getUsers(req, res, next) {
   }
 }
 
+// Lista corta de asesores (solo nombre e id) para asignar consultas. Cualquier usuario logueado
+// la puede pedir: antes /users era solo para admins y a un usuario común la lista le salía vacía.
+export async function getAgents(req, res, next) {
+  try {
+    const users = await User.find({ active: { $ne: false } }, { name: 1, email: 1 }).sort({ name: 1 }).lean();
+    res.json(users.map((u) => ({ _id: u._id, name: u.name })));
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getUser(req, res, next) {
   try {
     const user = await User.findById(req.params.id, { password: 0 }).lean();

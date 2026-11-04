@@ -3,6 +3,7 @@ import Activity from '../models/Activity.model.js';
 import Property from '../models/Property.model.js';
 import { sendLeadEmail } from '../utils/email.util.js';
 import { isLeadEmailsEnabled, setLeadEmailsEnabled } from '../utils/settings.util.js';
+import { contactKey } from '../utils/contactKey.js';
 
 export async function getLeads(req, res, next) {
   try {
@@ -53,7 +54,8 @@ export async function getLeadById(req, res, next) {
 export async function createLead(req, res, next) {
   try {
     const { name, email, phone, message, propertyId, source, assignedTo } = req.body;
-    if (!name || !email) return res.status(400).json({ message: 'Nombre y email son requeridos' });
+    // Como en ML y ZonaProp, alcanza con un dato de contacto: email o teléfono
+    if (!name || (!email && !phone)) return res.status(400).json({ message: 'Nombre y un email o teléfono son requeridos' });
 
     let property = null;
     if (propertyId) {
@@ -87,9 +89,14 @@ export async function updateLead(req, res, next) {
   try {
     const updates = { ...req.body };
     delete updates._id;
+    delete updates.contactKey;
+    delete updates.contactLog;
 
-    const previous = await Lead.findById(req.params.id, { assignedTo: 1 }).lean();
+    const previous = await Lead.findById(req.params.id, { assignedTo: 1, name: 1, email: 1, phone: 1 }).lean();
     if (!previous) return res.status(404).json({ message: 'Lead no encontrado' });
+    if ('name' in updates || 'email' in updates || 'phone' in updates) {
+      updates.contactKey = contactKey({ ...previous, ...updates });
+    }
 
     const lead = await Lead.findByIdAndUpdate(req.params.id, updates, { new: true }).populate('assignedTo', 'name email');
     if (!lead) return res.status(404).json({ message: 'Lead no encontrado' });
@@ -119,7 +126,7 @@ export async function updateLead(req, res, next) {
 export async function updateLeadStatus(req, res, next) {
   try {
     const { status } = req.body;
-    const allowed = ['nuevo', 'en_progreso', 'contactado', 'reservado', 'cerrado', 'descartado'];
+    const allowed = ['nuevo', 'en_progreso', 'contactado', 'reservado', 'cerrado', 'descartado', 'historico'];
     if (!allowed.includes(status)) return res.status(400).json({ message: 'Estado inválido' });
 
     const lead = await Lead.findByIdAndUpdate(req.params.id, { status }, { new: true });

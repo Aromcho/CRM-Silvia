@@ -86,6 +86,16 @@ export const updateLeadStatus = (id, status) => request(`/leads/${id}/status`, {
 export const deleteLead = (id) => request(`/leads/${id}`, { method: 'DELETE' });
 export const getLeadStats = () => request('/leads/stats');
 
+// Consultas como bandeja (una fila por persona)
+export const getLeadInbox = (params) => request(`/leads/inbox?${new URLSearchParams(params || {}).toString()}`);
+export const getLeadPerson = (key) => request(`/leads/person/${encodeURIComponent(key)}`);
+export const contactLeadPerson = (key, channel) => request(`/leads/person/${encodeURIComponent(key)}/contact`, { method: 'POST', body: JSON.stringify({ channel }) });
+export const addLeadPersonNote = (key, text) => request(`/leads/person/${encodeURIComponent(key)}/note`, { method: 'POST', body: JSON.stringify({ text }) });
+export const updateLeadPerson = (key, data) => request(`/leads/person/${encodeURIComponent(key)}`, { method: 'PATCH', body: JSON.stringify(data) });
+export const previewArchiveOldLeads = (days = 30) => request(`/leads/archive-old?days=${days}`);
+export const archiveOldLeads = (days = 30) => request('/leads/archive-old', { method: 'POST', body: JSON.stringify({ days }) });
+export const getAgents = () => request('/users/agents');
+
 // WhatsApp (rotación de agentes y conteo de consultas, servido por web-silvia-next)
 export const getWhatsAppStats = () => request('/whatsapp/stats');
 export const getLeadEmailSetting = () => request('/leads/email-setting');
