@@ -13,6 +13,7 @@ import whatsappRouter from './api/whatsapp.router.js';
 import instagramRouter from './api/instagram.router.js';
 import mailMarketingRouter from './api/mailMarketing.router.js';
 import publicMailRouter from './api/publicMail.router.js';
+import dashboardRouter from './api/dashboard.router.js';
 
 const router = Router();
 
@@ -30,5 +31,6 @@ router.use('/whatsapp', whatsappRouter);
 router.use('/instagram', instagramRouter);
 router.use('/mail-marketing', mailMarketingRouter);
 router.use('/public/mail', publicMailRouter);
+router.use('/dashboard', dashboardRouter);
 
 export default router;

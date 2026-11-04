@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import Sidebar from '../Sidebar/Sidebar';
-import Dashboard from '../Dashboard/Dashboard';
+import Hoy from '../Dashboard/Hoy';
 import Propiedades from '../Propiedades/Propiedades';
 import AlquileresTemporarios from '../AlquileresTemporarios/AlquileresTemporarios';
 import Leads from '../Leads/Leads';
@@ -23,7 +23,7 @@ export default function CRM({ session, onLogout, initialTab }) {
   const effectiveTab = SUPERADMIN_TABS.includes(tab) && session?.role !== 'SUPERADMIN' ? 'dashboard' : tab;
 
   const section = {
-    dashboard: e(Dashboard, { session }),
+    dashboard: e(Hoy, { session, setTab }),
     propiedades: e(Propiedades, { session }),
     alquileres: e(AlquileresTemporarios, { session }),
     leads: e(Leads, { session }),
@@ -34,7 +34,7 @@ export default function CRM({ session, onLogout, initialTab }) {
     usuarios: e(Users, { session }),
     instagram: e(InstagramDM, { session }),
     mailmarketing: e(MailMarketing, { session }),
-  }[effectiveTab] || e(Dashboard, { session });
+  }[effectiveTab] || e(Hoy, { session, setTab });
 
   return e('div', { className: 'crm-root' },
     e(Sidebar, { tab: effectiveTab, setTab, session, onLogout }),

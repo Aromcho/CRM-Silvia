@@ -94,6 +94,9 @@ export const updateLeadEmailSetting = (enabled) => request('/leads/email-setting
 // Activity feed
 export const getActivities = (params) => request(`/activities?${new URLSearchParams(params || {}).toString()}`);
 
+// «Hoy»: lo que hay que resolver, temporada y actividad agrupada (una sola llamada)
+export const getToday = () => request('/dashboard/today');
+
 // Archivos (fichas de archivos de propiedades no publicadas)
 export const getFileRecords = (params) => request(`/files?${new URLSearchParams(params || {}).toString()}`);
 export const getFileRecordById = (id) => request(`/files/${id}`);

@@ -11,7 +11,7 @@ const { useState, useEffect } = React;
 // `short`: etiqueta del riel de tablet y de la barra del celular. `mobile`: va fija en la barra de
 // abajo del celular; el resto queda en "Más".
 const NAV_ITEMS = [
-  { key: 'dashboard', label: 'Dashboard', short: 'Inicio', icon: Icons.Activity, mobile: true },
+  { key: 'dashboard', label: 'Hoy', short: 'Hoy', icon: Icons.Activity, mobile: true },
   { key: 'propiedades', label: 'Propiedades', short: 'Propiedades', icon: Icons.Building, mobile: true },
   { key: 'alquileres', label: 'Alquileres temporarios', short: 'Alquileres', icon: Icons.Calendar, mobile: true },
   { key: 'leads', label: 'Consultas', short: 'Consultas', icon: Icons.Mail, mobile: true },

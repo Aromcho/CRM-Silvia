@@ -1,0 +1,136 @@
+/* «Hoy» (C1) — inicio del CRM. Mismas variables de color que el resto del panel (globals.css). */
+
+.hoy { padding: 28px 32px 40px; max-width: 1180px; }
+
+.hoy-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+.hoy-header h1 { font-size: 24px; font-weight: 800; letter-spacing: -.5px; margin: 0 0 4px; color: var(--ink); }
+.hoy-header p { margin: 0; font-size: 13.5px; color: var(--ink-2); font-weight: 500; }
+.hoy-quick { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.hoy-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.hoy-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.hoy-only-mobile { display: none; }
+
+.hoy-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-sm); overflow: hidden; }
+.hoy-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px 12px; }
+.hoy-card-head h2 { margin: 0; font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: -.2px; }
+.hoy-count { font-size: 12px; font-weight: 700; color: var(--ink-3); background: var(--line-2); padding: 3px 9px; border-radius: 999px; }
+.hoy-link { background: none; border: 0; padding: 0; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--green-700); cursor: pointer; }
+.hoy-link:hover { text-decoration: underline; }
+
+/* Para resolver hoy */
+.hoy-tasks { display: flex; flex-direction: column; padding: 0 8px 8px; }
+.hoy-task { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 14px 12px; border-radius: 12px; }
+.hoy-task + .hoy-task { border-top: 1px solid var(--line-2); border-radius: 0 0 12px 12px; }
+.hoy-task-icon { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; }
+.tone-blue .hoy-task-icon { background: #eff6ff; color: #2563eb; }
+.tone-red .hoy-task-icon { background: #fce9e8; color: #c0392f; }
+.tone-amber .hoy-task-icon { background: #fef3e2; color: #b8791b; }
+.tone-green .hoy-task-icon { background: var(--mint-100); color: var(--green-700); }
+.tone-gray .hoy-task-icon { background: var(--line-2); color: var(--ink-2); }
+.hoy-task-title { font-size: 14px; font-weight: 800; color: var(--ink); line-height: 1.35; }
+.hoy-task-sub { margin-top: 3px; font-size: 12.5px; color: var(--ink-2); line-height: 1.5; }
+.hoy-task-btn { margin-top: 4px; }
+
+.hoy-avatars { display: flex; margin-top: 8px; }
+.hoy-avatar { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; margin-left: -6px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #1e3a8a; background: #dbeafe; }
+.hoy-avatar:first-child { margin-left: 0; }
+
+.hoy-errors { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.hoy-errors li { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line-2); }
+.hoy-error-link { display: flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none; font-size: 12.5px; font-weight: 700; min-width: 0; }
+.hoy-error-link:hover .hoy-error-addr { text-decoration: underline; }
+.hoy-error-addr { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hoy-error-msg { font-size: 12px; color: #9f332e; line-height: 1.45; }
+.hoy-chip { flex: none; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 6px; }
+.hoy-chip.mercadolibre { background: #fff4b8; color: #6b5300; }
+.hoy-chip.zonaprop { background: #ffe4d6; color: #8a3b12; }
+
+.hoy-empty { display: flex; align-items: center; gap: 10px; padding: 6px 20px 20px; font-size: 13px; color: var(--ink-2); }
+.hoy-empty.muted { padding: 10px 20px 22px; color: var(--ink-3); }
+.hoy-empty-icon { width: 30px; height: 30px; border-radius: 50%; background: var(--mint-100); color: var(--green-700); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+
+/* Actividad */
+.hoy-seg { display: inline-flex; background: var(--line-2); border-radius: 10px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+.hoy-seg button { border: 0; background: transparent; font: inherit; font-size: 12px; font-weight: 700; color: var(--ink-2); padding: 5px 10px; border-radius: 8px; cursor: pointer; }
+.hoy-seg button.on { background: #fff; color: var(--ink); box-shadow: var(--shadow-sm); }
+.hoy-seg button:focus-visible, .hoy-link:focus-visible { outline: 2px solid var(--green-500); outline-offset: 2px; }
+
+.hoy-feed { list-style: none; margin: 0; padding: 0 0 6px; max-height: 620px; overflow-y: auto; }
+.hoy-feed-item { display: flex; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--line-2); color: inherit; text-decoration: none; }
+.hoy-feed-item.link:hover { background: var(--mint-50); }
+.hoy-feed-thumb, .hoy-feed-avatar { width: 36px; height: 36px; border-radius: 10px; flex: none; object-fit: cover; }
+.hoy-feed-avatar { display: inline-flex; align-items: center; justify-content: center; background: var(--mint-100); color: var(--green-800); font-size: 12px; font-weight: 800; }
+.hoy-feed-body { min-width: 0; flex: 1; }
+.hoy-feed-text { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink); }
+.hoy-feed-text strong { font-weight: 800; }
+.hoy-feed-details { margin: 4px 0 0; padding-left: 16px; font-size: 12px; color: var(--ink-2); line-height: 1.45; }
+.hoy-feed-details li { overflow-wrap: anywhere; }
+.hoy-feed-time { display: block; margin-top: 3px; font-size: 11.5px; color: var(--ink-3); font-weight: 600; }
+
+/* Temporada */
+.hoy-season-total { display: flex; align-items: baseline; gap: 8px; padding: 0 20px; }
+.hoy-season-total .num { font-size: 30px; font-weight: 800; letter-spacing: -1px; color: var(--ink); }
+.hoy-season-total .lbl { font-size: 12.5px; color: var(--ink-2); font-weight: 600; }
+.hoy-bars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; height: 120px; padding: 12px 20px 4px; }
+.hoy-bar { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 0; }
+.hoy-bar-num { font-size: 11.5px; font-weight: 800; color: var(--ink-2); }
+.hoy-bar-track { flex: 1; width: 100%; max-width: 44px; display: flex; align-items: flex-end; background: var(--line-2); border-radius: 8px; overflow: hidden; }
+.hoy-bar-fill { width: 100%; background: linear-gradient(180deg, var(--mint-400), var(--green-700)); border-radius: 8px; }
+.hoy-bar-lbl { font-size: 11.5px; font-weight: 700; color: var(--ink-3); }
+.hoy-next { display: grid; gap: 1px; background: var(--line-2); border-top: 1px solid var(--line-2); margin-top: 12px; }
+.hoy-next-item { display: flex; flex-direction: column; gap: 2px; padding: 12px 20px; background: #fff; }
+.hoy-next-item .k { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-3); }
+.hoy-next-item .v { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+.hoy-next-item .v.muted { color: var(--ink-3); font-weight: 600; }
+.hoy-next-item .s { font-size: 12.5px; color: var(--ink-2); text-decoration: none; }
+.hoy-next-item .s:hover { color: var(--green-700); text-decoration: underline; }
+
+/* Cartera */
+.hoy-portfolio-row { display: grid; grid-template-columns: repeat(4, 1fr); padding: 0 12px 14px; gap: 6px; }
+.hoy-pf { display: flex; flex-direction: column; align-items: center; padding: 10px 4px; border-radius: 10px; background: var(--surface-2); }
+.hoy-pf .num { font-size: 18px; font-weight: 800; letter-spacing: -.4px; }
+.hoy-pf .lbl { font-size: 11px; font-weight: 700; color: var(--ink-3); }
+.hoy-pf.ok .num { color: var(--green-700); }
+.hoy-pf.warn .num { color: #b8791b; }
+.hoy-pf.bad .num { color: #c0392f; }
+.hoy-pf.muted .num { color: var(--ink-2); }
+
+.hoy-error-box { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; margin-bottom: 20px; color: #9f332e; font-size: 13px; font-weight: 600; }
+
+/* Carga */
+.hoy-skeleton { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+.hoy-skel-row { display: flex; gap: 12px; align-items: center; }
+.hoy-skel-dot { width: 38px; height: 38px; border-radius: 11px; }
+.hoy-skel-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.hoy-skel-lines span { height: 11px; border-radius: 6px; }
+.hoy-skel-lines span:last-child { width: 60%; }
+.hoy-skel-dot, .hoy-skel-lines span { background: linear-gradient(90deg, var(--line-2), var(--surface-2), var(--line-2)); background-size: 200% 100%; animation: hoy-shimmer 1.3s ease-in-out infinite; }
+@keyframes hoy-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+@media (max-width: 1199px) { .hoy { padding: 24px 20px 32px; } }
+
+@media (max-width: 960px) {
+  .hoy-grid { grid-template-columns: minmax(0, 1fr); }
+  .hoy-only-mobile { display: block; }
+  .hoy-only-desktop { display: none; }
+}
+
+@media (max-width: 640px) {
+  .hoy { padding: 18px 14px 28px; }
+  .hoy-header { flex-direction: column; align-items: flex-start; margin-bottom: 16px; }
+  .hoy-header h1 { font-size: 21px; }
+  .hoy-col { gap: 14px; }
+  .hoy-grid { gap: 14px; }
+  .hoy-card-head { padding: 14px 16px 10px; flex-wrap: wrap; }
+  .hoy-task { grid-template-columns: 34px minmax(0, 1fr); padding: 12px 8px; }
+  .hoy-task-icon { width: 34px; height: 34px; }
+  .hoy-task-btn { grid-column: 2; justify-self: start; }
+  .hoy-feed-item { padding: 12px 16px; }
+  .hoy-seg { width: 100%; }
+  .hoy-seg button { flex: 1; padding: 6px 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hoy-skel-dot, .hoy-skel-lines span { animation: none; }
+}

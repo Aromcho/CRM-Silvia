@@ -1,4 +1,6 @@
 'use client';
+// Pantalla anterior del inicio (contadores + actividad sin agrupar). Ya no se usa: el inicio es
+// Hoy.js (C1). Se deja un tiempo por si hay que volver atrás; borrar cuando Hoy esté asentado.
 import React from 'react';
 import Icons from '../Icons/Icons';
 import { getActivities, getPropertyStats, getLeadStats } from '@/services/api';
