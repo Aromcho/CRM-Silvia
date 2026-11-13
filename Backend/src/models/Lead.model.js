@@ -44,6 +44,13 @@ const leadSchema = new Schema(
     // Fecha en que se dio de baja del Mail Marketing (link del mail). Solo frena los mails masivos:
     // WhatsApp, llamados y mails manuales siguen igual. El registro de bajas vive en MailSuppression.
     emailOptOut: Date,
+    // De dónde vino (X6): canal (meta-ads, google, instagram, directo…), campaña utm_* y el código
+    // «Ref.» que la web pone en el WhatsApp. Lo completa la web en sus consultas.
+    attribution: {
+      channel: { type: String, index: true },
+      source: String, medium: String, campaign: String, content: String, term: String,
+      referrer: String, landing: String, code: { type: String, index: true },
+    },
   },
   { timestamps: true }
 );

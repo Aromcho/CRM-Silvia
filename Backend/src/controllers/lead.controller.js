@@ -66,7 +66,15 @@ export async function createLead(req, res, next) {
     }
     const propertyTitle = property?.publication_title || property?.address || '';
 
-    const lead = await Lead.create({ name, email, phone, message, propertyId, propertyTitle, source, assignedTo });
+    // Origen (X6), solo campos conocidos y acotados
+    const a = req.body.attribution && typeof req.body.attribution === 'object' ? req.body.attribution : null;
+    const cut = (v, n = 120) => (typeof v === 'string' ? v.slice(0, n) : undefined);
+    const attribution = a ? {
+      channel: cut(a.channel, 40), source: cut(a.source), medium: cut(a.medium), campaign: cut(a.campaign),
+      content: cut(a.content), term: cut(a.term), referrer: cut(a.referrer, 300), landing: cut(a.landing, 200), code: cut(a.code, 6),
+    } : undefined;
+
+    const lead = await Lead.create({ name, email, phone, message, propertyId, propertyTitle, source, assignedTo, attribution });
 
     await Activity.create({
       type: 'lead_created',
