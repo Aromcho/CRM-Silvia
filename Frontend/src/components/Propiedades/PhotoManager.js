@@ -146,7 +146,7 @@ export default function PhotoManager({ property, onPropertyChange }) {
         e(Icons.Upload, { width: 14, height: 14 }),
         uploading ? `Subiendo ${uploadProgress?.current || 1}/${uploadProgress?.total || 1}…` : 'Subir fotos',
       ),
-      !uploading && e('span', { className: 'photo-upload-hint' }, `${photos.length} foto${photos.length === 1 ? '' : 's'} — la primera es la portada`),
+      !uploading && e('span', { className: 'photo-upload-hint' }, `${photos.length} foto${photos.length === 1 ? '' : 's'} — la primera es la portada: arrastrá o tocá «Portada» en la que quieras`),
       uploading && uploadProgress && e('div', { className: 'photo-upload-progress' },
         e('div', { className: 'photo-upload-progress-bar', style: { width: `${(uploadProgress.current / uploadProgress.total) * 100}%` } }),
       ),
@@ -182,6 +182,9 @@ export default function PhotoManager({ property, onPropertyChange }) {
                 }, e(Icons.Eye, { width: 18, height: 18 })),
               ),
               e('div', { className: 'photo-card-actions' },
+                // C10: elegir portada sin arrastrar (la pasa al primer lugar; la web y los portales la respetan)
+                i > 0 && e('button', { className: 'btn ghost xs photo-make-cover', disabled: busy, onClick: () => handleReorder(i, 0), title: 'Usar esta foto como portada' },
+                  'Portada'),
                 e('button', { className: `btn ghost xs${p.description ? ' has-desc' : ''}`, disabled: busy, onClick: () => openDescriptionEditor(p), title: p.description ? 'Editar descripción' : 'Agregar descripción' },
                   e(Icons.Edit, { width: 13, height: 13 })),
                 e('button', { className: 'btn danger xs', disabled: busy, onClick: () => handleDelete(id), title: 'Eliminar' },

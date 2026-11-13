@@ -49,6 +49,14 @@ function photoSrc(photo) {
   return null;
 }
 
+// Miniatura liviana (C10): la grilla y la tabla cargaban el original (hasta 25 MB); ahora piden
+// una versión achicada en WebP al optimizador de Next del CRM, que la guarda en caché.
+function thumbSrc(photo, width = 640) {
+  const src = photoSrc(photo);
+  if (!src || !/^https?:\/\//.test(src)) return src;
+  return `/_next/image?url=${encodeURIComponent(src)}&w=${width}&q=70`;
+}
+
 // «Mar De Las Pampas » -> «Mar de las Pampas»
 const LOWER_WORDS = new Set(['de', 'del', 'la', 'las', 'los', 'el', 'y']);
 function tidyPlace(raw) {
@@ -94,7 +102,7 @@ function Missing({ summary }) {
 
 function PropCard({ property, onClick }) {
   const photo = coverPhoto(property);
-  const src = photoSrc(photo);
+  const src = thumbSrc(photo, 640);
   const price = formatPrice(property.operations);
   const kinds = property.summary?.kinds || [];
   const opLabel = kinds.length ? kinds.map((k) => OP_SHORT[k]).join(' y ') : property.operations?.[0]?.operation_type;
@@ -147,7 +155,7 @@ function PropTable({ properties, onOpen }) {
         e('th', { scope: 'col' }, 'Editada'),
       )),
       e('tbody', null, properties.map((p) => {
-        const src = photoSrc(coverPhoto(p));
+        const src = thumbSrc(coverPhoto(p), 128);
         const kinds = p.summary?.kinds || [];
         return e('tr', { key: p.id, onClick: () => onOpen(p), tabIndex: 0, onKeyDown: (ev) => ev.key === 'Enter' && onOpen(p) },
           e('td', null, e('span', { className: 'pt-prop' },
