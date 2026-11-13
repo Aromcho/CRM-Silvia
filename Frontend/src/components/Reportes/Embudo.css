@@ -1,0 +1,27 @@
+.emb { margin-bottom: 22px; padding: 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-sm); }
+.emb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.emb-head h2 { margin: 0; font-size: 16px; font-weight: 800; color: var(--ink); }
+.emb-head p { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-3); }
+.emb-range { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.emb-range button { border: 0; background: transparent; padding: 6px 12px; border-radius: 8px; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--ink-2); cursor: pointer; }
+.emb-range button.on { background: var(--green-700); color: #fff; }
+.emb-error { padding: 10px 12px; border-radius: 10px; background: #fdecea; color: #9f332e; font-size: 13px; }
+.emb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 14px; }
+.emb-card { padding: 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface-2); }
+.emb-card h3 { margin: 0 0 10px; font-size: 13px; font-weight: 800; color: var(--ink); }
+.emb-row { display: grid; grid-template-columns: 130px 1fr 52px auto; align-items: center; gap: 10px; padding: 5px 0; font-size: 12.5px; }
+.emb-label { color: var(--ink-2); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.emb-row b { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+.emb-row small { color: var(--ink-3); font-size: 11.5px; white-space: nowrap; }
+.emb-bar { position: relative; height: 10px; border-radius: 999px; background: var(--line-2); overflow: hidden; }
+.emb-bar span { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--green-600); }
+.emb-bar.warn span { background: #d79b2b; }
+.emb-bar.ok span { background: var(--green-700); }
+.emb-note { margin: 10px 0 0; font-size: 12px; color: var(--ink-3); line-height: 1.45; }
+.emb-table { display: flex; flex-direction: column; font-size: 12.5px; }
+.emb-tr { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 8px; padding: 6px 0; border-top: 1px solid var(--line-2); font-variant-numeric: tabular-nums; }
+.emb-th { border-top: 0; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); }
+@media (max-width: 640px) {
+  .emb-row { grid-template-columns: 100px 1fr 44px; }
+  .emb-row small { display: none; }
+}

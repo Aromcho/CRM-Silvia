@@ -3,6 +3,7 @@ import React from 'react';
 import Icons from '../Icons/Icons';
 import LineChart from '../UI/LineChart';
 import { getPropertyStats, getLeadStats, getMercadoLibreReports, getZonaPropReports, getWhatsAppStats } from '@/services/api';
+import Embudo from './Embudo';
 import './Reportes.css';
 
 const e = React.createElement;
@@ -256,8 +257,10 @@ export default function Reportes() {
   return e('div', { className: 'reportes' },
     e('div', { className: 'reportes-header' },
       e('h1', null, 'Reportes'),
-      e('p', null, 'Métricas y análisis del negocio'),
+      e('p', null, 'Qué canal y qué asesor convierten, y cómo rinde cada portal'),
     ),
+
+    e(Embudo),
 
     e('div', { className: 'preview-stats' },
       e('div', { className: 'preview-stat' }, e('div', { className: 'preview-stat-num' }, propTotal), e('div', { className: 'preview-stat-label' }, 'Propiedades')),

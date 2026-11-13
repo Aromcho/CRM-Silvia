@@ -34,7 +34,11 @@ async function getMlUserId() {
 
 async function getItemVisits(itemId, dateFrom, dateTo) {
   const { data } = await mlRequest('get', `/items/visits?ids=${itemId}&date_from=${dateFrom}&date_to=${dateTo}`);
-  return data.total_visits || 0;
+  // Con ?ids= ML responde un array [{ item_id, total_visits, visits_detail }], no un objeto suelto:
+  // leer data.total_visits directo daba siempre 0 (por eso Reportes mostraba 0 visitas).
+  const entry = Array.isArray(data) ? (data.find((d) => d.item_id === itemId) || data[0]) : data;
+  if (entry?.total_visits != null) return entry.total_visits;
+  return (entry?.visits_detail || []).reduce((sum, d) => sum + (d.quantity || 0), 0);
 }
 
 async function getItemQuestions(itemId, dateFrom, dateTo) {
