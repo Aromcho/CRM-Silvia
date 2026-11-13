@@ -39,6 +39,13 @@ async function triggerZpSync(property) {
 
 // Dispara la resincronización hacia los dos portales en paralelo tras guardar un cambio.
 // Cada uno se loguea con su propio catch: si uno falla no debe tapar ni frenar al otro.
+// Campos que no viajan a los portales: editarlos no dispara sync (C5)
+// (las tarifas de temporada sí cuentan: de ahí sale el precio publicado del temporario)
+const PORTAL_IGNORED = /^(lastEdited|temporaryRental\.(bookings|alarmCode|ownerPhone|unitLabel)|internal_data|notes|is_starred|reference_code|difusion)/;
+function touchesPortals(path) {
+  return !PORTAL_IGNORED.test(path);
+}
+
 export function triggerPortalsSync(property) {
   triggerMlSync(property).catch((err) => console.error(`No se pudo re-sincronizar la propiedad ${property.id} con MercadoLibre`, err.message));
   triggerZpSync(property).catch((err) => console.error(`No se pudo re-sincronizar la propiedad ${property.id} con ZonaProp`, err.message));
@@ -503,7 +510,9 @@ export async function updateProperty(req, res, next) {
     });
 
     res.json(property);
-    triggerPortalsSync(property);
+    // C5: solo se resincroniza con MercadoLibre y ZonaProp cuando cambia algo que el portal muestra.
+    // Antes cualquier edición (una reserva, una nota interna, el dueño) disparaba el sync completo.
+    if (Object.keys(updates).some(touchesPortals)) triggerPortalsSync(property);
   } catch (error) {
     next(error);
   }

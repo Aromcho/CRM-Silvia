@@ -7,6 +7,7 @@ import {
   configureZonaPropCallbacks, pollZonaPropLeads,
 } from '@/services/api';
 import { photoSrc } from '@/lib/data';
+import DifusionTable from './DifusionTable';
 import './Difusion.css';
 
 const e = React.createElement;
@@ -536,12 +537,15 @@ function ZonaPropDifusionCard() {
   );
 }
 
-export default function Difusion() {
-  return e('div', { className: 'difusion-page' },
+export default function Difusion({ session }) {
+  const isAdmin = session?.role === 'ADMIN' || session?.role === 'SUPERADMIN';
+  return e('div', { className: `difusion-page${isAdmin ? ' is-admin' : ''}` },
     e('div', { className: 'difusion-page-head' },
       e('h1', null, 'Difusión'),
-      e('span', { className: 'difusion-page-sub' }, 'Estado de las publicaciones en portales externos'),
+      e('span', { className: 'difusion-page-sub' }, 'Dónde está publicada cada propiedad, los cupos de cada portal y qué hay que arreglar'),
     ),
+    e(DifusionTable),
+    e('h2', { className: 'difusion-section-title' }, 'Cupos y planes por portal'),
     e('div', { className: 'difusion-portals' },
       e(MercadoLibreDifusionCard),
       e(ZonaPropDifusionCard),

@@ -19,13 +19,14 @@ import {
   confirmLinkListing,
 } from '../../controllers/mercadolibre.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
+import isAdmin from '../../middlewares/isAdmin.mid.js';
 
 const router = Router();
 
 router.get('/oauth/connect', isAuth, connectMercadoLibre);
 router.get('/oauth/callback', oauthCallback); // público: ML redirige acá sin cookies de sesión
 router.post('/sync/:propertyId', isAuth, syncToMercadoLibre);
-router.post('/sync-all', isAuth, syncAllMercadoLibre);
+router.post('/sync-all', isAuth, isAdmin, syncAllMercadoLibre); // masivo: solo administradores (C5)
 router.get('/requirements/:propertyId', isAuth, checkMercadoLibreRequirements);
 router.get('/status', isAuth, getMercadoLibreStatus);
 router.get('/summary', isAuth, getMercadoLibreSummary);
