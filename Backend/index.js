@@ -16,6 +16,7 @@ import { startMailMarketingWorker } from './src/cron/mailMarketing.cron.js';
 import { ensureContactKeys } from './src/controllers/leadInbox.controller.js';
 import { syncLinkedInstagramReels } from './src/controllers/propertyVideo.controller.js';
 import { backfillInstagramLeads } from './src/utils/instagramProcessor.js';
+import { backfillBookingAuthors } from './src/utils/bookingAuthors.js';
 
 dotenv.config();
 
@@ -68,6 +69,7 @@ async function start() {
   ensureContactKeys();
   syncLinkedInstagramReels();
   backfillInstagramLeads().catch((err) => console.error('[instagram] backfill de consultas', err.message));
+  backfillBookingAuthors().catch((err) => console.error('[reservas] backfill de autores', err.message));
   startMercadoLibreMetricsCron();
   startZonapropReconcileCron();
   startZonapropLeadsCron();
