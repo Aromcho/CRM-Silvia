@@ -84,7 +84,12 @@ export async function deletePhoto(req, res, next) {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
+    const wasCover = !!photo.is_front_cover;
     photo.deleteOne();
+    if (wasCover && property.photos.length) {
+      const first = [...property.photos].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
+      first.is_front_cover = true;
+    }
     property.lastEditedBy = req.user.id;
     property.lastEditedAt = new Date();
     property.photosEditedAt = new Date();
@@ -129,6 +134,9 @@ export async function reorderPhotos(req, res, next) {
       if (p) p.order = i;
     });
     property.photos.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    // En el CRM "la primera es la portada": el flag is_front_cover (heredado de Tokko) tiene prioridad en
+    // la web y en el listado, así que si no se mueve con el orden la portada nunca cambia.
+    property.photos.forEach((p, i) => { p.is_front_cover = i === 0; });
 
     property.lastEditedBy = req.user.id;
     property.lastEditedAt = new Date();
