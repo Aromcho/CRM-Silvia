@@ -137,7 +137,7 @@
 }
 
 /* Barra de reserva: arranca a mitad del día de entrada y termina a mitad del día de salida */
-.tl-booking, .tl-ghost {
+.tl-booking, .tl-ghost, .tl-gap {
   position: absolute; top: 8px; bottom: 8px; z-index: 2;
   display: flex; align-items: center; gap: 5px; padding: 0 8px; min-width: 0; overflow: hidden;
   border-radius: 8px; font: inherit; font-size: 11.5px; font-weight: 700; text-align: left; white-space: nowrap; cursor: pointer;
@@ -170,6 +170,14 @@
 .tl-ghost { background: rgba(255,255,255,.85); border: 1.5px dashed var(--green-500); color: var(--green-700); justify-content: center; }
 .tl-ghost:hover { background: var(--green-700); border-style: solid; border-color: var(--green-700); color: #fff; }
 .tl-ghost.compact span { display: none; }
+
+/* Huecos libres entre dos reservas, para ofrecer (C6) */
+.tl-gap { background: transparent; border: 1.5px dashed var(--line-2); color: var(--ink-3); justify-content: center; font-weight: 700; z-index: 1; }
+.tl-gap.long { border-color: #d79b2b; color: #9a6a12; background: rgba(254,243,226,.6); }
+.tl-gap span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-gap:hover { background: var(--green-700); border-style: solid; border-color: var(--green-700); color: #fff; }
+.tl-gap.compact span { display: none; }
+.st-chip.tl-only-gaps:not(.on) { border-color: #e9c27a; color: #9a6a12; background: #fef6e7; }
 
 .tl-empty {
   position: sticky; left: 0; width: min(100%, 100vw - 80px); display: flex; flex-direction: column; align-items: center; gap: 8px;

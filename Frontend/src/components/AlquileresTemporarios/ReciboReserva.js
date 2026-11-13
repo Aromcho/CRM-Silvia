@@ -2,6 +2,7 @@
 import React from 'react';
 import Icons from '../Icons/Icons';
 import { propertyTitle, useEscape } from './rentalUtils';
+import { updateBooking, issueBookingReceipt } from '@/services/api';
 import {
   PAGE_W, PAGE_H, RECEIPT_IMAGES, RECEIPT_FONTS, BALANCE_TERMS, PAYMENT_METHODS,
   defaultReceipt, buildReceiptLayout, receiptTotals, formatMoney, receiptFileName,
@@ -180,7 +181,7 @@ function Field({ id, label, hint, wide, children }) {
   );
 }
 
-export default function ReciboReserva({ property, booking, session, onClose }) {
+export default function ReciboReserva({ property, booking, session, onClose, onSaved }) {
   const storageKey = `recibo-reserva:${property.id}:${booking._id || `${booking.startDate}-${booking.endDate}`}`;
   const defaults = useMemo(() => defaultReceipt({ property, booking, session }), [property, booking, session]);
   const [initial] = useState(() => {
@@ -257,11 +258,31 @@ export default function ReciboReserva({ property, booking, session, onClose }) {
     });
   }
 
+  // Al descargar: lo que se completó en el recibo (DNI, total, seña, moneda) queda guardado en la
+  // reserva y, la primera vez, se le asigna el número correlativo de recibo (C6).
   async function handleDownload() {
     setBusy(true);
     setError('');
     try {
-      await downloadPdf(data);
+      let numero = data.numero || booking.receiptNumber || null;
+      if (booking._id) {
+        let latest = null;
+        const { total: t, sena } = receiptTotals(data);
+        const patch = {};
+        if ((data.dni || '') !== (booking.guestDni || '')) patch.guestDni = data.dni;
+        if (t != null && t !== booking.total) patch.total = t;
+        if (sena != null && sena !== booking.deposit) patch.deposit = sena;
+        if (data.moneda && data.moneda !== booking.currency) patch.currency = data.moneda;
+        if (Object.keys(patch).length) latest = await updateBooking(property.id, booking._id, patch).catch(() => null);
+        if (!numero) {
+          const res = await issueBookingReceipt(property.id, booking._id);
+          numero = res?.booking?.receiptNumber || null;
+          latest = res || latest;
+        }
+        if (latest?.bookings) onSaved?.(latest.bookings);
+        if (numero) setData((d) => ({ ...d, numero }));
+      }
+      await downloadPdf({ ...data, numero });
     } catch (err) {
       console.error(err);
       setError('No se pudo generar el PDF. Probá de nuevo.');

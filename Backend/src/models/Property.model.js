@@ -33,14 +33,36 @@ const photoSchema = new Schema({
 
 const tagSchema = new Schema({ id: Number, name: { type: String, index: true }, type: Number });
 
+// Reserva completa (C6): además de fechas y huésped, guarda lo que antes se tipeaba en cada recibo
+// (personas, DNI, total y seña) y el número de recibo, que se asigna una sola vez. Cada reserva se
+// guarda por separado (/properties/:id/bookings) y deja registro de quién la creó y la cambió.
+const bookingHistorySchema = new Schema({
+  at: { type: Date, default: Date.now },
+  userId: { type: Schema.Types.ObjectId, ref: 'User' },
+  userName: String,
+  action: String, // creada | editada | recibo
+  changes: [String],
+}, { _id: false });
+
 const rentalBookingSchema = new Schema({
   startDate: Date,
   endDate: Date,
   guestName: String,
   guestPhone: String,
+  guestDni: String,
+  guests: Number,
+  currency: String,
+  total: Number,
+  deposit: Number,
   notes: String,
   status: { type: String, enum: ['reservado', 'bloqueado'], default: 'reservado' },
-});
+  receiptNumber: Number,
+  receiptIssuedAt: Date,
+  createdById: { type: Schema.Types.ObjectId, ref: 'User' },
+  createdByName: String,
+  updatedByName: String,
+  history: [bookingHistorySchema],
+}, { timestamps: true });
 
 const seasonRateSchema = new Schema({
   quincena: Number,

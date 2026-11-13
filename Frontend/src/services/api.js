@@ -52,6 +52,15 @@ export const deletePropertyPhoto = (id, photoId) => request(`/properties/${id}/p
 export const reorderPropertyPhotos = (id, order) => request(`/properties/${id}/photos/reorder`, { method: 'PATCH', body: JSON.stringify({ order }) });
 export const updatePropertyPhotoDescription = (id, photoId, description) => request(`/properties/${id}/photos/${photoId}/description`, { method: 'PATCH', body: JSON.stringify({ description }) });
 
+// Reservas de temporada, una por una (C6). Devuelven { booking, bookings, temporaryRental }.
+export const createBooking = (id, data) => request(`/properties/${id}/bookings`, { method: 'POST', body: JSON.stringify(data) });
+export const updateBooking = (id, bookingId, data) => request(`/properties/${id}/bookings/${bookingId}`, { method: 'PATCH', body: JSON.stringify(data) });
+export const deleteBooking = (id, bookingId) => request(`/properties/${id}/bookings/${bookingId}`, { method: 'DELETE' });
+export const issueBookingReceipt = (id, bookingId) => request(`/properties/${id}/bookings/${bookingId}/receipt`, { method: 'POST' });
+
+// Reportes: embudo de consultas por canal y asesor (C7)
+export const getFunnel = (days = 90) => request(`/dashboard/funnel?days=${days}`);
+
 // Buscador único (Ctrl K)
 export const globalSearch = (q) => request(`/search?${new URLSearchParams({ q }).toString()}`);
 

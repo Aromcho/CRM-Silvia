@@ -3,7 +3,8 @@ import React from 'react';
 import Icons from '../Icons/Icons';
 import EditableField from '../UI/EditableField';
 import FiltersButton from '../UI/FiltersButton';
-import { getProperties, getPropertyById, updateProperty } from '@/services/api';
+import { getProperties, getPropertyById, updateProperty, createBooking, updateBooking, deleteBooking } from '@/services/api';
+import { parseAmount, formatMoney } from './reciboLayout';
 import { photoSrc, formatPrice, STATUS_LABELS } from '@/lib/data';
 import {
   MONTH_NAMES, MONTH_SHORT, parseDateOnly, toISODate, formatDay, nightsBetween, findOverlap, nightBooked,
@@ -37,7 +38,34 @@ const CAPACITY_OPTIONS = [
   { key: 'none', label: 'Sin definir' },
 ];
 
-const EMPTY_BOOKING_FORM = { guestName: '', guestPhone: '', notes: '', status: 'reservado' };
+const EMPTY_BOOKING_FORM = { guestName: '', guestPhone: '', guestDni: '', guests: '', currency: '', total: '', deposit: '', notes: '', status: 'reservado' };
+
+// Moneda por defecto de una reserva: la de la tarifa de esa temporada (diciembre e invierno en
+// pesos, enero a marzo en dólares), igual que el recibo.
+function defaultCurrency(rental, startIso) {
+  const m = parseDateOnly(startIso)?.getMonth();
+  const key = { 11: 'diciembre', 0: 'enero', 1: 'febrero', 2: 'marzo' }[m];
+  const rates = rental?.seasonalRates || {};
+  if (key) return rates[key]?.currency || (key === 'diciembre' ? 'ARS' : 'USD');
+  return rates.invierno?.currency || 'ARS';
+}
+
+const amountText = (n) => (n == null || n === '' ? '' : new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 }).format(n));
+
+// Línea de plata de una reserva: personas · total · seña · saldo · recibo
+function BookingMoney({ b }) {
+  const cur = b.currency || 'ARS';
+  const parts = [];
+  if (b.guests) parts.push(`${b.guests} ${b.guests === 1 ? 'persona' : 'personas'}`);
+  if (b.total != null) parts.push(`Total ${formatMoney(b.total, cur)}`);
+  if (b.deposit != null) parts.push(`Seña ${formatMoney(b.deposit, cur)}`);
+  if (b.total != null) parts.push(`Saldo ${formatMoney(b.total - (b.deposit || 0), cur)}`);
+  if (!parts.length && !b.receiptNumber) return null;
+  return e('div', { className: 'booking-item-money' },
+    parts.length > 0 && e('span', null, e(Icons.DollarSign || Icons.FileText, { width: 12, height: 12 }), parts.join(' · ')),
+    b.receiptNumber && e('span', { className: 'booking-receipt-n' }, `Recibo N.º ${String(b.receiptNumber).padStart(5, '0')}`),
+  );
+}
 
 const AMENITY_LABELS = { mascotas: 'Mascotas', lavarropas: 'Lavarropas', artPlaya: 'Artículos de playa', escaleras: 'Escaleras', cochera: 'Cochera' };
 
@@ -197,12 +225,16 @@ function AvailabilityCalendar({ bookings, selectedRange, onDayClick, editingIdx 
   );
 }
 
-function BookingForm({ range, form, setForm, editing, error, saving, onChangeStart, onChangeEnd, onSubmit, onCancel }) {
+function BookingForm({ range, form, setForm, editing, error, saving, onChangeStart, onChangeEnd, onSubmit, onCancel, rental }) {
   const set = (k) => (ev) => setForm((f) => ({ ...f, [k]: ev.target.value }));
 
   const startVal = toISODate(range?.start);
   const endVal = toISODate(range?.end || range?.start);
   const nights = startVal ? nightsBetween(startVal, endVal) : 0;
+  const cur = form.currency || defaultCurrency(rental, startVal);
+  const total = parseAmount(form.total);
+  const deposit = parseAmount(form.deposit);
+  const balance = total != null ? total - (deposit || 0) : null;
 
   function handleSubmit(ev) {
     ev.preventDefault();
@@ -226,6 +258,27 @@ function BookingForm({ range, form, setForm, editing, error, saving, onChangeSta
       e('div', { className: 'field' }, e('label', null, 'Huésped'), e('input', { value: form.guestName, onChange: set('guestName'), placeholder: 'Nombre' })),
       e('div', { className: 'field' }, e('label', null, 'Teléfono'), e('input', { value: form.guestPhone, onChange: set('guestPhone'), placeholder: '+54 9 11...' })),
     ),
+    form.status !== 'bloqueado' && e(React.Fragment, null,
+      e('div', { className: 'form-row' },
+        e('div', { className: 'field' }, e('label', null, 'DNI'), e('input', { value: form.guestDni, onChange: set('guestDni'), placeholder: 'Para el recibo', inputMode: 'numeric' })),
+        e('div', { className: 'field' }, e('label', null, 'Personas'), e('input', { value: form.guests, onChange: set('guests'), type: 'number', min: 1, max: 30, placeholder: '—' })),
+      ),
+      e('div', { className: 'booking-money-fields' },
+        e('div', { className: 'field' },
+          e('label', null, 'Moneda'),
+          e('div', { className: 'booking-status-toggle' },
+            [['ARS', '$'], ['USD', 'U$D']].map(([val, label]) => e('button', {
+              key: val, type: 'button', className: `booking-status-opt${cur === val ? ' on' : ''}`,
+              onClick: () => setForm((f) => ({ ...f, currency: val })),
+            }, label)),
+          ),
+        ),
+        e('div', { className: 'field' }, e('label', null, 'Total'), e('input', { value: form.total, onChange: set('total'), inputMode: 'decimal', placeholder: '0' })),
+        e('div', { className: 'field' }, e('label', null, 'Seña'), e('input', { value: form.deposit, onChange: set('deposit'), inputMode: 'decimal', placeholder: '0' })),
+      ),
+      balance != null && e('div', { className: `booking-balance${balance < 0 ? ' neg' : ''}` },
+        'Saldo a cobrar al ingresar: ', e('strong', null, formatMoney(balance, cur))),
+    ),
     e('div', { className: 'field' },
       e('label', null, 'Estado'),
       e('div', { className: 'booking-status-toggle' },
@@ -247,7 +300,7 @@ function BookingForm({ range, form, setForm, editing, error, saving, onChangeSta
   );
 }
 
-function ReservationSection({ property, saveBookings, initialEditId, initialRange, onReceipt }) {
+function ReservationSection({ property, onBookings, initialEditId, initialRange, onReceipt }) {
   const rental = property.temporaryRental || {};
   const bookings = rental.bookings || [];
   const initialIdx = initialEditId ? bookings.findIndex((b) => b._id === initialEditId) : -1;
@@ -267,7 +320,12 @@ function ReservationSection({ property, saveBookings, initialEditId, initialRang
   const formRef = useRef(null);
 
   function pickForm(b) {
-    return { guestName: b.guestName || '', guestPhone: b.guestPhone || '', notes: b.notes || '', status: b.status || 'reservado' };
+    return {
+      guestName: b.guestName || '', guestPhone: b.guestPhone || '', guestDni: b.guestDni || '',
+      guests: b.guests ? String(b.guests) : '', currency: b.currency || '',
+      total: amountText(b.total), deposit: amountText(b.deposit),
+      notes: b.notes || '', status: b.status || 'reservado',
+    };
   }
 
   function resetForm() {
@@ -305,19 +363,28 @@ function ReservationSection({ property, saveBookings, initialEditId, initialRang
       return;
     }
 
-    const booking = { ...(editingIdx != null ? bookings[editingIdx] : {}), ...form, startDate: startIso, endDate: endIso };
-    const next = editingIdx != null
-      ? bookings.map((b, i) => (i === editingIdx ? booking : b))
-      : [...bookings, booking];
+    // Cada reserva se guarda sola (el servidor vuelve a controlar la superposición y registra el autor)
+    const blocked = form.status === 'bloqueado';
+    const payload = {
+      startDate: startIso, endDate: endIso, status: form.status,
+      guestName: form.guestName, guestPhone: form.guestPhone, notes: form.notes,
+      guestDni: blocked ? '' : form.guestDni,
+      guests: blocked ? null : (form.guests || null),
+      currency: blocked ? null : (form.currency || defaultCurrency(rental, startIso)),
+      total: blocked ? null : parseAmount(form.total),
+      deposit: blocked ? null : parseAmount(form.deposit),
+    };
 
     setSaving(true);
     setError('');
     try {
-      await saveBookings(next);
+      const editingId = editingIdx != null ? bookings[editingIdx]?._id : null;
+      const res = editingId ? await updateBooking(property.id, editingId, payload) : await createBooking(property.id, payload);
+      if (res?.bookings) onBookings(res.bookings);
       resetForm();
     } catch (err) {
       console.error(err);
-      setError('No se pudo guardar la reserva. Probá de nuevo.');
+      setError(err.message && !/^Error \d/.test(err.message) ? err.message : 'No se pudo guardar la reserva. Probá de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -325,10 +392,10 @@ function ReservationSection({ property, saveBookings, initialEditId, initialRang
 
   async function confirmDelete() {
     const idx = confirmIdx;
-    await saveBookings(bookings.filter((_, i) => i !== idx));
+    const res = await deleteBooking(property.id, bookings[idx]._id);
+    if (res?.bookings) onBookings(res.bookings);
     setConfirmIdx(null);
-    if (editingIdx === idx) resetForm();
-    else if (editingIdx != null && editingIdx > idx) setEditingIdx(editingIdx - 1);
+    resetForm();
   }
 
   // Ordenadas por fecha; las finalizadas quedan colapsadas abajo
@@ -358,7 +425,11 @@ function ReservationSection({ property, saveBookings, initialEditId, initialRang
           ? e('a', { href: wa, target: '_blank', rel: 'noopener noreferrer', className: 'booking-wa', title: 'Escribir por WhatsApp' }, e(Icons.WhatsApp, { width: 12, height: 12 }), b.guestPhone)
           : e('span', null, e(Icons.Phone, { width: 12, height: 12 }), b.guestPhone)),
       ),
+      b.status !== 'bloqueado' && e(BookingMoney, { b }),
       b.notes && e('div', { className: 'booking-item-notes' }, e(Icons.FileText, { width: 12, height: 12 }), b.notes),
+      (b.createdByName || b.updatedByName) && e('div', { className: 'booking-item-author' },
+        b.createdByName ? `Cargada por ${b.createdByName}` : '',
+        b.updatedByName && b.history?.length > 1 ? `${b.createdByName ? ' · ' : ''}último cambio: ${b.updatedByName}` : ''),
     );
   }
 
@@ -366,7 +437,7 @@ function ReservationSection({ property, saveBookings, initialEditId, initialRang
     e('div', { className: 'rental-avail-grid' },
       e('div', { className: 'rental-avail-calendar' }, e(AvailabilityCalendar, { bookings, selectedRange: range, onDayClick: handleDayClick, editingIdx })),
       e('div', { className: 'rental-avail-form', ref: formRef }, e(BookingForm, {
-        range, form, setForm, editing: editingIdx != null, error, saving,
+        range, form, setForm, editing: editingIdx != null, error, saving, rental,
         onChangeStart: (d) => { setError(''); setRange((r) => ({ ...r, start: d })); },
         onChangeEnd: (d) => { setError(''); setRange((r) => ({ ...r, end: d })); },
         onSubmit: handleSubmit,
@@ -475,7 +546,14 @@ function TemporaryRentalModal({ property: initialProperty, initialTab = 'tarifas
     return saveFields(group ? { 'temporaryRental.capacity': value, 'temporaryRental.capacityGroup': group } : { 'temporaryRental.capacity': value });
   }
 
-  const saveBookings = (bookings) => saveField('temporaryRental.bookings', bookings);
+  // Las reservas se guardan una por una (ver ReservationSection); acá solo se refleja la lista nueva
+  function applyBookings(bookings) {
+    setProperty((p) => {
+      const next = { ...p, temporaryRental: { ...(p.temporaryRental || {}), bookings } };
+      onChanged?.(next);
+      return next;
+    });
+  }
 
   const heroPhoto = photos[heroIdx] || photos[0];
   const heroSrc = heroPhoto ? photoSrc(heroPhoto) : null;
@@ -520,7 +598,7 @@ function TemporaryRentalModal({ property: initialProperty, initialTab = 'tarifas
 
             e('div', { className: 'rental-facts' },
               e('div', { className: 'rental-fact' }, e('span', { className: 'rental-fact-label' }, 'Dirección'), e('span', { className: 'rental-fact-value' }, property.address || '—')),
-              price && e('div', { className: 'rental-fact' }, e('span', { className: 'rental-fact-label' }, 'Precio Tokko'), e('span', { className: 'rental-fact-value' }, price)),
+              price && e('div', { className: 'rental-fact' }, e('span', { className: 'rental-fact-label' }, 'Precio en portales'), e('span', { className: 'rental-fact-value', title: 'Lo que ven MercadoLibre y ZonaProp. La web siempre muestra «Consultar precio» en temporarios.' }, /\b1+$/.test(String(price).replace(/\D/g, '')) ? 'A consultar (sin tarifa)' : price)),
               e('div', { className: 'rental-fact' }, e('span', { className: 'rental-fact-label' }, 'Localidad'), e('span', { className: 'rental-fact-value' }, e(EditableField, { value: rental.localidad, onSave: (v) => saveField('temporaryRental.localidad', v) }))),
               e('div', { className: 'rental-fact highlight' },
                 e('span', { className: 'rental-fact-label' }, e(Icons.Users, { width: 13, height: 13 }), 'Capacidad'),
@@ -583,12 +661,12 @@ function TemporaryRentalModal({ property: initialProperty, initialTab = 'tarifas
               e(MonthRateCard, { title: 'Marzo', rate: rates.marzo, path: 'temporaryRental.seasonalRates.marzo', defaultCurrency: 'USD', onSaveField: saveField }),
             ),
 
-            innerTab === 'reserva' && e(ReservationSection, { property, saveBookings, initialEditId, initialRange, onReceipt: setReceiptFor }),
+            innerTab === 'reserva' && e(ReservationSection, { property, onBookings: applyBookings, initialEditId, initialRange, onReceipt: setReceiptFor }),
           ),
         ),
       ),
     ),
-    receiptFor && e(ReciboReserva, { property, booking: receiptFor, session, onClose: () => setReceiptFor(null) }),
+    receiptFor && e(ReciboReserva, { property, booking: receiptFor, session, onSaved: applyBookings, onClose: () => setReceiptFor(null) }),
   );
 }
 
@@ -901,11 +979,15 @@ function ReservasPanel({ onOpen, refreshKey, capacity, onCapacityChange, session
     g.rows.push(r);
   }
 
+  // Lista de reservas nueva de una propiedad (después de borrar o de emitir un recibo)
+  function applyBookings(propertyId, bookings) {
+    setProperties((ps) => ps.map((p) => (p.id === propertyId ? { ...p, temporaryRental: { ...(p.temporaryRental || {}), bookings } } : p)));
+  }
+
   async function confirmDelete() {
-    const { property, idx } = toDelete;
-    const next = (property.temporaryRental?.bookings || []).filter((_, i) => i !== idx);
-    const updated = await updateProperty(property.id, { 'temporaryRental.bookings': next });
-    setProperties((ps) => ps.map((p) => (p.id === property.id ? { ...p, temporaryRental: updated?.temporaryRental || { ...p.temporaryRental, bookings: next } } : p)));
+    const { property, booking } = toDelete;
+    const res = await deleteBooking(property.id, booking._id);
+    if (res?.bookings) applyBookings(property.id, res.bookings);
     setToDelete(null);
     setDetail(null);
   }
@@ -1060,7 +1142,11 @@ function ReservasPanel({ onOpen, refreshKey, capacity, onCapacityChange, session
       onReceipt: (p, b) => setReceipt({ property: p, booking: b }),
     }),
 
-    receipt && e(ReciboReserva, { property: receipt.property, booking: receipt.booking, session, onClose: () => setReceipt(null) }),
+    receipt && e(ReciboReserva, {
+      property: receipt.property, booking: receipt.booking, session,
+      onSaved: (bookings) => applyBookings(receipt.property.id, bookings),
+      onClose: () => setReceipt(null),
+    }),
 
     picking && e(PropertyPickerDialog, {
       properties: picking.properties,

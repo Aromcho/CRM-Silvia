@@ -208,6 +208,7 @@ export default function ReservasCalendar({ properties, search, capacity, range, 
   const [month, setMonth] = useState(() => { const t = new Date(); return { y: t.getFullYear(), m: t.getMonth() }; });
   const [onlyBooked, setOnlyBooked] = useState(false);
   const [onlyFree, setOnlyFree] = useState(false);
+  const [onlyGaps, setOnlyGaps] = useState(false);
   const [pop, setPop] = useState(null);
   const scrollerRef = useRef(null);
   const popScrollRef = useRef(null);
@@ -275,14 +276,28 @@ export default function ReservasCalendar({ properties, search, capacity, range, 
     return out;
   }, []), [entries, capacity, q]);
 
-  const rows = useMemo(() => filtered.map((r) => ({
-    ...r,
-    visible: r.bookings.filter((x) => x.s <= monthEnd && x.e >= monthStart),
-    next: r.bookings.find((x) => x.s > monthEnd && x.e >= todayIso),
-    free: rangeOn ? !findOverlap(r.property.temporaryRental?.bookings, range.start, range.end) : null,
-  })), [filtered, monthStart, monthEnd, todayIso, rangeOn, range.start, range.end]);
+  // Huecos libres entre dos reservas (C6): de 2 noches o más, desde hoy, que caen en el mes.
+  // Son las noches para ofrecer; las de 7 o más se cuentan arriba.
+  const rows = useMemo(() => filtered.map((r) => {
+    const gaps = [];
+    for (let i = 1; i < r.bookings.length; i++) {
+      const prevEnd = r.bookings.slice(0, i).reduce((m, x) => (x.e > m ? x.e : m), r.bookings[0].e);
+      const s = prevEnd > todayIso ? prevEnd : todayIso;
+      const en = r.bookings[i].s;
+      const n = nightsBetween(s, en);
+      if (n >= 2 && s <= monthEnd && en > monthStart) gaps.push({ s, e: en, n });
+    }
+    return {
+      ...r,
+      gaps,
+      visible: r.bookings.filter((x) => x.s <= monthEnd && x.e >= monthStart),
+      next: r.bookings.find((x) => x.s > monthEnd && x.e >= todayIso),
+      free: rangeOn ? !findOverlap(r.property.temporaryRental?.bookings, range.start, range.end) : null,
+    };
+  }), [filtered, monthStart, monthEnd, todayIso, rangeOn, range.start, range.end]);
 
-  const shown = rows.filter((r) => (!onlyBooked || r.visible.length > 0) && (!rangeOn || !onlyFree || r.free));
+  const longGaps = rows.reduce((n, r) => n + r.gaps.filter((g) => g.n >= 7).length, 0);
+  const shown = rows.filter((r) => (!onlyBooked || r.visible.length > 0) && (!rangeOn || !onlyFree || r.free) && (!onlyGaps || r.gaps.some((g) => g.n >= 7)));
   const groups = GROUPS
     .map((g) => ({ ...g, rows: shown.filter((r) => r.group === g.key).sort((a, b) => propertyTitle(a.property).localeCompare(propertyTitle(b.property), 'es')) }))
     .filter((g) => g.rows.length > 0);
@@ -428,6 +443,17 @@ export default function ReservasCalendar({ properties, search, capacity, range, 
           });
         }),
         ghost,
+        !rangeOn && row.gaps.map((g) => {
+          const from = Math.max(0, dayDiff(monthStart, g.s) + 0.5);
+          const to = Math.min(days, dayDiff(monthStart, g.e) + 0.5);
+          if (to - from < 0.5) return null;
+          return e('button', {
+            key: `gap-${g.s}`, type: 'button',
+            className: `tl-gap${g.n >= 7 ? ' long' : ''}${to - from < 3 ? ' compact' : ''}`, style: barStyle(from, to, days),
+            onClick: () => onNew(p, { start: g.s, end: g.e }),
+            title: `Libre ${nightsLabel(g.n)}: del ${shortDay(g.s)} al ${shortDay(g.e)}. Tocá para cargar una reserva.`,
+          }, e('span', null, `Libre ${nightsLabel(g.n)}`));
+        }),
         row.visible.map((item) => renderBar(row, item)),
       ),
     );
@@ -485,6 +511,11 @@ export default function ReservasCalendar({ properties, search, capacity, range, 
         type: 'button', className: `st-chip tl-only-booked${onlyBooked ? ' on reservada' : ''}`, 'aria-pressed': onlyBooked,
         onClick: () => setOnlyBooked((v) => !v), title: 'Ocultar las propiedades sin reservas en el mes que estás viendo',
       }, onlyBooked && e(Icons.Check, { width: 12, height: 12 }), 'Solo con reservas en el mes'),
+
+      longGaps > 0 && !rangeOn && e('button', {
+        type: 'button', className: `st-chip tl-only-gaps${onlyGaps ? ' on disponible' : ''}`, 'aria-pressed': onlyGaps,
+        onClick: () => setOnlyGaps((v) => !v), title: 'Casas con 7 noches o más libres entre dos reservas en este mes: para ofrecer',
+      }, onlyGaps && e(Icons.Check, { width: 12, height: 12 }), `Huecos de 7+ noches: ${longGaps}`),
     ),
 
     info,

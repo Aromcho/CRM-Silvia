@@ -60,13 +60,20 @@ export function triggerPortalsSync(property) {
 // esté cargada. "invierno" es el único mes con tarifa plana (rate.price) en vez de por quincena.
 const TEMP_RENTAL_RATE_PRIORITY = ['enero', 'febrero', 'marzo', 'diciembre', 'invierno'];
 
+// Valores de relleno que se cargan para "guardar el lugar" en el tarifario (1, 11, 111, 1111…):
+// no son una tarifa y no se publican (C6). Sin tarifa real, la web muestra «Consultar precio».
+export function isPlaceholderRate(amount) {
+  const n = Number(amount);
+  return !Number.isFinite(n) || n < 10 || /^1+$/.test(String(Math.round(n)));
+}
+
 function deriveTemporaryRentalPrice(temporaryRental) {
   const rates = temporaryRental?.seasonalRates || {};
   for (const month of TEMP_RENTAL_RATE_PRIORITY) {
     const rate = rates[month];
     if (!rate) continue;
     const amount = month === 'invierno' ? rate.price : rate.quincena;
-    if (amount != null && amount !== '') {
+    if (amount != null && amount !== '' && !isPlaceholderRate(amount)) {
       return { currency: rate.currency || 'USD', price: Number(amount) };
     }
   }

@@ -54,14 +54,17 @@ function seasonCurrency(rental, startIso) {
 export function defaultReceipt({ property, booking, session }) {
   const rental = property?.temporaryRental || {};
   const address = String(property?.address || '').trim();
-  const moneda = seasonCurrency(rental, booking?.startDate);
+  // Lo cargado en la reserva (C6) completa el recibo: DNI, moneda, total y seña
+  const moneda = booking?.currency || seasonCurrency(rental, booking?.startDate);
   const today = toISODate(new Date());
+  const num = (n) => (n == null ? '' : new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 }).format(n));
   return {
+    numero: booking?.receiptNumber || null,
     fecha: today,
     asesor: String(session?.name || '').trim().split(/\s+/)[0] || '',
     tratamiento: '',
     nombre: booking?.guestName || '',
-    dni: '',
+    dni: booking?.guestDni || '',
     inmueble: TYPE_LABELS[plain(property?.type?.name)] || 'la propiedad',
     ubicacion: !address ? '' : /^(av|avda|avenida|calle|paseo|diagonal|ruta|boulevard|bv)\b/i.test(address) ? address : `calle ${address}`,
     localidad: rental.localidad || property?.location?.name || '',
@@ -69,8 +72,8 @@ export function defaultReceipt({ property, booking, session }) {
     desde: booking?.startDate?.slice(0, 10) || '',
     hasta: booking?.endDate?.slice(0, 10) || '',
     moneda,
-    total: '',
-    pagos: [{ medio: PAYMENT_METHODS[0], fecha: today, monto: '' }],
+    total: num(booking?.total),
+    pagos: [{ medio: PAYMENT_METHODS[0], fecha: today, monto: num(booking?.deposit) }],
     incluirDeposito: true,
     deposito: '',
     condicionesSaldo: BALANCE_TERMS[moneda],
@@ -241,6 +244,9 @@ export function buildReceiptLayout(data, measure) {
   const brand = 'Inmobiliaria  SILVIA  FERNÁNDEZ';
   items.push({ type: 'text', page: 0, x: LEFT + 3, y: 197, size: 9, charSpace: 2.4, w: measure(brand, 9, false) + 2.4 * brand.length, text: brand, ...pick({}) });
   items.push({ type: 'text', page: 0, x: LEFT, y: 229, size: 12, w: measure('RECIBO DE RESERVA', 12, true), text: 'RECIBO DE RESERVA', ...pick({ bold: true, underline: true }) });
+  // Número correlativo (se asigna al descargar el primer PDF de la reserva)
+  const numero = data.numero ? `N.º ${String(data.numero).padStart(5, '0')}` : 'N.º (se asigna al descargar)';
+  items.push({ type: 'text', page: 0, x: LEFT + measure('RECIBO DE RESERVA', 12, true) + 14, y: 229, size: 10, w: measure(numero, 10, !!data.numero), text: numero, ...pick({ bold: !!data.numero, color: data.numero ? undefined : '#9aa5a0' }) });
 
   // Recibí de…
   pager.y = 260;
