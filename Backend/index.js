@@ -14,6 +14,7 @@ import { startZonapropLeadsCron } from './src/cron/zonapropLeads.cron.js';
 import { startInstagramCron } from './src/cron/instagram.cron.js';
 import { startMailMarketingWorker } from './src/cron/mailMarketing.cron.js';
 import { ensureContactKeys } from './src/controllers/leadInbox.controller.js';
+import { syncLinkedInstagramReels } from './src/controllers/propertyVideo.controller.js';
 
 dotenv.config();
 
@@ -44,7 +45,8 @@ app.use(morgan('dev'));
 // Serve uploaded property images directly via Express (no Nginx needed).
 // Las subidas comparten dominio con la API (y su cookie de sesión): nosniff + CSP sandbox para que
 // un archivo subido nunca se ejecute como página, y todo lo que no sea imagen se descarga.
-const UPLOAD_INLINE_EXT = /\.(jpe?g|png|webp|gif|avif)$/i;
+// Videos de propiedades (mp4/webm/mov) también se sirven inline para poder verlos en la web
+const UPLOAD_INLINE_EXT = /\.(jpe?g|png|webp|gif|avif|mp4|m4v|webm|mov)$/i;
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   setHeaders: (res, filePath) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -63,6 +65,7 @@ app.use(errorHandler);
 async function start() {
   await connectDB();
   ensureContactKeys();
+  syncLinkedInstagramReels();
   startMercadoLibreMetricsCron();
   startZonapropReconcileCron();
   startZonapropLeadsCron();

@@ -543,7 +543,8 @@ export async function mapPropertyToMlItem(property, operationType, operation) {
   const pictures = buildPictures(property, maxPictures);
   // ML solo admite un video por item (video_id = ID de YouTube, no la URL completa), a nivel raíz
   // del payload y no dentro de attributes. Es lo que alimenta el goal "video" de /items/{id}/health.
-  const videoId = property.videos?.[0]?.video_id;
+  // Solo YouTube: los reels de Instagram y los MP4 subidos no tienen video_id de YouTube
+  const videoId = (property.videos || []).find((v) => v?.video_id && (!v.provider || v.provider === 'youtube'))?.video_id;
 
   const location = await resolveMlLocation(property);
   if (!location) {

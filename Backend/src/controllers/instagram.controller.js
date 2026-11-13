@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import IgLead from '../models/IgLead.model.js';
 import IgConfig from '../models/IgConfig.model.js';
 import IgMediaMap from '../models/IgMediaMap.model.js';
+import { addInstagramReelToProperty } from './propertyVideo.controller.js';
 import IgAccount from '../models/IgAccount.model.js';
 import IgDeletionRequest from '../models/IgDeletionRequest.model.js';
 import Property from '../models/Property.model.js';
@@ -353,6 +354,9 @@ export async function setMediaProperty(req, res, next) {
     );
     // Los leads ya recibidos de ese post quedan vinculados también
     await IgLead.updateMany({ media_id: mediaId }, { $set: { property_id: pid, permalink } });
+    // Si es un reel, se suma solo a los videos de la propiedad (web, videoteca y link corto)
+    addInstagramReelToProperty({ media_id: mediaId, property_id: pid, permalink, caption, thumbnail_url: thumbnailUrl, media_product_type: productType })
+      .catch((e) => console.error('[videos] reel → propiedad:', e.message));
     const isSale = (property.operations || []).some((o) => /venta/i.test(o.operation_type || ''));
     return res.json({ ok: true, property: { id: pid, title: property.publication_title || property.address || '', sale: isSale }, default_message: defaultPostMessage(await getConfig(), property) });
   } catch (err) { return next(err); }

@@ -87,9 +87,16 @@ const temporaryRentalSchema = new Schema({
   bookings: [rentalBookingSchema],
 }, { _id: false });
 
+// provider: 'youtube' (video_id = ID de YouTube, lo usan ML y ZonaProp), 'instagram' (reel, url =
+// permalink) o 'mp4' (subido al CRM, url = archivo servido desde /uploads). Videos en un solo lugar
+// para la ficha de la web, la videoteca, el link corto y el QR del mostrador (X7, W3).
 const videoSchema = new Schema({
   description: String, id: Number, order: Number, player_url: String,
   provider: String, provider_id: Number, title: String, url: String, video_id: String,
+  thumbnail: String,
+  ig_media_id: String,
+  addedBy: String,
+  addedAt: Date,
 });
 
 // Dueño/contacto de la propiedad tal como lo entrega Tokko en internal_data.property_owners

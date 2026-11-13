@@ -4,6 +4,7 @@ import {
   getPropertyStats, getPropertyLocations, importRentals, duplicateProperty, getPropertyTabCounts,
 } from '../../controllers/property.controller.js';
 import { uploadPhotos, addPhotos, deletePhoto, reorderPhotos, updatePhotoDescription } from '../../controllers/propertyPhoto.controller.js';
+import { addVideoLink, uploadVideoFile, addVideoFile, deleteVideo } from '../../controllers/propertyVideo.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
 import isAdmin from '../../middlewares/isAdmin.mid.js';
 
@@ -23,6 +24,9 @@ router.post('/:id/photos', isAuth, uploadPhotos.array('photos', 30), addPhotos);
 router.patch('/:id/photos/reorder', isAuth, reorderPhotos);
 router.patch('/:id/photos/:photoId/description', isAuth, updatePhotoDescription);
 router.delete('/:id/photos/:photoId', isAuth, deletePhoto);
+router.post('/:id/videos/link', isAuth, addVideoLink);
+router.post('/:id/videos/upload', isAuth, uploadVideoFile.single('video'), addVideoFile);
+router.delete('/:id/videos/:videoId', isAuth, deleteVideo);
 router.post('/import-rentals', isAuth, isAdmin, importRentals);
 
 export default router;

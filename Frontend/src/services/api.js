@@ -52,6 +52,31 @@ export const deletePropertyPhoto = (id, photoId) => request(`/properties/${id}/p
 export const reorderPropertyPhotos = (id, order) => request(`/properties/${id}/photos/reorder`, { method: 'PATCH', body: JSON.stringify({ order }) });
 export const updatePropertyPhotoDescription = (id, photoId, description) => request(`/properties/${id}/photos/${photoId}/description`, { method: 'PATCH', body: JSON.stringify({ description }) });
 
+// Videos (YouTube, reel de Instagram o MP4 subido)
+export const addPropertyVideoLink = (id, url, title) => request(`/properties/${id}/videos/link`, { method: 'POST', body: JSON.stringify({ url, title }) });
+export const deletePropertyVideo = (id, videoId) => request(`/properties/${id}/videos/${videoId}`, { method: 'DELETE' });
+// Con XHR para poder mostrar el progreso (un video del celular pesa cientos de MB)
+export function uploadPropertyVideo(id, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE}/properties/${id}/videos/upload`);
+    xhr.withCredentials = true;
+    xhr.upload.onprogress = (ev) => { if (ev.lengthComputable && onProgress) onProgress(Math.round((ev.loaded / ev.total) * 100)); };
+    xhr.onload = () => {
+      let data = null;
+      try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch { data = null; }
+      if (xhr.status === 401) { if (_onUnauthorized) _onUnauthorized(); resolve(null); return; }
+      if (xhr.status === 413) { reject(new Error('El video es demasiado pesado. Probá con uno de menos de 300 MB o subilo a YouTube y pegá el link.')); return; }
+      if (xhr.status < 200 || xhr.status >= 300) { reject(new Error(data?.message || `Error ${xhr.status}`)); return; }
+      resolve(data);
+    };
+    xhr.onerror = () => reject(new Error('Se cortó la conexión mientras subía el video. Probá de nuevo.'));
+    const form = new FormData();
+    form.append('video', file);
+    xhr.send(form);
+  });
+}
+
 // MercadoLibre
 export const syncPropertyMercadoLibre = (id) => request(`/mercadolibre/sync/${id}`, { method: 'POST' });
 export const checkPropertyMercadoLibre = (id) => request(`/mercadolibre/requirements/${id}`);

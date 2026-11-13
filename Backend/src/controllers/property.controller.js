@@ -39,7 +39,7 @@ async function triggerZpSync(property) {
 
 // Dispara la resincronización hacia los dos portales en paralelo tras guardar un cambio.
 // Cada uno se loguea con su propio catch: si uno falla no debe tapar ni frenar al otro.
-function triggerPortalsSync(property) {
+export function triggerPortalsSync(property) {
   triggerMlSync(property).catch((err) => console.error(`No se pudo re-sincronizar la propiedad ${property.id} con MercadoLibre`, err.message));
   triggerZpSync(property).catch((err) => console.error(`No se pudo re-sincronizar la propiedad ${property.id} con ZonaProp`, err.message));
 }
