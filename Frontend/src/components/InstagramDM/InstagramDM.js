@@ -27,7 +27,7 @@ function Toggle({ on, onClick, disabled, title }) {
 }
 
 // ── Conexión ─────────────────────────────────────────────────────────────────────────────────────
-function ConnectionCard({ status, reload, flash }) {
+function ConnectionCard({ status, reload, flash, isAdmin }) {
   const [busy, setBusy] = useState('');
   const acc = status?.account;
 
@@ -74,11 +74,13 @@ function ConnectionCard({ status, reload, flash }) {
       e('button', { type: 'button', className: 'btn ghost sm', disabled: !!busy, onClick: () => run('sub', subscribeInstagramWebhooks, 'Webhooks suscriptos') },
         e(Icons.Bell, { width: 13, height: 13 }), busy === 'sub' ? 'Suscribiendo…' : 'Suscribir webhooks'),
       e('a', { className: 'btn ghost sm', href: getInstagramConnectUrl() }, e(Icons.Instagram, { width: 13, height: 13 }), 'Reconectar'),
-      e('button', {
+      // Solo administradores: desconectar apaga los DMs automáticos para todo el equipo
+      isAdmin && e('button', {
         type: 'button', className: 'btn danger sm', disabled: !!busy,
         onClick: () => window.confirm('¿Desconectar Instagram? La automatización se apaga.') && run('disc', disconnectInstagram, 'Instagram desconectado'),
       }, busy === 'disc' ? 'Desconectando…' : 'Desconectar'),
     ),
+    e('p', { className: 'ig-muted' }, 'Cada comentario con palabra clave también entra a Consultas como una consulta de Instagram (@usuario).'),
   );
 }
 
@@ -381,7 +383,8 @@ function PostsSection({ status, flash }) {
 }
 
 // ── Pestaña ──────────────────────────────────────────────────────────────────────────────────────
-export default function InstagramDM() {
+export default function InstagramDM({ session }) {
+  const isAdmin = ['ADMIN', 'SUPERADMIN'].includes(session?.role);
   const [section, setSection] = useState('config');
   const [status, setStatus] = useState(null);
   const [toast, setToast] = useState(null);
@@ -423,7 +426,7 @@ export default function InstagramDM() {
     }, s.label))),
     e('div', { className: 'ig-body' },
       section === 'config' && e(React.Fragment, null,
-        e(ConnectionCard, { status, reload, flash }),
+        e(ConnectionCard, { status, reload, flash, isAdmin }),
         e(ConfigCard, { status, reload, flash }),
       ),
       section === 'leads' && e(LeadsSection, { flash }),

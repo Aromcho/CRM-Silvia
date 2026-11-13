@@ -13,7 +13,7 @@ const leadSchema = new Schema(
     propertyTitle: String,
     source: {
       type: String,
-      enum: ['manual', 'mercadolibre', 'zonaprop', 'web', 'whatsapp', 'otro'],
+      enum: ['manual', 'mercadolibre', 'zonaprop', 'web', 'whatsapp', 'instagram', 'otro'],
       default: 'manual',
       index: true,
     },

@@ -30,7 +30,7 @@ const STAGES = [
   { key: 'historicas', label: 'Históricas', status: 'historico' },
 ];
 const STAGE_LABEL = Object.fromEntries(STAGES.map((s) => [s.key, s.label]));
-const SOURCE_LABELS = { manual: 'Carga manual', mercadolibre: 'MercadoLibre', zonaprop: 'ZonaProp', web: 'Web', whatsapp: 'WhatsApp', otro: 'Otro' };
+const SOURCE_LABELS = { manual: 'Carga manual', mercadolibre: 'MercadoLibre', zonaprop: 'ZonaProp', web: 'Web', whatsapp: 'WhatsApp', instagram: 'Instagram', otro: 'Otro' };
 const CHANNEL_TEXT = { whatsapp: 'escribió por WhatsApp', llamada: 'llamó', email: 'mandó un email', portal: 'respondió en el portal' };
 const AVATAR_PALETTE = ['#15784f', '#2563eb', '#b8791b', '#7257c9', '#0e8a8a', '#d8504a'];
 

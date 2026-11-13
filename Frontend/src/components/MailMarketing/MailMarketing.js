@@ -15,7 +15,7 @@ const { useState, useEffect, useCallback, useRef } = React;
 const STATUS_LABELS = { draft: 'Borrador', sending: 'Enviando', paused: 'Pausada', finished: 'Finalizada', cancelled: 'Cancelada' };
 const SEND_STATUS_LABELS = { pending: 'Pendiente', sending: 'Enviando', sent: 'Enviado', failed: 'Fallido', skipped: 'Omitido' };
 const LEAD_STATUS_LABELS = { nuevo: 'Nuevo', en_progreso: 'En progreso', contactado: 'Contactado', reservado: 'Reservado', cerrado: 'Cerrado', descartado: 'Descartado' };
-const SOURCE_LABELS = { manual: 'Manual', mercadolibre: 'MercadoLibre', zonaprop: 'ZonaProp', web: 'Web', whatsapp: 'WhatsApp', otro: 'Otro' };
+const SOURCE_LABELS = { manual: 'Manual', mercadolibre: 'MercadoLibre', zonaprop: 'ZonaProp', web: 'Web', whatsapp: 'WhatsApp', instagram: 'Instagram', otro: 'Otro' };
 
 const fmtDateTime = (d) => (d ? new Date(d).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
 const EMPTY_FILTERS = { statuses: [], sources: [], dateFrom: '', dateTo: '', propertyIds: [], zones: [] };

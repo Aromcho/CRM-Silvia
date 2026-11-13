@@ -20,7 +20,7 @@ const STATUS_OPTS = [
 ];
 const STATUS_LABELS = Object.fromEntries(STATUS_OPTS.filter((s) => s.key !== 'all').map((s) => [s.key, s.label]));
 const SOURCE_OPTS = ['manual', 'mercadolibre', 'zonaprop', 'web', 'whatsapp', 'otro'];
-const SOURCE_LABELS = { manual: 'Manual', mercadolibre: 'MercadoLibre', zonaprop: 'ZonaProp', web: 'Web', whatsapp: 'WhatsApp', otro: 'Otro' };
+const SOURCE_LABELS = { manual: 'Manual', mercadolibre: 'MercadoLibre', zonaprop: 'ZonaProp', web: 'Web', whatsapp: 'WhatsApp', instagram: 'Instagram', otro: 'Otro' };
 const LIMIT = 20;
 
 function isoDate(d) { return d.toISOString().slice(0, 10); }

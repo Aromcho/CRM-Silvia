@@ -15,6 +15,7 @@ import { startInstagramCron } from './src/cron/instagram.cron.js';
 import { startMailMarketingWorker } from './src/cron/mailMarketing.cron.js';
 import { ensureContactKeys } from './src/controllers/leadInbox.controller.js';
 import { syncLinkedInstagramReels } from './src/controllers/propertyVideo.controller.js';
+import { backfillInstagramLeads } from './src/utils/instagramProcessor.js';
 
 dotenv.config();
 
@@ -66,6 +67,7 @@ async function start() {
   await connectDB();
   ensureContactKeys();
   syncLinkedInstagramReels();
+  backfillInstagramLeads().catch((err) => console.error('[instagram] backfill de consultas', err.message));
   startMercadoLibreMetricsCron();
   startZonapropReconcileCron();
   startZonapropLeadsCron();

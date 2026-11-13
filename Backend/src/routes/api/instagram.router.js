@@ -21,6 +21,7 @@ import {
   searchProperties,
 } from '../../controllers/instagram.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
+import isAdmin from '../../middlewares/isAdmin.mid.js';
 
 const router = Router();
 
@@ -35,7 +36,7 @@ router.get('/data-deletion/status', dataDeletionStatus);
 router.use(isAuth);
 router.get('/oauth/connect', connect);
 router.get('/status', getStatus);
-router.post('/disconnect', disconnect);
+router.post('/disconnect', isAdmin, disconnect); // C11: desconectar la cuenta corta los DMs de todos
 router.post('/refresh-token', refreshToken);
 router.post('/subscribe', subscribe);
 router.get('/config', getConfigHandler);

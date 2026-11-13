@@ -12,7 +12,7 @@ const e = React.createElement;
 const { useState, useEffect, useMemo, useCallback } = React;
 
 const PLATFORM = { mercadolibre: 'MercadoLibre', zonaprop: 'ZonaProp' };
-const SOURCE = { mercadolibre: 'MercadoLibre', zonaprop: 'ZonaProp', web: 'la web', whatsapp: 'WhatsApp', manual: 'carga manual', otro: 'otro canal' };
+const SOURCE = { mercadolibre: 'MercadoLibre', zonaprop: 'ZonaProp', web: 'la web', whatsapp: 'WhatsApp', instagram: 'Instagram', manual: 'carga manual', otro: 'otro canal' };
 const FEED_FILTERS = [
   { key: 'all', label: 'Todo' },
   { key: 'price', label: 'Precios' },

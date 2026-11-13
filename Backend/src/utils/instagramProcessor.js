@@ -2,6 +2,7 @@ import IgConfig from '../models/IgConfig.model.js';
 import IgLead from '../models/IgLead.model.js';
 import IgMediaMap from '../models/IgMediaMap.model.js';
 import Property from '../models/Property.model.js';
+import Lead from '../models/Lead.model.js';
 import { matchRule } from './instagramMatcher.js';
 import { getAccount, sendPrivateReply, replyToComment, metaError, isRetryable } from './instagram.service.js';
 
@@ -149,6 +150,46 @@ export async function handleWebhookPayload(body) {
   }
 }
 
+async function createCrmLead({ commentId, username, text, propertyId, permalink }) {
+  const externalId = `ig-${commentId}`;
+  if (await Lead.exists({ externalId })) return;
+  const prop = propertyId ? await Property.findOne({ id: propertyId }, { publication_title: 1, address: 1 }).lean() : null;
+  await Lead.create({
+    name: username ? `@${username}` : 'Usuario de Instagram',
+    message: `Comentó en Instagram: «${String(text || '').slice(0, 400)}»${permalink ? `\n${permalink}` : ''}`,
+    propertyId: propertyId || undefined,
+    propertyTitle: prop ? (prop.publication_title || prop.address || '') : undefined,
+    source: 'instagram',
+    externalId,
+    attribution: { channel: 'instagram', source: 'instagram', medium: 'comentario' },
+  });
+}
+
+// Una sola vez al arrancar: los comentarios de Instagram que ya estaban guardados y todavía no
+// tienen su consulta en el CRM. Los de más de 7 días entran como «histórico» para no llenar la
+// bandeja de pendientes.
+export async function backfillInstagramLeads() {
+  const igLeads = await IgLead.find({}, { comment_id: 1, ig_username: 1, comment_text: 1, property_id: 1, permalink: 1, comment_created_at: 1, createdAt: 1 }).lean();
+  if (!igLeads.length) return 0;
+  const existing = new Set((await Lead.find({ externalId: /^ig-/ }, { externalId: 1 }).lean()).map((l) => l.externalId));
+  const weekAgo = Date.now() - 7 * 86400000;
+  let created = 0;
+  for (const ig of igLeads) {
+    if (existing.has(`ig-${ig.comment_id}`)) continue;
+    const at = ig.comment_created_at || ig.createdAt || new Date();
+    try {
+      await createCrmLead({ commentId: ig.comment_id, username: ig.ig_username, text: ig.comment_text, propertyId: ig.property_id, permalink: ig.permalink });
+      // Driver nativo: Mongoose no deja tocar createdAt (es inmutable) y la fecha real es la del comentario
+      await Lead.collection.updateOne({ externalId: `ig-${ig.comment_id}` }, { $set: { createdAt: new Date(at), ...(new Date(at).getTime() < weekAgo ? { status: 'historico' } : {}) } });
+      created += 1;
+    } catch (err) {
+      console.error('[instagram] backfill', ig.comment_id, err.message);
+    }
+  }
+  if (created) console.log(`[instagram] ${created} comentarios pasados a Consultas del CRM`);
+  return created;
+}
+
 export async function processCommentEvent(entry, value) {
   const commentId = String(value.id || value.comment_id || '');
   if (!commentId) return { action: 'ignored', reason: 'sin comment_id' };
@@ -205,6 +246,11 @@ export async function processCommentEvent(entry, value) {
     if (err.code === 11000) return { action: 'duplicate' };
     throw err;
   }
+
+  // C11: el comentario también entra a Consultas del CRM, como una consulta más de esa persona
+  // (se agrupa por @usuario). externalId evita duplicarla si Meta reenvía el webhook.
+  createCrmLead({ commentId, username: from.username, text: value.text, propertyId, permalink: mapping?.permalink })
+    .catch((err) => console.error('[instagram] No se pudo crear la consulta en el CRM', err.message));
 
   if (skipReason) return { action: 'skipped', reason: skipReason, leadId: lead._id };
   await attemptSend(lead._id);

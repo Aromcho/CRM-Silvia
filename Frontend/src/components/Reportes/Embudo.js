@@ -9,7 +9,7 @@ import './Embudo.css';
 const e = React.createElement;
 const { useState, useEffect } = React;
 
-const SOURCE = { mercadolibre: 'MercadoLibre', zonaprop: 'ZonaProp', web: 'Web', whatsapp: 'WhatsApp', manual: 'Carga manual', otro: 'Otro' };
+const SOURCE = { mercadolibre: 'MercadoLibre', zonaprop: 'ZonaProp', web: 'Web', whatsapp: 'WhatsApp', instagram: 'Instagram', manual: 'Carga manual', otro: 'Otro' };
 const CHANNEL = { 'meta-ads': 'Anuncios de Meta', 'google-ads': 'Google Ads', google: 'Google', instagram: 'Instagram', facebook: 'Facebook', directo: 'Directo', 'otro-sitio': 'Otro sitio', 'sin dato': 'Sin dato' };
 const RANGES = [30, 90, 365];
 
