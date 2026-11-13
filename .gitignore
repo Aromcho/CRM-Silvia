@@ -7,6 +7,8 @@ Frontend/.next/
 
 # Property/file images and uploads (served from disk, not meant for git)
 Backend/uploads/
+# Documentos privados de propiedades (escrituras, autorizaciones): fuera de /uploads público
+Backend/private/
 
 # Env files (contienen credenciales reales: TOKKO_TOKEN, SMTP_PASS, etc.)
 .env

@@ -52,6 +52,21 @@ export const deletePropertyPhoto = (id, photoId) => request(`/properties/${id}/p
 export const reorderPropertyPhotos = (id, order) => request(`/properties/${id}/photos/reorder`, { method: 'PATCH', body: JSON.stringify({ order }) });
 export const updatePropertyPhotoDescription = (id, photoId, description) => request(`/properties/${id}/photos/${photoId}/description`, { method: 'PATCH', body: JSON.stringify({ description }) });
 
+// Buscador único (Ctrl K)
+export const globalSearch = (q) => request(`/search?${new URLSearchParams({ q }).toString()}`);
+
+// Documentos privados de la propiedad (C12)
+export const getPropertyDocuments = (id) => request(`/properties/${id}/documents`);
+export const uploadPropertyDocuments = (id, files, { kind, adminOnly } = {}) => {
+  const form = new FormData();
+  Array.from(files).forEach((f) => form.append('files', f));
+  form.append('kind', kind || 'otro');
+  form.append('adminOnly', adminOnly ? 'true' : 'false');
+  return request(`/properties/${id}/documents`, { method: 'POST', body: form });
+};
+export const deletePropertyDocument = (id, docId) => request(`/properties/${id}/documents/${docId}`, { method: 'DELETE' });
+export const propertyDocumentUrl = (id, docId, view = false) => `${API_BASE}/properties/${id}/documents/${docId}${view ? '?ver=1' : ''}`;
+
 // Videos (YouTube, reel de Instagram o MP4 subido)
 export const addPropertyVideoLink = (id, url, title) => request(`/properties/${id}/videos/link`, { method: 'POST', body: JSON.stringify({ url, title }) });
 export const deletePropertyVideo = (id, videoId) => request(`/properties/${id}/videos/${videoId}`, { method: 'DELETE' });

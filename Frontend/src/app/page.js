@@ -74,5 +74,5 @@ export default function Page({ searchParams }) {
     );
   }
 
-  return <CRM session={session} onLogout={() => setSession(null)} initialTab={initialTab} />;
+  return <CRM session={session} onLogout={() => setSession(null)} initialTab={initialTab} initialPerson={searchParams?.person || null} />;
 }

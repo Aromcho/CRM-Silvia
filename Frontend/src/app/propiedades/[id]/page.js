@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Acceso from '@/components/Acceso/Acceso';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import PropertyDetail from '@/components/Propiedades/PropertyDetail';
+import GlobalSearch from '@/components/Search/GlobalSearch';
 import { getSession, login as apiLogin, logout as apiLogout, getPropertyById, setUnauthorizedHandler } from '@/services/api';
 import '@/components/CRM/CRM.css';
 import './page.css';
@@ -20,9 +21,22 @@ export default function PropertyPage({ params }) {
   const [propLoading, setPropLoading] = useState(true);
   const [propError, setPropError] = useState('');
   const [canClose, setCanClose] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     setUnauthorizedHandler(() => setSession(null));
+  }, []);
+
+  // Ctrl K / ⌘K: buscador único también desde la ficha
+  useEffect(() => {
+    const onKey = (ev) => {
+      if ((ev.ctrlKey || ev.metaKey) && String(ev.key).toLowerCase() === 'k') {
+        ev.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   useEffect(() => {
@@ -141,10 +155,16 @@ export default function PropertyPage({ params }) {
 
   return (
     <div className="crm-root">
-      <Sidebar tab="propiedades" setTab={goToTab} session={session} onLogout={handleLogout} />
+      <Sidebar tab="propiedades" setTab={goToTab} session={session} onLogout={handleLogout} onOpenSearch={() => setSearchOpen(true)} />
       <main className="crm-main">
         <PropertyDetail property={property} onBack={goToPanel} onClose={closeTab} canClose={canClose} />
       </main>
+      <GlobalSearch
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        setTab={goToTab}
+        openPerson={(key) => { window.location.href = `/?tab=leads&person=${encodeURIComponent(key)}`; }}
+      />
     </div>
   );
 }

@@ -14,6 +14,8 @@ import instagramRouter from './api/instagram.router.js';
 import mailMarketingRouter from './api/mailMarketing.router.js';
 import publicMailRouter from './api/publicMail.router.js';
 import dashboardRouter from './api/dashboard.router.js';
+import isAuth from '../middlewares/isAuth.mid.js';
+import { globalSearch } from '../controllers/search.controller.js';
 
 const router = Router();
 
@@ -32,5 +34,6 @@ router.use('/instagram', instagramRouter);
 router.use('/mail-marketing', mailMarketingRouter);
 router.use('/public/mail', publicMailRouter);
 router.use('/dashboard', dashboardRouter);
+router.get('/search', isAuth, globalSearch);
 
 export default router;

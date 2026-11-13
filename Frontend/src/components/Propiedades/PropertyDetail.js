@@ -9,6 +9,7 @@ import MlStats from './MlStats';
 import ZpStats from './ZpStats';
 import PropertyMap from './PropertyMap';
 import DuplicatePropertyModal from './DuplicatePropertyModal';
+import { PropertyHealthStrip, PropertyLeads, PropertyDocuments } from './PropertyExtras';
 import {
   updateProperty, updatePropertyStatus, syncPropertyMercadoLibre, checkPropertyMercadoLibre,
   getMercadoLibreListingTypes, upgradeMercadoLibreListingType, getMercadoLibreAvailableUpgrades,
@@ -27,6 +28,8 @@ const PAGE_TABS = [
   { key: 'videos', label: 'Videos' },
   { key: 'mapa', label: 'Mapa' },
   { key: 'difusion', label: 'Difusión' },
+  { key: 'consultas', label: 'Consultas' },
+  { key: 'documentos', label: 'Documentos' },
   { key: 'estadisticas', label: 'Estadísticas' },
 ];
 
@@ -772,7 +775,16 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
   const photos = property.photos || [];
   const videos = property.videos || [];
   const priceLabel = formatPrice(property.operations);
-  const cover = photoSrc(photos[0]);
+  // La portada elegida (is_front_cover), la misma que muestra la web
+  const cover = photoSrc(photos.find((p) => p.is_front_cover && !p.is_blueprint) || photos[0]);
+  const owners = (property.internal_data?.property_owners || []).filter((o) => o?.name || o?.cellphone || o?.phone);
+
+  function goTab(key) {
+    setActiveTab(key);
+    if (typeof document !== 'undefined') {
+      document.querySelector('.detail-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 
   return e('div', { className: 'property-detail' },
     e('div', { className: 'detail-header' },
@@ -797,6 +809,8 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
       ),
     ),
 
+    e(PropertyHealthStrip, { property, onGoTab: goTab }),
+
     e('div', { className: 'detail-pinned' },
       e('div', { className: 'detail-section detail-section-split' },
         e('aside', { className: 'detail-section-aside' },
@@ -812,6 +826,14 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
                 property.reference_code && e('div', { className: 'detail-aside-fact' }, e(Icons.Tag, { width: 13, height: 13 }), property.reference_code),
                 property.location?.name && e('div', { className: 'detail-aside-fact' }, e(Icons.MapPin, { width: 13, height: 13 }), property.location.name),
                 photos.length > 0 && e('div', { className: 'detail-aside-fact' }, e(Icons.Image, { width: 13, height: 13 }), `${photos.length} foto${photos.length === 1 ? '' : 's'}`),
+                owners.map((o, i) => {
+                  const phone = String(o.cellphone || o.phone || '').replace(/\D/g, '');
+                  return e('div', { key: `owner-${i}`, className: 'detail-aside-fact detail-owner', title: 'Dueño' },
+                    e(Icons.Users, { width: 13, height: 13 }),
+                    e('span', null, `Dueño: ${o.name || 'sin nombre'}`),
+                    phone && e('a', { href: `https://wa.me/${phone.startsWith('54') ? phone : `549${phone.replace(/^0/, '')}`}`, target: '_blank', rel: 'noopener noreferrer' }, o.cellphone || o.phone),
+                  );
+                }),
               ),
             ),
           ),
@@ -897,11 +919,25 @@ export default function PropertyDetail({ property: initialProperty, onBack, onCl
         ? e('div', { className: 'detail-main' },
             e('div', { className: 'detail-section' },
               e('h3', null, 'Difusión en portales'),
-              e('p', { className: 'detail-section-sub' }, 'Marcá manualmente si la propiedad está publicada en cada portal y guardá el link del aviso.'),
+              e('p', { className: 'detail-section-sub' }, 'Se publica sola en MercadoLibre y ZonaProp cuando la propiedad está disponible. Acá ves el estado real de cada aviso, el plan y los errores, y podés reintentar o subir de plan.'),
               e('div', { className: 'difusion-grid' },
                 e(MercadoLibreCard, { key: 'mercadolibre', property, onSynced: onMercadoLibreSynced }),
                 e(ZonaPropCard, { key: 'zonaprop', property, onSynced: onZonapropSynced }),
               ),
+            ),
+          )
+        : activeTab === 'consultas'
+        ? e('div', { className: 'detail-main' },
+            e('div', { className: 'detail-section' },
+              e('h3', null, 'Consultas por esta propiedad'),
+              e(PropertyLeads, { property }),
+            ),
+          )
+        : activeTab === 'documentos'
+        ? e('div', { className: 'detail-main' },
+            e('div', { className: 'detail-section' },
+              e('h3', null, 'Documentos'),
+              e(PropertyDocuments, { property }),
             ),
           )
         : activeTab === 'estadisticas'

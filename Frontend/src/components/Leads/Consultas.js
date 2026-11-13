@@ -276,7 +276,7 @@ function PersonPanel({ personKey, agents, onBack, onChanged }) {
   );
 }
 
-export default function Consultas({ session }) {
+export default function Consultas({ session, initialPerson }) {
   const isAdmin = session?.role === 'ADMIN' || session?.role === 'SUPERADMIN';
   const [view, setView] = useState('all');
   const [stage, setStage] = useState('nuevas');
@@ -291,7 +291,8 @@ export default function Consultas({ session }) {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null);
+  // El buscador (Ctrl K) abre la bandeja directo en la persona elegida
+  const [selected, setSelected] = useState(initialPerson || null);
   const [agents, setAgents] = useState([]);
   const [showNew, setShowNew] = useState(false);
   const [oldCount, setOldCount] = useState(0);

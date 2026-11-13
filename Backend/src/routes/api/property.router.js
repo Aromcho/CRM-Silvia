@@ -5,6 +5,7 @@ import {
 } from '../../controllers/property.controller.js';
 import { uploadPhotos, addPhotos, deletePhoto, reorderPhotos, updatePhotoDescription } from '../../controllers/propertyPhoto.controller.js';
 import { addVideoLink, uploadVideoFile, addVideoFile, deleteVideo } from '../../controllers/propertyVideo.controller.js';
+import { listDocuments, uploadDocuments, addDocuments, downloadDocument, deleteDocument } from '../../controllers/propertyDocument.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
 import isAdmin from '../../middlewares/isAdmin.mid.js';
 
@@ -27,6 +28,10 @@ router.delete('/:id/photos/:photoId', isAuth, deletePhoto);
 router.post('/:id/videos/link', isAuth, addVideoLink);
 router.post('/:id/videos/upload', isAuth, uploadVideoFile.single('video'), addVideoFile);
 router.delete('/:id/videos/:videoId', isAuth, deleteVideo);
+router.get('/:id/documents', isAuth, listDocuments);
+router.post('/:id/documents', isAuth, uploadDocuments.array('files', 10), addDocuments);
+router.get('/:id/documents/:docId', isAuth, downloadDocument);
+router.delete('/:id/documents/:docId', isAuth, deleteDocument);
 router.post('/import-rentals', isAuth, isAdmin, importRentals);
 
 export default router;

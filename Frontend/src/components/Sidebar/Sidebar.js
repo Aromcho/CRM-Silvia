@@ -10,23 +10,24 @@ const { useState, useEffect } = React;
 
 // `short`: etiqueta del riel de tablet y de la barra del celular. `mobile`: va fija en la barra de
 // abajo del celular; el resto queda en "Más".
+// Menú ordenado por uso (C13): Día a día, Publicación y Equipo. «Archivos» ya no está: los
+// documentos viven en cada propiedad (pestaña Documentos, C12).
 const NAV_ITEMS = [
-  { key: 'dashboard', label: 'Hoy', short: 'Hoy', icon: Icons.Activity, mobile: true },
-  { key: 'propiedades', label: 'Propiedades', short: 'Propiedades', icon: Icons.Building, mobile: true },
-  { key: 'alquileres', label: 'Alquileres temporarios', short: 'Alquileres', icon: Icons.Calendar, mobile: true },
-  { key: 'leads', label: 'Consultas', short: 'Consultas', icon: Icons.Mail, mobile: true },
-  { key: 'archivos', label: 'Archivos', short: 'Archivos', icon: Icons.Folder },
-  { key: 'mostrador', label: 'Mostrador', short: 'Mostrador', icon: Icons.Printer },
-  { key: 'reportes', label: 'Reportes', short: 'Reportes', icon: Icons.BarChart },
-  { key: 'difusion', label: 'Difusión', short: 'Difusión', icon: Icons.Globe },
-  { key: 'usuarios', label: 'Usuarios', short: 'Usuarios', icon: Icons.Users, superAdminOnly: true },
-  { key: 'instagram', label: 'Instagram DM', short: 'Instagram', icon: Icons.Instagram },
-  { key: 'mailmarketing', label: 'Mail Marketing', short: 'Mailing', icon: Icons.Send, superAdminOnly: true },
+  { key: 'dashboard', group: 'Día a día', label: 'Hoy', short: 'Hoy', icon: Icons.Activity, mobile: true },
+  { key: 'leads', group: 'Día a día', label: 'Consultas', short: 'Consultas', icon: Icons.Mail, mobile: true },
+  { key: 'propiedades', group: 'Día a día', label: 'Propiedades', short: 'Propiedades', icon: Icons.Building, mobile: true },
+  { key: 'alquileres', group: 'Día a día', label: 'Alquileres', short: 'Alquileres', icon: Icons.Calendar, mobile: true },
+  { key: 'difusion', group: 'Publicación', label: 'Difusión', short: 'Difusión', icon: Icons.Globe },
+  { key: 'instagram', group: 'Publicación', label: 'Instagram', short: 'Instagram', icon: Icons.Instagram },
+  { key: 'mailmarketing', group: 'Publicación', label: 'Mail Marketing', short: 'Mailing', icon: Icons.Send, superAdminOnly: true },
+  { key: 'reportes', group: 'Equipo', label: 'Reportes', short: 'Reportes', icon: Icons.BarChart },
+  { key: 'mostrador', group: 'Equipo', label: 'Mostrador', short: 'Mostrador', icon: Icons.Printer },
+  { key: 'usuarios', group: 'Equipo', label: 'Usuarios', short: 'Usuarios', icon: Icons.Users, superAdminOnly: true },
 ];
 
 const AGENDA_URL = 'https://agenda.silviafernandezpropiedades.com.ar/';
 
-export default function Sidebar({ tab, setTab, session, onLogout }) {
+export default function Sidebar({ tab, setTab, session, onLogout, onOpenSearch }) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   async function handleLogout() {
@@ -66,8 +67,13 @@ export default function Sidebar({ tab, setTab, session, onLogout }) {
 
       // Nav
       e('nav', { className: 'sidebar-nav', 'aria-label': 'Secciones' },
-        e('div', { className: 'nav-section-label' }, 'Principal'),
-        items.map((item) =>
+        onOpenSearch && e('button', { type: 'button', className: 'nav-search', onClick: onOpenSearch, title: 'Buscar (Ctrl K)' },
+          e(Icons.Search, { width: 15, height: 15 }),
+          e('span', { className: 'nav-label' }, 'Buscar'),
+          e('kbd', { className: 'nav-kbd' }, 'Ctrl K'),
+        ),
+        items.map((item, i) => [
+          item.group !== items[i - 1]?.group && e('div', { key: `g-${item.group}`, className: `nav-section-label${i ? ' nav-section-gap' : ''}` }, item.group),
           e('button', {
             key: item.key, type: 'button', title: item.label,
             className: `nav-item${tab === item.key ? ' active' : ''}${item.mobile ? '' : ' nav-extra'}`,
@@ -77,8 +83,8 @@ export default function Sidebar({ tab, setTab, session, onLogout }) {
             e('span', { className: 'nav-icon' }, e(item.icon, { width: 16, height: 16 })),
             e('span', { className: 'nav-label' }, item.label),
             e('span', { className: 'nav-short' }, item.short),
-          )
-        ),
+          ),
+        ]),
         // Solo en el celular: el resto de las secciones, la agenda y la sesión
         e('button', {
           type: 'button', className: `nav-item nav-more${extraActive || moreOpen ? ' active' : ''}`,
@@ -112,6 +118,9 @@ export default function Sidebar({ tab, setTab, session, onLogout }) {
       e('div', { className: 'nav-sheet', role: 'dialog', 'aria-label': 'Más secciones', onClick: (ev) => ev.stopPropagation() },
         e('div', { className: 'nav-sheet-grip' }),
         e('div', { className: 'nav-sheet-grid' },
+          onOpenSearch && e('button', {
+            type: 'button', className: 'nav-sheet-item', onClick: () => { setMoreOpen(false); onOpenSearch(); },
+          }, e('span', { className: 'nav-sheet-icon' }, e(Icons.Search, { width: 18, height: 18 })), 'Buscar'),
           extra.map((item) => e('button', {
             key: item.key, type: 'button', className: `nav-sheet-item${tab === item.key ? ' active' : ''}`, onClick: () => go(item.key),
           }, e('span', { className: 'nav-sheet-icon' }, e(item.icon, { width: 18, height: 18 })), item.label)),
