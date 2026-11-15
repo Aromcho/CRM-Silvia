@@ -202,11 +202,17 @@ export async function processCommentEvent(entry, value) {
   }
 
   const config = await getConfig();
-  const match = matchRule(value.text, config.rules);
-  if (!match) return { action: 'ignored', reason: 'sin keyword' };
-
   const mediaId = value.media?.id ? String(value.media.id) : undefined;
   const mapping = mediaId ? await IgMediaMap.findOne({ media_id: mediaId }).lean() : null;
+
+  let match = matchRule(value.text, config.rules);
+  // Post marcado "responder todos": sin keyword igual se contesta con la regla elegida (alquiler por defecto)
+  if (!match && mapping?.reply_all) {
+    const ruleKey = mapping.reply_rule || 'alquiler';
+    const rule = (config.rules || []).find((r) => r.key === ruleKey && r.active !== false);
+    if (rule) match = { rule, keyword: '(todos los comentarios)' };
+  }
+  if (!match) return { action: 'ignored', reason: 'sin keyword' };
   const propertyId = mapping?.property_id;
   // Prioridad: mensaje editado para este post > mensaje armado con los datos de la propiedad > mensaje de la regla
   let ruleMessage = match.rule.message;

@@ -8,7 +8,7 @@ import IgDeletionRequest from '../models/IgDeletionRequest.model.js';
 import Property from '../models/Property.model.js';
 import Activity from '../models/Activity.model.js';
 import * as ig from '../utils/instagram.service.js';
-import { handleWebhookPayload, getConfig, attemptSend, propertyUrl, defaultPostMessage, PROPERTY_DM_FIELDS } from '../utils/instagramProcessor.js';
+import { handleWebhookPayload, getConfig, attemptSend, propertyUrl, defaultPostMessage, PROPERTY_DM_FIELDS, processCommentEvent } from '../utils/instagramProcessor.js';
 
 const OAUTH_STATE_TTL = 10 * 60 * 1000;
 const oauthStates = new Map(); // state → { validUntil, userName }
@@ -340,7 +340,7 @@ export async function setMediaProperty(req, res, next) {
     if (propertyId === null || propertyId === '' || propertyId === undefined) {
       // Si el post tiene mensaje propio, se conserva y solo se quita la propiedad
       const existing = await IgMediaMap.findOne({ media_id: mediaId }).lean();
-      if (existing?.custom_message) await IgMediaMap.updateOne({ media_id: mediaId }, { $unset: { property_id: 1 } });
+      if (existing?.custom_message || existing?.reply_all) await IgMediaMap.updateOne({ media_id: mediaId }, { $unset: { property_id: 1 } });
       else await IgMediaMap.deleteOne({ media_id: mediaId });
       return res.json({ ok: true, property: null, default_message: defaultPostMessage(await getConfig(), null) });
     }
@@ -370,7 +370,7 @@ export async function setMediaMessage(req, res, next) {
     const text = String(message || '').trim();
     const existing = await IgMediaMap.findOne({ media_id: mediaId }).lean();
     if (!text) {
-      if (existing && !existing.property_id) await IgMediaMap.deleteOne({ media_id: mediaId });
+      if (existing && !existing.property_id && !existing.reply_all) await IgMediaMap.deleteOne({ media_id: mediaId });
       else if (existing) await IgMediaMap.updateOne({ media_id: mediaId }, { $unset: { custom_message: 1 } });
       return res.json({ ok: true, custom_message: '' });
     }
@@ -381,6 +381,49 @@ export async function setMediaMessage(req, res, next) {
     );
     return res.json({ ok: true, custom_message: text });
   } catch (err) { return next(err); }
+}
+
+// "Responder todos los comentarios" de un post o anuncio (los anuncios no aparecen en /media).
+// Con backfill=true además contesta los comentarios de los últimos 7 días que quedaron sin DM.
+export async function setMediaReplyAll(req, res, next) {
+  try {
+    const { mediaId } = req.params;
+    const { enabled, rule, backfill, permalink } = req.body || {};
+    const on = enabled !== false;
+    const existing = await IgMediaMap.findOne({ media_id: mediaId }).lean();
+    if (!on && existing && !existing.property_id && !existing.custom_message) {
+      await IgMediaMap.deleteOne({ media_id: mediaId });
+      return res.json({ ok: true, reply_all: false });
+    }
+    await IgMediaMap.findOneAndUpdate(
+      { media_id: mediaId },
+      { $set: { reply_all: on, reply_rule: rule || existing?.reply_rule || 'alquiler', ...(permalink ? { permalink } : {}) } },
+      { upsert: true },
+    );
+
+    const result = { ok: true, reply_all: on, backfill: null };
+    if (on && backfill) {
+      const account = await ig.getAccount();
+      const weekAgo = Date.now() - 7 * 24 * 3600 * 1000 + 3600 * 1000; // 1 h de margen para que el envío entre en la ventana
+      const comments = (await ig.listComments(mediaId)).filter((c) => new Date(c.timestamp).getTime() > weekAgo);
+      const summary = { revisados: comments.length, enviados: 0, ya_tenian: 0, otros: [] };
+      for (const c of comments) {
+        const from = c.from || { username: c.username };
+        const out = await processCommentEvent(
+          { id: account?.ig_user_id, time: Math.floor(new Date(c.timestamp).getTime() / 1000) },
+          { id: c.id, text: c.text, from, media: { id: mediaId, media_product_type: existing?.media_product_type } },
+        );
+        if (out?.action === 'processed') summary.enviados += 1;
+        else if (out?.action === 'duplicate') summary.ya_tenian += 1;
+        else summary.otros.push(`${from.username || c.id}: ${out?.reason || out?.action}`);
+      }
+      result.backfill = summary;
+    }
+    return res.json(result);
+  } catch (err) {
+    if (err.response) return res.status(502).json({ message: `Instagram: ${ig.metaError(err)}` });
+    return next(err);
+  }
 }
 
 export async function searchProperties(req, res, next) {

@@ -173,6 +173,22 @@ export async function getMedia(mediaId) {
   return data;
 }
 
+// Comentarios de primer nivel de un post o anuncio (más nuevos primero), hasta `max`.
+export async function listComments(mediaId, { max = 200 } = {}) {
+  const acc = await getAccount();
+  if (!acc) throw new Error('Instagram no está conectado');
+  const out = [];
+  let url = `${GRAPH}/${mediaId}/comments`;
+  let params = { fields: 'id,text,timestamp,from,username', limit: 50, access_token: acc.access_token };
+  while (url && out.length < max) {
+    const { data } = await axios.get(url, { params });
+    out.push(...(data.data || []));
+    url = data.paging?.next || null;
+    params = undefined; // el link "next" ya trae todos los parámetros
+  }
+  return out.slice(0, max);
+}
+
 // Private reply: DM al autor de un comentario. Una por comentario, dentro de los 7 días.
 export async function sendPrivateReply(commentId, text) {
   const acc = await getAccount();

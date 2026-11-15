@@ -18,6 +18,7 @@ import {
   listMedia,
   setMediaProperty,
   setMediaMessage,
+  setMediaReplyAll,
   searchProperties,
 } from '../../controllers/instagram.controller.js';
 import isAuth from '../../middlewares/isAuth.mid.js';
@@ -47,6 +48,7 @@ router.delete('/leads/:id', deleteLead);
 router.get('/media', listMedia);
 router.put('/media/:mediaId', setMediaProperty);
 router.put('/media/:mediaId/message', setMediaMessage);
+router.put('/media/:mediaId/reply-all', setMediaReplyAll);
 router.get('/properties', searchProperties);
 
 export default router;
