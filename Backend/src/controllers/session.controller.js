@@ -22,9 +22,9 @@ export async function login(req, res, next) {
     const valid = await verifyHash(password, user.password);
     if (!valid) return res.status(401).json({ message: 'Credenciales inválidas' });
 
-    const token = jwt.sign(tokenPayload(user), process.env.SECRET_JWT, { expiresIn: '24h' });
+    const token = jwt.sign(tokenPayload(user), process.env.SECRET_JWT, { expiresIn: '30d' });
     const secure = isHttps(req);
-    res.cookie('jwt', token, { httpOnly: true, sameSite: secure ? 'none' : 'lax', secure, maxAge: 24 * 60 * 60 * 1000 });
+    res.cookie('jwt', token, { httpOnly: true, sameSite: secure ? 'none' : 'lax', secure, maxAge: 30 * 24 * 60 * 60 * 1000 });
 
     await Activity.create({ type: 'user_login', description: `${user.name} inició sesión`, userId: user._id, userName: user.name, userEmail: user.email, entityType: 'user' });
 
