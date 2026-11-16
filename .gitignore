@@ -19,6 +19,9 @@ Backend/private/
 npm-debug.log*
 *.log
 
+# Fotos de /_next/image ya generadas: se conservan entre deploys (Frontend/scripts/persistent-image-cache.mjs)
+Frontend/.image-cache/
+
 # Builds sin downtime (NEXT_DIST_DIR) y backups del build anterior
 .next-*/
 Frontend/.next-*/
