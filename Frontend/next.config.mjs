@@ -1,5 +1,6 @@
 import { PHASE_PRODUCTION_BUILD } from 'next/constants.js';
 import { linkPersistentImageCache } from './scripts/persistent-image-cache.mjs';
+import { ensureSharp } from './scripts/ensure-sharp.mjs';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -23,6 +24,9 @@ const nextConfig = {
 
 export default function config(phase) {
   // En cada build la caché de fotos de la carpeta nueva (.next-new) apunta a la carpeta fija
-  if (phase === PHASE_PRODUCTION_BUILD) linkPersistentImageCache(nextConfig.distDir);
+  if (phase === PHASE_PRODUCTION_BUILD) {
+    ensureSharp();
+    linkPersistentImageCache(nextConfig.distDir);
+  }
   return nextConfig;
 }
