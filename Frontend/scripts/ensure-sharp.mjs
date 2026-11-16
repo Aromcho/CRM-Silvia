@@ -3,20 +3,22 @@
 // se instala una vez con npm (respetando package-lock). Si ya está, no hace nada.
 // Si npm falla, el build sigue igual y Next usa su método lento de reserva.
 import { execSync } from 'node:child_process'
-import { createRequire } from 'node:module'
+import fs from 'node:fs'
 import path from 'node:path'
 
-const hasSharp = () => {
+const run = (command) => {
   try {
-    createRequire(path.join(process.cwd(), 'package.json')).resolve('sharp')
-    return true
-  } catch {
-    return false
+    return execSync(command, { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim()
+  } catch (error) {
+    return `ERROR: ${(error.stderr?.toString() || error.message).trim().split('\n').slice(-3).join(' | ')}`
   }
 }
 
+// Se prueba en un proceso aparte: Node guarda en caché los paquetes que no encontró
+const sharpStatus = () => run(`node -e "require('sharp'); console.log('ok')"`)
+
 export function ensureSharp() {
-  if (hasSharp()) return
+  if (sharpStatus() === 'ok') return
 
   console.log('[fotos] sharp no está instalado: npm install (una sola vez)...')
   try {
@@ -25,5 +27,16 @@ export function ensureSharp() {
   } catch (error) {
     console.warn(`[fotos] npm install falló: ${error.message}`)
   }
-  console.log(hasSharp() ? '[fotos] sharp instalado' : '[fotos] sharp sigue sin estar: Next usará el método lento')
+
+  const status = sharpStatus()
+  if (status === 'ok') {
+    console.log('[fotos] sharp instalado')
+    return
+  }
+  // Diagnóstico para saber por qué no quedó
+  const sharpDir = path.join(process.cwd(), 'node_modules', 'sharp')
+  console.warn('[fotos] sharp sigue sin funcionar: Next usará el método lento')
+  console.warn(`[fotos]   cwd=${process.cwd()} node=${process.version} npm=${run('npm -v')}`)
+  console.warn(`[fotos]   node_modules/sharp existe: ${fs.existsSync(sharpDir)}; error: ${status}`)
+  console.warn(`[fotos]   npm ls sharp: ${run('npm ls sharp --depth=0').replace(/\n/g, ' | ')}`)
 }
