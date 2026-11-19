@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import connectDB from './src/utils/db.js';
 import router from './src/routes/index.router.js';
+import internalRouter from './src/routes/internal.router.js';
 import errorHandler from './src/middlewares/errorHandler.mid.js';
 import { startMercadoLibreMetricsCron } from './src/cron/mercadolibreMetrics.cron.js';
 import { startZonapropReconcileCron } from './src/cron/zonapropReconcile.cron.js';
@@ -61,6 +62,8 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'crm-inmobiliaria-backend' });
 });
 
+// Panel central: solo responde a admin-api, desde el mismo servidor y con token (ver internalAuth.mid.js)
+app.use('/internal', internalRouter);
 app.use('/api', router);
 app.use(errorHandler);
 
