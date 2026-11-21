@@ -31,8 +31,7 @@ function cover(p) {
 }
 
 function thumb(p) {
-  const src = photoSrc(cover(p));
-  return src && /^https?:/.test(src) ? `/_next/image?url=${encodeURIComponent(src)}&w=128&q=65` : src;
+  return photoSrc(cover(p));
 }
 
 function Chip({ name, ch, onRetry, busy }) {

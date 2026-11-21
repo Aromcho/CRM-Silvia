@@ -49,12 +49,9 @@ function photoSrc(photo) {
   return null;
 }
 
-// Miniatura liviana (C10): la grilla y la tabla cargaban el original (hasta 25 MB); ahora piden
-// una versión achicada en WebP al optimizador de Next del CRM, que la guarda en caché.
-function thumbSrc(photo, width = 640) {
-  const src = photoSrc(photo);
-  if (!src || !/^https?:\/\//.test(src)) return src;
-  return `/_next/image?url=${encodeURIComponent(src)}&w=${width}&q=70`;
+// Las fotos se muestran como antes: el archivo original, sin el optimizador de Next (/_next/image).
+function thumbSrc(photo) {
+  return photoSrc(photo);
 }
 
 // «Mar De Las Pampas » -> «Mar de las Pampas»
