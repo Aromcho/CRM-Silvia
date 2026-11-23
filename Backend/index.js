@@ -17,6 +17,7 @@ import { ensureContactKeys } from './src/controllers/leadInbox.controller.js';
 import { syncLinkedInstagramReels } from './src/controllers/propertyVideo.controller.js';
 import { backfillInstagramLeads } from './src/utils/instagramProcessor.js';
 import { backfillBookingAuthors } from './src/utils/bookingAuthors.js';
+import { backfillPhotoVersions } from './src/utils/photoVersions.js';
 
 dotenv.config();
 
@@ -70,6 +71,7 @@ async function start() {
   syncLinkedInstagramReels();
   backfillInstagramLeads().catch((err) => console.error('[instagram] backfill de consultas', err.message));
   backfillBookingAuthors().catch((err) => console.error('[reservas] backfill de autores', err.message));
+  backfillPhotoVersions().catch((err) => console.error('[fotos] backfill de versiones livianas', err.message));
   startMercadoLibreMetricsCron();
   startZonapropReconcileCron();
   startZonapropLeadsCron();

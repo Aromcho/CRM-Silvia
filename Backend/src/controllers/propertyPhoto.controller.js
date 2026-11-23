@@ -6,6 +6,7 @@ import Property from '../models/Property.model.js';
 import Activity from '../models/Activity.model.js';
 import { getBackendPublicUrl } from '../utils/publicUrl.js';
 import { propertyActivitySnapshot } from './property.controller.js';
+import { makePhotoVersions, photoFiles } from '../utils/photoVersions.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,15 +42,18 @@ export async function addPhotos(req, res, next) {
     if (!property) return res.status(404).json({ message: 'Propiedad no encontrada' });
 
     const startOrder = property.photos.length;
-    const entries = (req.files || []).map((file, i) => {
+    // Original + versión liviana para la web/portales + miniatura (ver utils/photoVersions.js)
+    const entries = [];
+    for (const [i, file] of (req.files || []).entries()) {
       const url = `${getBackendPublicUrl()}/uploads/properties/${property.id}/${file.filename}`;
-      return {
+      const v = await makePhotoVersions(property.id, file.filename);
+      entries.push({
         description: '', is_blueprint: false, is_front_cover: false,
         order: startOrder + i,
         original_url: '', image_url: '', thumb_url: '', social_media_url: '',
-        local_image: url, local_original: url, local_thumb: url,
-      };
-    });
+        local_image: v?.local_image || url, local_original: url, local_thumb: v?.local_thumb || url,
+      });
+    }
 
     property.photos.push(...entries);
     property.lastEditedBy = req.user.id;
@@ -79,8 +83,8 @@ export async function deletePhoto(req, res, next) {
     const photo = property.photos.id(req.params.photoId);
     if (!photo) return res.status(404).json({ message: 'Foto no encontrada' });
 
-    if (photo.local_image) {
-      const filePath = path.join(UPLOADS_DIR, String(property.id), path.basename(photo.local_image));
+    // Original, versión liviana y miniatura
+    for (const filePath of photoFiles(property.id, photo)) {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
